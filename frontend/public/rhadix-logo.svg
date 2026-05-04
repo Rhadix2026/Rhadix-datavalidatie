@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 100" fill="none">
+  <!-- Tree illustration -->
+  <!-- Roots -->
+  <path d="M80 78 Q60 82 40 92" stroke="#A8C5E0" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M80 78 Q70 85 58 96" stroke="#A8C5E0" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M80 78 Q80 88 75 98" stroke="#A8C5E0" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M88 78 Q88 88 90 98" stroke="#A8C5E0" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M88 78 Q98 86 108 96" stroke="#A8C5E0" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M88 78 Q104 82 122 90" stroke="#A8C5E0" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- Extra thin roots -->
+  <path d="M76 80 Q64 88 52 98" stroke="#A8C5E0" stroke-width="1.1" stroke-linecap="round" opacity="0.6"/>
+  <path d="M92 80 Q102 90 112 98" stroke="#A8C5E0" stroke-width="1.1" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Trunks -->
+  <path d="M70 78 Q68 65 62 52" stroke="#A8C5E0" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M84 78 Q84 62 84 48" stroke="#A8C5E0" stroke-width="3" stroke-linecap="round"/>
+  <path d="M98 78 Q100 65 106 52" stroke="#A8C5E0" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Base merge -->
+  <path d="M70 78 Q84 72 98 78" stroke="#A8C5E0" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Branches -->
+  <path d="M62 52 Q52 44 44 40" stroke="#A8C5E0" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M62 52 Q58 42 60 34" stroke="#A8C5E0" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M84 48 Q84 38 84 30" stroke="#A8C5E0" stroke-width="2" stroke-linecap="round"/>
+  <path d="M106 52 Q114 44 122 40" stroke="#A8C5E0" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M106 52 Q110 42 108 34" stroke="#A8C5E0" stroke-width="1.6" stroke-linecap="round"/>
+
+  <!-- Canopy circles -->
+  <circle cx="46" cy="36" r="12" stroke="#A8C5E0" stroke-width="1.6" opacity="0.85"/>
+  <circle cx="60" cy="26" r="14" stroke="#A8C5E0" stroke-width="1.6" opacity="0.85"/>
+  <circle cx="84" cy="22" r="15" stroke="#A8C5E0" stroke-width="1.8" opacity="0.9"/>
+  <circle cx="108" cy="26" r="14" stroke="#A8C5E0" stroke-width="1.6" opacity="0.85"/>
+  <circle cx="122" cy="36" r="12" stroke="#A8C5E0" stroke-width="1.6" opacity="0.85"/>
+  <!-- Small overlap circles -->
+  <circle cx="72" cy="24" r="10" stroke="#A8C5E0" stroke-width="1.4" opacity="0.7"/>
+  <circle cx="96" cy="24" r="10" stroke="#A8C5E0" stroke-width="1.4" opacity="0.7"/>
+
+  <!-- RHADIX text -->
+  <text x="148" y="44" font-family="'Orbitron', 'Segoe UI', Arial, sans-serif"
+        font-weight="800" font-size="28" fill="#FFFFFF" letter-spacing="2">RHADIX</text>
+
+  <!-- Divider -->
+  <line x1="148" y1="56" x2="312" y2="56" stroke="#4A6A8A" stroke-width="1"/>
+
+  <!-- Subtitle -->
+  <text x="148" y="72" font-family="'Inter', Arial, sans-serif"
+        font-weight="400" font-size="12" fill="#8BADC5" letter-spacing="0.5">by Rhoderlanden Groep</text>
+</svg>

@@ -27,3 +27,10 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Vite build cache
+frontend/vite.config.js.timestamp-*.mjs
+
+# Uitlevering-artefacten (niet in git)
+*.zip
+*.docx

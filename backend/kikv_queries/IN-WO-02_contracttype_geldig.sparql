@@ -1,0 +1,14 @@
+# IN-WO-02 — Werkovereenkomst: contracttype conform KIK-V codelijst
+# Verwacht: overeenkomsttype is een geldige waarde.
+# Slaagt als: geldig_count / totaal >= 0.95
+
+PREFIX onz: <http://purl.org/ozo/onz-pers#>
+PREFIX onzg: <http://purl.org/ozo/onz-g#>
+
+SELECT
+  (COUNT(?wo) AS ?totaal)
+  (COUNT(?ct) AS ?met_type)
+WHERE {
+  ?wo a onz:WerkOvereenkomst .
+  OPTIONAL { ?wo onz:overeenkomstType ?ct . FILTER(STRLEN(STR(?ct)) > 0) }
+}

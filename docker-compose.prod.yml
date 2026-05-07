@@ -1,0 +1,65 @@
+# Rhadix — Productie docker-compose
+# Gebruik: docker compose -f docker-compose.prod.yml up -d
+#
+# Vereist een .env bestand met de onderstaande variabelen.
+# Zie .env.example voor een sjabloon.
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: rhadix-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${DB_USER:-kikv}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Stel DB_PASSWORD in in .env}
+      POSTGRES_DB:       ${DB_NAME:-kikv_validator}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-kikv} -d ${DB_NAME:-kikv_validator}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ghcr.io/${GHCR_ORG}/rhadix-backend:${RHADIX_VERSION:-latest}
+    container_name: rhadix-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL:        postgresql://${DB_USER:-kikv}:${DB_PASSWORD}@db:5432/${DB_NAME:-kikv_validator}
+      RHADIX_LICENSE_KEY:  ${RHADIX_LICENSE_KEY:?Licentiesleutel verplicht — zie .env}
+    ports:
+      - "${BACKEND_PORT:-8010}:8000"
+
+  frontend:
+    image: ghcr.io/${GHCR_ORG}/rhadix-frontend:${RHADIX_VERSION:-latest}
+    container_name: rhadix-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-5174}:80"
+
+  # ── Auto-updates (Watchtower) ────────────────────────────────────────────
+  # Controleert elke nacht om 03:00 of er nieuwe images zijn op GHCR.
+  # Verwijder dit blok als je liever handmatig updatet.
+  watchtower:
+    image: containrrr/watchtower
+    container_name: rhadix-watchtower
+    restart: unless-stopped
+    environment:
+      WATCHTOWER_CLEANUP:              "true"
+      WATCHTOWER_SCHEDULE:             "0 0 3 * * *"
+      WATCHTOWER_INCLUDE_RESTARTING:   "true"
+      REPO_USER:  ${GHCR_USER}
+      REPO_PASS:  ${GHCR_TOKEN}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  pgdata:
+    name: rhadix_pgdata

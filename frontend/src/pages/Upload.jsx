@@ -1,13 +1,57 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Nav, NavBack, Page, PageTitle, BtnPrimary } from '../components/UI'
 import { uploadFiles } from '../services/api'
 
-export default function Upload({ systems, onNext, onBack }) {
-  const [files, setFiles]     = useState([])
+const SCAN_STEPS = [
+  { pct: 15, label: 'Bestanden inlezen…',                        icon: '📂' },
+  { pct: 40, label: 'Pre-scan: formaat-validatie (BSN, IBAN, datum, postcode…)', icon: '🔍' },
+  { pct: 70, label: 'Validatie tegen standaard…',                icon: '📋' },
+  { pct: 90, label: 'Resultaten verwerken…',                     icon: '⚙️' },
+]
+
+function UploadProgress({ step }) {
+  const cfg = SCAN_STEPS[Math.min(step, SCAN_STEPS.length - 1)]
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+          {cfg.icon} {cfg.label}
+        </span>
+        <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>{cfg.pct}%</span>
+      </div>
+      <div style={{ height: 8, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', borderRadius: 4,
+          background: 'linear-gradient(90deg, var(--blue) 0%, #6366f1 100%)',
+          width: `${cfg.pct}%`, transition: 'width .6s ease',
+        }} />
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+        {SCAN_STEPS.map((s, i) => (
+          <span key={i} style={{
+            fontSize: 11, padding: '3px 9px', borderRadius: 20,
+            background: i <= step ? 'var(--blue-light)' : 'var(--bg)',
+            color: i <= step ? 'var(--blue)' : 'var(--text4)',
+            border: `1px solid ${i <= step ? 'var(--blue-mid)' : 'var(--border)'}`,
+            fontWeight: i === step ? 700 : 500,
+            transition: 'all .3s',
+          }}>
+            {i < step ? '✓ ' : ''}{s.label.split(':')[0].replace('…', '')}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
+  const [files, setFiles]       = useState([])
   const [dragging, setDragging] = useState(false)
-  const [loading, setLoading]  = useState(false)
-  const [error, setError]      = useState(null)
-  const inputRef               = useRef()
+  const [loading, setLoading]   = useState(false)
+  const [scanStep, setScanStep] = useState(0)
+  const [error, setError]       = useState(null)
+  const inputRef                = useRef()
+  const stepTimers              = useRef([])
 
   const addFiles = useCallback((newFiles) => {
     setFiles(prev => {
@@ -20,13 +64,22 @@ export default function Upload({ systems, onNext, onBack }) {
 
   const submit = async () => {
     if (!files.length) return
-    setLoading(true); setError(null)
+    setLoading(true); setError(null); setScanStep(0)
+
+    // Animeer de stappen tijdens het wachten op de server
+    const delays = [400, 1400, 2800]
+    stepTimers.current = delays.map((d, i) =>
+      setTimeout(() => setScanStep(i + 1), d)
+    )
+
     try {
-      const result = await uploadFiles(files, `Scan — ${systems.join(', ')}`)
-      onNext(result)
+      const result = await uploadFiles(files, `Scan — ${systems.join(', ')}`, standard)
+      stepTimers.current.forEach(clearTimeout)
+      setScanStep(SCAN_STEPS.length - 1)
+      setTimeout(() => onNext(result), 300)
     } catch (e) {
+      stepTimers.current.forEach(clearTimeout)
       setError('Upload mislukt. Controleer of de backend actief is.')
-    } finally {
       setLoading(false)
     }
   }
@@ -37,7 +90,7 @@ export default function Upload({ systems, onNext, onBack }) {
       <Page>
         <PageTitle
           title="Upload databestanden"
-          sub="Upload uw data-export of koppel via API"
+          sub={standard === 'zib' ? 'Upload uw EPD/ECD-export (Patient, Probleem, Medicatie, Allergie)' : 'Upload uw HRM data-export of koppel via API'}
         />
 
         {/* Drop zone */}
@@ -83,9 +136,11 @@ export default function Upload({ systems, onNext, onBack }) {
           <div style={{ padding: '10px 14px', background: 'var(--red-bg)', border: '1px solid var(--red-light)', borderRadius: 'var(--radius)', color: 'var(--red)', fontSize: 13, marginBottom: 12 }}>{error}</div>
         )}
 
-        {files.length > 0 && (
+        {loading && <UploadProgress step={scanStep} />}
+
+        {files.length > 0 && !loading && (
           <BtnPrimary onClick={submit} disabled={loading} style={{ marginTop: 8, width: '100%', justifyContent: 'center', padding: '13px' }}>
-            {loading ? 'Analyseren…' : 'Start Stap 1: Beschikbaarheid →'}
+            Start Stap 1: Beschikbaarheid →
           </BtnPrimary>
         )}
       </Page>

@@ -1,0 +1,193 @@
+{
+  "pipeline_name": "Rhadix OWL + SPARQL Validation Pipeline",
+  "version": "1.0",
+  "description": "Scheidt structurele, relationele en use-case validatie. Scores worden NIET samengevoegd.",
+
+  "pipeline": {
+    "input": "CSV/XLSX bestanden (medewerker, werkovereenkomst, functie, verzuim)",
+    "stages": [
+      {
+        "stage": 0,
+        "name": "Pre-scan",
+        "module": "prescan.py",
+        "output": ["prescan_issues[]"],
+        "score": null
+      },
+      {
+        "stage": 1,
+        "name": "Beschikbaarheid",
+        "module": "validator.py",
+        "output": ["beschikbaarheid_score", "files_summary[]"],
+        "score": "beschikbaarheid_score (0-100)"
+      },
+      {
+        "stage": 2,
+        "name": "Kwaliteit + Ontologie-mapping",
+        "module": "validator.py + concept_validator.py",
+        "output": ["kwaliteit_score", "concept_mapping[]"],
+        "score": "kwaliteit_score (0-100) → Rhadix Index = beschikbaarheid × kwaliteit / 100"
+      },
+      {
+        "stage": 3,
+        "name": "Actualiteit (tijdsdimensie)",
+        "module": "actuality_validator.py",
+        "output": ["actuality[]"],
+        "score": "actuality_score (0-100) — los van Rhadix Index"
+      },
+      {
+        "stage": 4,
+        "name": "OWL Structurele validatie",
+        "module": "owl_validator.py → validate_structural()",
+        "description": "Valideert veldwaarden tegen OWL class-hiërarchie en XSD range-constraints. Gebruikt CONCEPTS/PROPERTIES uit ontology_index.py.",
+        "rules_derived_from_owl": [
+          "required_property: verplichte velden gedefinieerd in FIELD_RULES.required",
+          "subclass_conformance: enum-waarden gecontroleerd tegen subklassen van het verwachte concept",
+          "range_constraint: datums en getallen getoetst aan xsd:date / xsd:decimal"
+        ],
+        "score": "structural_score (0-100) — los van Rhadix Index"
+      },
+      {
+        "stage": 5,
+        "name": "OWL Relationele validatie",
+        "module": "owl_validator.py → validate_relational()",
+        "description": "Controleert referentiële integriteit tussen bestanden op basis van FK-relaties afgeleid uit de OWL-ontologie.",
+        "fk_relations": [
+          "werkovereenkomst.personeelsnummer ⊆ medewerker.personeelsnummer",
+          "verzuim.personeelsnummer ⊆ medewerker.personeelsnummer",
+          "functie.personeelsnummer ⊆ medewerker.personeelsnummer"
+        ],
+        "score": "relational_score (0-100) — los van Rhadix Index"
+      },
+      {
+        "stage": 6,
+        "name": "SPARQL Use-case validatie",
+        "module": "sparql_validator.py → validate_use_cases()",
+        "description": "Converteert CSV naar in-memory RDF-graph (rdflib), voert SPARQL-queries uit per KIK-V indicator.",
+        "steps": [
+          "csv_to_rdf(): CSV rows → BNode typed to OWL class, with predicates from _FIELD_PREDICATE",
+          "load_queries(): laadt *.sparql uit kikv_queries/",
+          "execute_query(): SPARQL SELECT → result dict",
+          "evaluate_indicator(): pass_rate berekenen, threshold toepassen",
+          "compute_use_case_score(): gewogen gemiddelde over alle indicatoren"
+        ],
+        "score": "use_case_score (0-100) — los van Rhadix Index"
+      }
+    ]
+  },
+
+  "scoring_model": {
+    "description": "Drie nieuwe, gescheiden scores naast de bestaande Rhadix Index.",
+    "existing_scores": {
+      "beschikbaarheid_score": "% verplichte KIK-V velden aanwezig (stap 1)",
+      "kwaliteit_score":       "% aanwezige velden met geldige waarde (stap 2)",
+      "rhadix_index":          "beschikbaarheid × kwaliteit / 100 (gecombineerde score)",
+      "actuality_score":       "% records met recente mutatiedatum (los van Rhadix Index)"
+    },
+    "new_scores": {
+      "structural_score": {
+        "formula":       "checks_passed / checks_total × 100",
+        "what_it_measures": "OWL class-niveau conformantie: zijn veldwaarden geldige subklassen van het verwachte concept?",
+        "data_source":   "CONCEPTS + PROPERTIES uit ontology_index.py, FIELD_RULES uit rules.py",
+        "range":         "0-100 (100 = alle OWL constraints voldaan)"
+      },
+      "relational_score": {
+        "formula":       "total_passed / total_refs × 100",
+        "what_it_measures": "Referentiële integriteit: verwijzen child-records naar bekende parent-records?",
+        "data_source":   "FK_RELATIONS in owl_validator.py, gekruist over meerdere bestanden",
+        "range":         "0-100 (100 = geen dangling references)"
+      },
+      "use_case_score": {
+        "formula":       "gewogen gemiddelde van indicator pass_rates",
+        "what_it_measures": "KIK-V indicator readiness: kan de data KIK-V use-cases beantwoorden?",
+        "data_source":   "SPARQL queries in kikv_queries/*.sparql op in-memory RDF graph",
+        "range":         "0-100 (100 = alle indicatoren gehaald)"
+      }
+    },
+    "separation_rationale": "De drie nieuwe scores meten orthogonale dimensies. Samenvoegen tot één score verbergt welke dimensie faalt. Een Rhadix Index v2 kan later worden gedefinieerd als alle 5 dimensies stabiel zijn."
+  },
+
+  "json_structure": {
+    "_comment": "Volledige API response na /api/validate/upload (KIK-V flow)",
+    "score":                  74.2,
+    "beschikbaarheid_score":  88.0,
+    "kwaliteit_score":        84.3,
+    "rhadix_index":           74.2,
+    "actuality": [
+      { "filename": "werkovereenkomst.csv", "actuality_score": 68.3 }
+    ],
+    "structural_score": 91.5,
+    "structural_checks": {
+      "total":  1240,
+      "passed": 1134,
+      "coverage": [
+        { "schema_key": "werkovereenkomst", "field": "overeenkomsttype", "concept_uri": "http://purl.org/ozo/onz-pers#WerkOvereenkomst", "checks": 500, "passed": 488 }
+      ]
+    },
+    "structural_issues": [
+      {
+        "filename":        "werkovereenkomst.csv",
+        "schema_key":      "werkovereenkomst",
+        "field":           "overeenkomsttype",
+        "source_column":   "EmploymentType",
+        "source_row":      42,
+        "current_value":   "Freelance",
+        "expected_concept": "WerkOvereenkomst",
+        "issue_type":      "subclass_violation",
+        "message":         "Waarde-concept «Freelance» is geen geldige subklasse van «WerkOvereenkomst».",
+        "severity":        "error",
+        "validation_layer": "structural"
+      }
+    ],
+    "relational_score": 97.3,
+    "relational_fk": [
+      {
+        "relation":   "werkovereenkomst.personeelsnummer → medewerker.personeelsnummer",
+        "child_file": "werkovereenkomst.csv",
+        "parent_file": "medewerker.csv",
+        "total":      1000,
+        "orphaned":   27,
+        "pass_rate":  97.3
+      }
+    ],
+    "relational_issues": [
+      {
+        "child_file":    "werkovereenkomst.csv",
+        "child_schema":  "werkovereenkomst",
+        "child_field":   "personeelsnummer",
+        "source_row":    17,
+        "current_value": "EMP-99999",
+        "parent_schema": "medewerker",
+        "parent_field":  "personeelsnummer",
+        "severity":      "error",
+        "issue_type":    "referential_integrity",
+        "message":       "Personeelsnummer «EMP-99999» bestaat niet in medewerker.personeelsnummer.",
+        "validation_layer": "relational"
+      }
+    ],
+    "use_case_score": 82.4,
+    "rdf_graph_triples": 18420,
+    "indicator_results": [
+      {
+        "indicator_id": "IN-M-01",
+        "description":  "Medewerker: personeelsnummer aanwezig",
+        "filename":     "IN-M-01_personeelsnummer_aanwezig.sparql",
+        "pass":         true,
+        "pass_rate":    99.8,
+        "totaal":       1000,
+        "numerator":    998,
+        "threshold":    99.0
+      },
+      {
+        "indicator_id": "IN-WO-01",
+        "description":  "Werkovereenkomst: minimaal 1 contract per medewerker",
+        "filename":     "IN-WO-01_contract_aanwezig.sparql",
+        "pass":         false,
+        "pass_rate":    86.2,
+        "totaal":       1000,
+        "numerator":    862,
+        "threshold":    90.0
+      }
+    ],
+    "all_issues": ["...traceability issues array..."]
+  }
+}

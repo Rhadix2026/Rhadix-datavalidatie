@@ -6,3 +6,5 @@ python-multipart==0.0.9
 openpyxl==3.1.2
 reportlab==4.1.0
 python-dotenv==1.0.1
+rdflib>=6.3.2
+requests>=2.31.0

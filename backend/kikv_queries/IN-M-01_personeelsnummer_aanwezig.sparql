@@ -1,0 +1,14 @@
+# IN-M-01 — Medewerker: personeelsnummer aanwezig
+# Verwacht: elk medewerker-record heeft een personeelsnummer.
+# Slaagt als: aanwezig_count / totaal >= 0.99
+
+PREFIX onz: <http://purl.org/ozo/onz-pers#>
+PREFIX onzg: <http://purl.org/ozo/onz-g#>
+
+SELECT
+  (COUNT(?m)  AS ?totaal)
+  (COUNT(?pn) AS ?aanwezig)
+WHERE {
+  ?m a onz:Medewerker .
+  OPTIONAL { ?m onzg:personeelsnummer ?pn . FILTER(STRLEN(STR(?pn)) > 0) }
+}

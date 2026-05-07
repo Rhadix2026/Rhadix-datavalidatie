@@ -1,0 +1,14 @@
+# IN-WO-03 — Werkovereenkomst: startdatum aanwezig
+# Verwacht: elke werkovereenkomst heeft een startdatum.
+# Slaagt als: aanwezig_count / totaal >= 0.99
+
+PREFIX onz: <http://purl.org/ozo/onz-pers#>
+PREFIX onzg: <http://purl.org/ozo/onz-g#>
+
+SELECT
+  (COUNT(?wo) AS ?totaal)
+  (COUNT(?sd) AS ?aanwezig)
+WHERE {
+  ?wo a onz:WerkOvereenkomst .
+  OPTIONAL { ?wo onzg:startDatum ?sd . FILTER(STRLEN(STR(?sd)) > 0) }
+}

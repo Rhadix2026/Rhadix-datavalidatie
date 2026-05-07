@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12",
+  "$id": "rhadix/TraceIssue/v1",
+  "title": "Rhadix Traceerbaar Issue",
+  "description": "Eén volledig traceerbaar validatieprobleem uit elke validatielaag.",
+  "type": "object",
+  "required": ["issue_id","validation_layer","source_file","severity","issue_description"],
+  "properties": {
+    "issue_id": {
+      "type": "string",
+      "description": "Unieke identificatie van dit issue (deterministische UUID-hash).",
+      "example": "quality_missing_required_werkovereenkomst.csv_42_a1b2c3"
+    },
+    "validation_layer": {
+      "type": "string",
+      "enum": ["prescan","availability","quality","concept_mapping","actuality","zib_availability","zib_quality"],
+      "description": "Validatielaag die het issue heeft gegenereerd."
+    },
+    "validation_layer_label": {
+      "type": ["string","null"],
+      "description": "Leesbaar label van de validatielaag.",
+      "example": "Kwaliteit (stap 2)"
+    },
+    "source_file": {
+      "type": ["string","null"],
+      "description": "Bestandsnaam van het bronbestand.",
+      "example": "werkovereenkomst_afas.csv"
+    },
+    "source_column": {
+      "type": ["string","null"],
+      "description": "Kolomnaam in het bronbestand.",
+      "example": "overeenkomsttype"
+    },
+    "source_row": {
+      "type": ["integer","null"],
+      "description": "Rijnummer in het bronbestand (1-gebaseerd, inclusief header).",
+      "example": 42
+    },
+    "current_value": {
+      "type": ["string","null"],
+      "description": "Aangetroffen waarde in het bronbestand.",
+      "example": "Onbepaald"
+    },
+    "supplier_reference_object": {
+      "type": ["string","null"],
+      "description": "Object in het leverancierssysteem (bijv. AFAS Contracts export).",
+      "example": "AFAS Profit HRM — Werkovereenkomsten export"
+    },
+    "supplier_reference_field": {
+      "type": ["string","null"],
+      "description": "Veldnaam in het leverancierssysteem.",
+      "example": "EmploymentType"
+    },
+    "kikv_domain": {
+      "type": ["string","null"],
+      "description": "KIK-V informatiedomein.",
+      "example": "Arbeid"
+    },
+    "kikv_class": {
+      "type": ["string","null"],
+      "description": "KIK-V ontologieklasse (ONZ).",
+      "example": "WerkOvereenkomst"
+    },
+    "kikv_property": {
+      "type": ["string","null"],
+      "description": "KIK-V ontologie-property (ONZ).",
+      "example": "overeenkomstType"
+    },
+    "rule_id": {
+      "type": ["string","null"],
+      "description": "Identifier van de validatieregel.",
+      "example": "overeenkomsttype_invalid_value"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["error","warning","info"],
+      "description": "Ernst van het probleem."
+    },
+    "issue_description": {
+      "type": ["string","null"],
+      "description": "Omschrijving van het probleem.",
+      "example": "Waarde «Onbepaald» is niet toegestaan voor Contracttype."
+    },
+    "suggested_fix": {
+      "type": ["string","null"],
+      "description": "Aanbevolen actie om het probleem op te lossen.",
+      "example": "Gebruik een geldige KIK-V OvereenkomstType waarde, bijv. «Bepaald» of «Onbepaald tijd»."
+    },
+    "impact_on_score": {
+      "type": ["string","null"],
+      "description": "Beschrijving van de impact op de Rhadix Index.",
+      "example": "Vermindert kwaliteitsscore; telt mee als fout in Rhadix Index."
+    },
+    "impacted_exchange_profiles": {
+      "type": ["array","null"],
+      "items": {"type": "string"},
+      "description": "KIK-V uitwisselprofielen die geraakt worden.",
+      "example": ["KIK-V Basisset","KIK-V Arbeidsrelaties"]
+    },
+    "impacted_indicators": {
+      "type": ["array","null"],
+      "items": {"type": "string"},
+      "description": "KIK-V indicatoren die geraakt worden.",
+      "example": ["IN-WO-01","IN-WO-02"]
+    }
+  }
+}

@@ -1,4 +1,46 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800&family=Inter:wght@400;500;600;700;800&display=swap');
+/* ── Oxanium — lokaal geladen (geen Google Fonts vereist) ────────────────── */
+@font-face {
+  font-family: 'Oxanium';
+  src: url('/fonts/Oxanium-ExtraLight.ttf') format('truetype');
+  font-weight: 200;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Oxanium';
+  src: url('/fonts/Oxanium-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Oxanium';
+  src: url('/fonts/Oxanium-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Oxanium';
+  src: url('/fonts/Oxanium-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Oxanium';
+  src: url('/fonts/Oxanium-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Oxanium';
+  src: url('/fonts/Oxanium-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Oxanium';
+  src: url('/fonts/Oxanium-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-display: swap;
+}
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -9,7 +51,7 @@
   --blue-hero:   #1A2847;   /* hero / nav background       */
   --blue-light:  #E8F2FA;   /* very light blue tint        */
   --blue-mid:    #B8D4EA;   /* mid blue for badges/tags    */
-  --rhadix-accent: #6FA8D0; /* tree-illustration blue      */
+  --rhadix-accent: #6FA8D0; /* accent blue                 */
   --rhadix-sub:  #8BADC5;   /* subtitle / secondary text   */
 
   /* ── Neutrals ───────────────────────────────────────── */
@@ -34,8 +76,17 @@
   --red-light:   #fee2e2;
 
   /* ── Typography ─────────────────────────────────────── */
-  --font:        'Inter', -apple-system, sans-serif;
-  --font-brand:  'Orbitron', 'Inter', sans-serif;
+  /* Oxanium is het enige lettertype — alle gewichten beschikbaar */
+  --font:        'Oxanium', -apple-system, sans-serif;
+  --font-brand:  'Oxanium', sans-serif;
+
+  /* Gewichten */
+  --fw-light:     300;
+  --fw-regular:   400;
+  --fw-medium:    500;
+  --fw-semibold:  600;
+  --fw-bold:      700;
+  --fw-extrabold: 800;
 
   /* ── Shape / shadow ─────────────────────────────────── */
   --radius:      8px;
@@ -48,15 +99,86 @@
 html, body, #root { height: 100%; }
 body {
   font-family: var(--font);
+  font-weight: 400;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   font-size: 14px;
+  letter-spacing: 0.01em;  /* Oxanium leest iets luchtiger met minimale spatiëring */
 }
 
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 
-button, input, select { font-family: var(--font); }
+button, input, select, textarea { font-family: var(--font); }
 a { color: inherit; text-decoration: none; }
+
+/* ── Responsive layout ───────────────────────────────────────────────────── */
+
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 48px;
+}
+
+/* Dashboard: rapporten 2-koloms grid */
+.rapport-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Dashboard: domeinen-sidebar + detail */
+.domain-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 12px;
+}
+
+/* Stap-scores (altijd 2 kolommen) */
+.score-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 1024px) {
+  .page-container { padding: 32px 32px; }
+  .domain-grid    { grid-template-columns: 200px 1fr; }
+}
+
+@media (max-width: 768px) {
+  .page-container { padding: 24px 20px; }
+  .rapport-grid   { grid-template-columns: 1fr; }
+  .domain-grid    { grid-template-columns: 1fr; }
+  .score-grid     { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .page-container { padding: 16px 14px; }
+}
+
+/* ── Globale Oxanium typografie-klassen ─────────────────────────────────── */
+/* Grote scores / Rhadix Index */
+.rhadix-score {
+  font-family: var(--font-brand);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+/* Sectiekoppen */
+h1, h2, h3 {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Nav-merknaam */
+.brand {
+  font-family: var(--font-brand);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

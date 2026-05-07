@@ -312,6 +312,380 @@ SOURCE_SYSTEMS: dict[str, dict] = {
             "Expertise_profiles, expertise_profile_assignments, Presence_logs, Activities, Teams."
         ),
     },
+
+    # ── Exact Financial ───────────────────────────────────────────────────────
+    "exact_fin": {
+        "id":      "exact_fin",
+        "label":   "Exact Financial",
+        "vendor":  "Exact Software",
+        "version": "KIK-V Referentieontwerp Exact v6.0 (11-05-2025)",
+        "color":   "#10b981",
+        "icon":    "E",
+        "description": (
+            "Financieel ERP-systeem. Exact levert grootboekgegevens en financiële boekingen "
+            "via een SQL-databasekoppeling of exportfunctie. Primair relevant voor het "
+            "uitwisselprofiel Zorgkantoren (ZK-IB): grootboekrubrieken, financiële boekingen "
+            "en WLZ-kostenplaatsen."
+        ),
+        "schemas": {
+            "grootboekrubriek": {
+                "label":       "Grootboekrubriek export",
+                "source_name": "Grootboekrubriek (Exact Financial)",
+                "fields": {
+                    "grootboekRekeningNummer": {
+                        "ons_kolom":   "grootboekRekeningNummer",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Rekeningnummer van de grootboekrubriek.",
+                    },
+                    "grootboekRekeningOmschrijving": {
+                        "ons_kolom":   "grootboekRekeningOmschrijving",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Omschrijving van de grootboekrubriek.",
+                    },
+                    "startDatum": {
+                        "ons_kolom":   "startDatum",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    True,
+                        "toelichting": "Datum vanaf wanneer het rekeningnummer tot de rubriek behoort.",
+                    },
+                    "eindDatum": {
+                        "ons_kolom":   "eindDatum",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    False,
+                        "toelichting": "Datum tot wanneer het rekeningnummer tot de rubriek behoort.",
+                    },
+                },
+            },
+            "financiele_boeking": {
+                "label":       "Financiële boekingen export",
+                "source_name": "FinancieleBoeking (Exact Financial)",
+                "fields": {
+                    "boekingsBedrag": {
+                        "ons_kolom":   "boekingsBedrag",
+                        "alternatief": "Value",
+                        "type":        "number (decimal)",
+                        "required":    True,
+                        "toelichting": "Boekingsbedrag op grootboekrekening voor kostenplaats.",
+                    },
+                    "financieleBoekingsDatum": {
+                        "ons_kolom":   "financieleBoekingsDatum",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    True,
+                        "toelichting": "Boekingsdatum op grootboekrekening voor kostenplaats.",
+                    },
+                    "grootBoekRekening": {
+                        "ons_kolom":   "grootBoekRekening",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Grootboekrekening van de boeking.",
+                    },
+                    "kostenPlaats": {
+                        "ons_kolom":   "kostenPlaats",
+                        "alternatief": "costcentre",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Organisatieonderdeel (kostenplaats) waarvoor de boeking van toepassing is.",
+                    },
+                },
+            },
+            "wlz_kostenplaats": {
+                "label":       "WLZ-kostenplaatsen export",
+                "source_name": "WLZ Toerekening kostenPlaats (Exact Financial)",
+                "fields": {
+                    "kostenPlaats": {
+                        "ons_kolom":   "kostenPlaats",
+                        "alternatief": "costcentre",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Kostenplaatsen die WLZ-gerelateerd zijn.",
+                    },
+                },
+            },
+        },
+        "notes": [
+            "Exact exporteert via SQL-databasekoppeling of rapportage-exportfunctie.",
+            "Kolomnamen volgen de KIK-V modelgegevensset (camelCase).",
+            "WLZ-kostenplaatsen zijn een filterset van alle kostenplaatsen.",
+            "Primair relevant voor ZK-IB (Zorgkantoor Inkoop en Beleidsontwikkeling).",
+        ],
+        "export_method": "SQL-databasekoppeling of exportfunctie via Exact UI.",
+    },
+
+    # ── AFAS PROFIT Financieel ─────────────────────────────────────────────────
+    "afas_profit_fin": {
+        "id":      "afas_profit_fin",
+        "label":   "AFAS PROFIT Financieel",
+        "vendor":  "AFAS Software",
+        "version": "KIK-V Referentieontwerp PROFIT FIN v6.0 (11-05-2025)",
+        "color":   "#f59e0b",
+        "icon":    "P",
+        "description": (
+            "Financiële module van AFAS PROFIT. Levert grootboekgegevens en financiële "
+            "boekingen via SQL-databasekoppeling of exportfunctie. Primair relevant voor "
+            "het uitwisselprofiel Zorgkantoren (ZK-IB). Let op: dit is de financiële module — "
+            "de HR-module is apart beschikbaar als 'AFAS Profit HRM'."
+        ),
+        "schemas": {
+            "grootboekrubriek": {
+                "label":       "Grootboekrubriek export",
+                "source_name": "Grootboekrubriek (AFAS PROFIT FIN)",
+                "fields": {
+                    "grootboekRekeningNummer": {
+                        "ons_kolom":   "grootboekRekeningNummer",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Rekeningnummer van de grootboekrubriek in PROFIT.",
+                    },
+                    "grootboekRekeningOmschrijving": {
+                        "ons_kolom":   "grootboekRekeningOmschrijving",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Omschrijving van de grootboekrubriek in PROFIT.",
+                    },
+                    "startDatum": {
+                        "ons_kolom":   "startDatum",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    True,
+                        "toelichting": "Datum vanaf wanneer het rekeningnummer tot de rubriek behoort.",
+                    },
+                    "eindDatum": {
+                        "ons_kolom":   "eindDatum",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    False,
+                        "toelichting": "Datum tot wanneer het rekeningnummer tot de rubriek behoort.",
+                    },
+                },
+            },
+            "financiele_boeking": {
+                "label":       "Financiële boekingen export",
+                "source_name": "FinancieleBoeking (AFAS PROFIT FIN)",
+                "fields": {
+                    "boekingsBedrag": {
+                        "ons_kolom":   "boekingsBedrag",
+                        "alternatief": "Value",
+                        "type":        "number (decimal)",
+                        "required":    True,
+                        "toelichting": "Boekingsbedrag op grootboekrekening voor kostenplaats.",
+                    },
+                    "financieleBoekingsDatum": {
+                        "ons_kolom":   "financieleBoekingsDatum",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    True,
+                        "toelichting": "Boekingsdatum op grootboekrekening voor kostenplaats.",
+                    },
+                    "grootBoekRekening": {
+                        "ons_kolom":   "grootBoekRekening",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Grootboekrekening van de boeking.",
+                    },
+                    "kostenPlaats": {
+                        "ons_kolom":   "kostenPlaats",
+                        "alternatief": "costcentre",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Kostenplaats waarvoor de boeking van toepassing is.",
+                    },
+                },
+            },
+            "wlz_kostenplaats": {
+                "label":       "WLZ-kostenplaatsen export",
+                "source_name": "WLZ Toerekening kostenPlaats (AFAS PROFIT FIN)",
+                "fields": {
+                    "kostenPlaats": {
+                        "ons_kolom":   "kostenPlaats",
+                        "alternatief": "costcentre",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Kostenplaatsen die WLZ-gerelateerd zijn.",
+                    },
+                },
+            },
+        },
+        "notes": [
+            "AFAS PROFIT FIN exporteert via SQL-databasekoppeling of exportfunctie.",
+            "Niet verwarren met AFAS Profit HRM — dat is de personeels-/salarismodule.",
+            "WLZ-kostenplaatsen zijn een filterset van alle kostenplaatsen.",
+            "Primair relevant voor ZK-IB (Zorgkantoor Inkoop en Beleidsontwikkeling).",
+        ],
+        "export_method": "SQL-databasekoppeling of exportfunctie via AFAS UI.",
+    },
+
+    # ── Visma PUUR ────────────────────────────────────────────────────────────
+    "visma_puur": {
+        "id":      "visma_puur",
+        "label":   "Visma PUUR",
+        "vendor":  "Visma",
+        "version": "KIK-V Referentieontwerp PUUR v6.0 (11-05-2025)",
+        "color":   "#8b5cf6",
+        "icon":    "V",
+        "description": (
+            "Zorgadministratiesysteem van Visma voor VVT. PUUR registreert "
+            "WLZ-arrangementen, cliëntgegevens en zorgproducten. Ontsluiting via "
+            "API (gedeeltelijk) en SQL-databasekoppeling. Primair relevant voor "
+            "het uitwisselprofiel Zorgkantoren (ZK-IB)."
+        ),
+        "schemas": {
+            "arrangement": {
+                "label":       "Arrangement export",
+                "source_name": "Arrangement (Visma PUUR)",
+                "fields": {
+                    "Arrangement_ID": {
+                        "ons_kolom":   "Arrangement_ID",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Uniek ID van het arrangement.",
+                    },
+                    "Client_ID": {
+                        "ons_kolom":   "Client_ID",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Koppeling naar de cliënt.",
+                    },
+                    "Begindatum": {
+                        "ons_kolom":   "Begindatum",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    True,
+                        "toelichting": "Startdatum van het arrangement.",
+                    },
+                    "Einddatum": {
+                        "ons_kolom":   "Einddatum",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    False,
+                        "toelichting": "Einddatum van het arrangement (leeg = actief).",
+                    },
+                },
+            },
+            "arrangement_product": {
+                "label":       "ArrangementProduct export",
+                "source_name": "ArrangementProduct (Visma PUUR)",
+                "fields": {
+                    "Arrangement_ID": {
+                        "ons_kolom":   "Arrangement_ID",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Koppeling naar het arrangement.",
+                    },
+                    "ArrangementProduct_ID": {
+                        "ons_kolom":   "ArrangementProduct_ID",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Uniek ID van het arrangementproduct.",
+                    },
+                    "Product_ID": {
+                        "ons_kolom":   "Product_ID",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Koppeling naar het zorgproduct.",
+                    },
+                    "Startdatum": {
+                        "ons_kolom":   "Startdatum",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    True,
+                        "toelichting": "Startdatum van het arrangementproduct.",
+                    },
+                    "Einddatum": {
+                        "ons_kolom":   "Einddatum",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    False,
+                        "toelichting": "Einddatum van het arrangementproduct.",
+                    },
+                },
+            },
+            "arrangement_product_wlz": {
+                "label":       "ArrangementProductWLZ export",
+                "source_name": "ArrangementProductWLZ (Visma PUUR)",
+                "fields": {
+                    "ArrangementProduct_ID": {
+                        "ons_kolom":   "ArrangementProduct_ID",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Koppeling naar het arrangementproduct.",
+                    },
+                    "IndicatieAanvraagnummer": {
+                        "ons_kolom":   "IndicatieAanvraagnummer",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "WLZ-indicatieaanvraagnummer.",
+                    },
+                    "Besluitnummer": {
+                        "ons_kolom":   "Besluitnummer",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "WLZ-besluitnummer.",
+                    },
+                    "BeginDatumDeclaratie": {
+                        "ons_kolom":   "BeginDatumDeclaratie",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    True,
+                        "toelichting": "Begindatum van de declaratieperiode.",
+                    },
+                    "EindDatumDeclaratie": {
+                        "ons_kolom":   "EindDatumDeclaratie",
+                        "type":        "date (dd/mm/yyyy)",
+                        "required":    True,
+                        "toelichting": "Einddatum van de declaratieperiode.",
+                    },
+                    "Zorgzwaartepakketcode": {
+                        "ons_kolom":   "Zorgzwaartepakketcode",
+                        "type":        "string (ZZP-codelijst)",
+                        "required":    True,
+                        "toelichting": "ZZP-code van het WLZ-arrangementproduct.",
+                    },
+                },
+            },
+            "team": {
+                "label":       "Team (locatie) export",
+                "source_name": "Team (Visma PUUR)",
+                "fields": {
+                    "Client_ID": {
+                        "ons_kolom":   "Client_ID",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Koppeling naar de cliënt.",
+                    },
+                    "organisatieonderdeel": {
+                        "ons_kolom":   "organisatieonderdeel",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Organisatieonderdeel / locatie van het team.",
+                    },
+                },
+            },
+            "wlz_product": {
+                "label":       "WLZProduct export",
+                "source_name": "WLZProduct (Visma PUUR)",
+                "fields": {
+                    "prestatiecode": {
+                        "ons_kolom":   "prestatiecode",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "WLZ-prestatiecode van het zorgproduct.",
+                    },
+                    "Product_ID": {
+                        "ons_kolom":   "Product_ID",
+                        "type":        "string",
+                        "required":    True,
+                        "toelichting": "Interne product-ID, koppeling naar ArrangementProduct.",
+                    },
+                },
+            },
+        },
+        "notes": [
+            "PUUR exporteert via API (gedeeltelijk) én SQL-databasekoppeling.",
+            "Niet alle gegevens zijn beschikbaar via de API — database is leading.",
+            "eCare stelt specifieke API-endpoints beschikbaar voor KIKV-ontsluiting "
+            "(o.a. wondzorgdossier en ACP).",
+            "Primair relevant voor ZK-IB (Zorgkantoor Inkoop en Beleidsontwikkeling).",
+        ],
+        "export_method": (
+            "API koppeling (gedeeltelijk) + SQL-databasekoppeling. "
+            "Tabellen: Arrangement, ArrangementProduct, ArrangementProductWLZ, Team, WLZProduct. "
+            "API-endpoints: GET /patients/{ecareId}/<<WONDZORGDOSSIER>>, GET /patients/{ecareId}/<<ACP>>."
+        ),
+    },
 }
 
 

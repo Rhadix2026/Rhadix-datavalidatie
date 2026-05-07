@@ -38,6 +38,9 @@ function WorkflowStatus({ step1Completed, step2Completed }) {
   )
 }
 
+// Welke KIK-V schema's worden verwacht (conform uitwisselprofielen)
+const KIKV_SCHEMAS = ['medewerker', 'werkovereenkomst', 'functie', 'verzuim', 'vestiging', 'client', 'kostenplaats', 'grootboek']
+
 export default function Beschikbaarheid({ results, systems, step1Completed, step2Completed, onNext, onBack, onRapport }) {
   const score = results?.score ?? 85
   const fileResults  = results?.file_results  ?? []
@@ -46,6 +49,12 @@ export default function Beschikbaarheid({ results, systems, step1Completed, step
   const conform   = fileResults.filter(f => f.error_count === 0 && f.warn_count === 0).length
   const afwijkend = fileResults.filter(f => f.warn_count  > 0  && f.error_count === 0).length
   const ontbreekt = fileResults.filter(f => f.error_count > 0).length
+
+  // KIK-V schema coverage: hoeveel van de 8 verwachte schema's zijn aangeleverd?
+  const uploadedSchemas = new Set(fileResults.map(f => f.schema_key))
+  const kikvSchemasCovered = KIKV_SCHEMAS.filter(s => uploadedSchemas.has(s)).length
+  const kikvSchemasTotal   = KIKV_SCHEMAS.length
+  const kikvCoveragePct    = Math.round(kikvSchemasCovered / kikvSchemasTotal * 100)
 
   const allIssues = [
     ...fileResults.flatMap(fr => fr.issues.map(i => ({ ...i, file: fr.schema_key }))),
@@ -60,8 +69,8 @@ export default function Beschikbaarheid({ results, systems, step1Completed, step
       <Page>
         <PageTitle
           badge="Stap 1 voltooid"
-          title="Rhadix Beschikbaarheid"
-          sub="Uw data vergeleken met de leveranciersstandaard"
+          title="Upload & Beschikbaarheid"
+          sub="Kwaliteit van aangeleverde bestanden, KIK-V schema-dekking"
         />
 
         <WorkflowStatus step1Completed={step1Completed} step2Completed={step2Completed} />
@@ -70,9 +79,12 @@ export default function Beschikbaarheid({ results, systems, step1Completed, step
         <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', padding: '24px', marginBottom: 16, boxShadow: 'var(--shadow)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>Score Stap 1</div>
-              <div style={{ fontSize: 13, color: 'var(--text3)' }}>
-                {score >= 80 ? 'Uitstekend — data is volledig aanwezig' : score >= 60 ? 'Goed — enkele hiaten gevonden' : 'Aandacht vereist — meerdere hiaten'}
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>Leveranciersstandaard score</div>
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 3 }}>
+                {score >= 80 ? 'Uitstekend — aangeleverde bestanden bevatten geen fouten' : score >= 60 ? 'Goed — enkele afwijkingen gevonden' : 'Aandacht vereist — fouten in aangeleverde bestanden'}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>
+                Berekend op basis van fouten en waarschuwingen in geüploade bestanden
               </div>
             </div>
             <div style={{ fontSize: 48, fontWeight: 800, color: 'var(--blue)', letterSpacing: '-0.04em', lineHeight: 1 }}>{score}</div>
@@ -94,6 +106,39 @@ export default function Beschikbaarheid({ results, systems, step1Completed, step
                 <div style={{ fontSize: 12, color: 'var(--text3)' }}>{s.label}</div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* KIK-V Schema coverage */}
+        <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', padding: '20px 24px', marginBottom: 16, boxShadow: 'var(--shadow)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>KIK-V Schema-dekking</div>
+              <div style={{ fontSize: 12, color: 'var(--text3)' }}>
+                Aangeleverde schema's t.o.v. de 8 KIK-V uitwisselprofielen — volledige KIK-V beschikbaarheidsscore staat in het rapport
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: kikvCoveragePct >= 80 ? 'var(--green)' : kikvCoveragePct >= 50 ? 'var(--amber)' : 'var(--red)', lineHeight: 1 }}>
+                {kikvSchemasCovered}/{kikvSchemasTotal}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text3)' }}>schema's</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {KIKV_SCHEMAS.map(s => {
+              const present = uploadedSchemas.has(s)
+              return (
+                <div key={s} style={{
+                  padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                  background: present ? 'var(--green-bg)' : 'var(--red-bg)',
+                  color: present ? 'var(--green)' : 'var(--red)',
+                  border: `1px solid ${present ? 'var(--green)' : 'var(--red)'}22`,
+                }}>
+                  {present ? '✓' : '✕'} {s}
+                </div>
+              )
+            })}
           </div>
         </div>
 

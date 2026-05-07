@@ -1,0 +1,18 @@
+# IN-WO-01 — Werkovereenkomst: minimaal 1 contract per medewerker
+# Verwacht: elke bekende medewerker heeft >= 1 werkovereenkomst.
+# Slaagt als: gekoppeld_count / medewerker_count >= 0.90
+
+PREFIX onz: <http://purl.org/ozo/onz-pers#>
+PREFIX onzg: <http://purl.org/ozo/onz-g#>
+
+SELECT
+  (COUNT(DISTINCT ?m)  AS ?medewerkers)
+  (COUNT(DISTINCT ?wo) AS ?contracten)
+WHERE {
+  ?m a onz:Medewerker .
+  OPTIONAL {
+    ?wo a onz:WerkOvereenkomst .
+    ?wo onzg:personeelsnummer ?pn .
+    ?m  onzg:personeelsnummer ?pn .
+  }
+}

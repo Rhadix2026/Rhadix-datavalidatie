@@ -2,13 +2,16 @@ import re
 from datetime import datetime
 from typing import Any
 
+from app.services.prescan import prescan_columns
 from app.services.rules import (
     FIELD_RULES,
     CONTRACTTYPE_VALUES,
     CONTRACTTYPE_TIJDELIJK,
     VERZUIMTYPE_VALUES,
+    ONZ_PERS, ONZ_G, ONZ_ORG, ONZ_ZORG, ONZ_FIN,
     get_field_label,
     get_allowed_values,
+    get_concept_uri,
     format_allowed_short,
 )
 
@@ -136,20 +139,223 @@ KIKV_REFERENCE = {
         },
         "allowed_types": VERZUIMTYPE_VALUES,
     },
+
+    # ── Vestiging (Nedap ONS: Teams / Locations) ──────────────────────────────
+    "vestiging": {
+        "label": "Vestiging", "color": "#0ea5e9", "icon": "L",
+        "description": "Vestigingen / zorglokaties",
+        "source": "Teams / Locations (Nedap ONS, AFAS)",
+        "required_cols": ["vestigingid"],
+        "col_aliases": {
+            "vestigingid": [
+                "vestigingid","objectid","locationid","teamid","teamobjectid",
+                "locatieid","vestigingsnummer","id",
+            ],
+            "vestigingsnaam": [
+                "vestigingsnaam","name","naam","locatienaam","teamname",
+                "description","title",
+            ],
+            "locatietype": [
+                "locatietype","locationtype","type","zorgtype","zorgvorm",
+                "teamtype","soort",
+            ],
+            "zorgsoort": [
+                "zorgsoort","caretype","sector","zorgdomein",
+                "sectortype",                                                  # VPZ / GHZ / GGZ
+            ],
+            "regio": [
+                "regio","region","gemeente","city","place",
+            ],
+        },
+    },
+
+    # ── Cliënt (Nedap ONS: Clients + WLZ-profiel) ────────────────────────────
+    "client": {
+        "label": "Cliënt", "color": "#8b5cf6", "icon": "C",
+        "description": "Cliëntgegevens met WLZ-indicatie en zorgprofiel",
+        "source": "Clients / WLZ-indicaties (Nedap ONS)",
+        "required_cols": ["clientid"],
+        "col_aliases": {
+            "clientid": [
+                "clientid","cliëntid","clientnummer","persoonid","objectid",
+                "clientobjectid","patientid",
+            ],
+            "vestigingid": [
+                "vestigingid","locationid","locatieid","teamid",
+                "primarylocationid",
+            ],
+            "geboortedatum": [
+                "geboortedatum","dateofbirth","birthdate","geboorte","dob",
+            ],
+            "wlzprofiel": [
+                "wlzprofiel","wlzprofile","zorgniveauprofiel","zzp",
+                "zorgprofiel","careprofile","indicatieprofiel",
+            ],
+            "startdatum": [
+                "startdatum","startdate","ingangsdatum","begindatum",
+                "admissiondate","opnamedatum",
+            ],
+            "einddatum": [
+                "einddatum","enddate","eindebehandeling","ontslagdatum",
+                "dischargedate",
+            ],
+        },
+    },
+
+    # ── Kostenplaats (AFAS Profit Finance / WLZ) ─────────────────────────────
+    "kostenplaats": {
+        "label": "Kostenplaats", "color": "#06b6d4", "icon": "€",
+        "description": "Financiële kostenplaatsen en WLZ-budgetten",
+        "source": "AFAS Profit Finance / WLZ-kostenplaatsen",
+        "required_cols": ["kostenplaatsid"],
+        "col_aliases": {
+            "kostenplaatsid": [
+                "kostenplaatsid","kostenplaatscode","costcenterid","costcenter",
+                "id","code","objectid",
+            ],
+            "omschrijving": [
+                "omschrijving","naam","description","name","label",
+            ],
+            "bedrag": [
+                "bedrag","budget","amount","totaal","waarde","value",
+            ],
+            "periode": [
+                "periode","period","jaar","year","maand","month",
+            ],
+        },
+    },
+
+    # ── Grootboek (AFAS Profit Finance) ──────────────────────────────────────
+    "grootboek": {
+        "label": "Grootboek", "color": "#0284c7", "icon": "G",
+        "description": "Grootboekrekeningen en boekingen",
+        "source": "AFAS Profit Finance / Grootboek",
+        "required_cols": ["rekeningnummer"],
+        "col_aliases": {
+            "rekeningnummer": [
+                "rekeningnummer","accountnumber","glaccountid","grootboekrekening",
+                "rekeningcode","accountcode","id","code",
+            ],
+            "omschrijving": [
+                "omschrijving","naam","description","name",
+            ],
+            "bedrag": [
+                "bedrag","amount","debet","credit","saldo","balance",
+            ],
+        },
+    },
 }
 
 KIKV_FIELDS_REFERENCE = [
-    {"concept":"Mens",            "field":"PersonId",       "source":"Employees.PersonIdEmployeeId","type":"string","required":True,  "description":"Uniek persoonsnummer van de medewerker"},
-    {"concept":"Mens",            "field":"Geboortedatum",  "source":"Employees.DateBirth",         "type":"date",  "required":True,  "description":"Geboortedatum van de medewerker (dd/mm/yyyy)"},
-    {"concept":"WerkOvereenkomst","field":"EmploymentType", "source":"Employees.EmploymentType",    "type":"string","required":True,  "description":"Type arbeidsovereenkomst", "allowed_values": CONTRACTTYPE_VALUES},
-    {"concept":"WerkOvereenkomst","field":"EmploymentStart","source":"Employees.EmploymentStart",   "type":"date",  "required":True,  "description":"Startdatum van de werkovereenkomst"},
-    {"concept":"WerkOvereenkomst","field":"EmploymentEnd",  "source":"Employees.EmploymentEnd",     "type":"date",  "required":False, "description":"Einddatum werkovereenkomst (leeg = actief)"},
-    {"concept":"WerkOvereenkomst","field":"FunctionId",     "source":"Employees.FunctionId",        "type":"string","required":True,  "description":"Functie-ID gekoppeld aan de werkovereenkomst"},
-    {"concept":"WerkOvereenkomst","field":"OrgUnit",        "source":"Employees.OrgUnit",           "type":"string","required":True,  "description":"Organisatie-eenheid / locatie van de medewerker"},
-    {"concept":"WerkOvereenkomst","field":"HourPerWeek",    "source":"Employees.HourPerWeek",       "type":"number","required":True,  "description":"Contractueel aantal uren per week"},
-    {"concept":"Verzuimperiode",  "field":"IllnessStart",   "source":"Illness.startdate",           "type":"date",  "required":False, "description":"Startdatum van de verzuimperiode"},
-    {"concept":"Verzuimperiode",  "field":"IllnessEnd",     "source":"Illness.enddate",             "type":"date",  "required":False, "description":"Einddatum van de verzuimperiode"},
-    {"concept":"Verzuimperiode",  "field":"Presence",       "source":"100% - Illness.Presence",     "type":"number","required":False, "description":"Ziekteverzuimpercentage (0-100)"},
+    # ── Medewerker ────────────────────────────────────────────────────────────
+    {
+        "concept": "Werknemer", "concept_uri": f"{ONZ_G}Employee",
+        "field": "PersonId", "schema": "medewerker",
+        "source": "Employees.PersonIdEmployeeId", "type": "string", "required": True,
+        "description": "Uniek persoonsnummer van de medewerker",
+        "field_concept_uri": f"{ONZ_G}EmployeeIdentifier",
+        "field_concept_label": "Werknemersidentifier",
+    },
+    {
+        "concept": "Werknemer", "concept_uri": f"{ONZ_G}Employee",
+        "field": "Geboortedatum", "schema": "medewerker",
+        "source": "Employees.DateBirth", "type": "date", "required": True,
+        "description": "Geboortedatum van de medewerker (dd/mm/yyyy)",
+        "field_concept_uri": f"{ONZ_G}hasDateOfBirth",
+        "field_concept_label": "heeft geboortedatum",
+    },
+    # ── Werkovereenkomst ──────────────────────────────────────────────────────
+    {
+        "concept": "Werkovereenkomst", "concept_uri": f"{ONZ_PERS}WerkOvereenkomst",
+        "field": "EmploymentType", "schema": "werkovereenkomst",
+        "source": "Employees.EmploymentType", "type": "string", "required": True,
+        "description": "Type arbeidsovereenkomst", "allowed_values": CONTRACTTYPE_VALUES,
+        "field_concept_uri": f"{ONZ_PERS}ArbeidsOvereenkomst",
+        "field_concept_label": "Arbeidsovereenkomst",
+    },
+    {
+        "concept": "Werkovereenkomst", "concept_uri": f"{ONZ_PERS}WerkOvereenkomst",
+        "field": "EmploymentStart", "schema": "werkovereenkomst",
+        "source": "Employees.EmploymentStart", "type": "date", "required": True,
+        "description": "Startdatum van de werkovereenkomst",
+        "field_concept_uri": f"{ONZ_G}startDatum",
+        "field_concept_label": "startdatum",
+    },
+    {
+        "concept": "Werkovereenkomst", "concept_uri": f"{ONZ_PERS}WerkOvereenkomst",
+        "field": "EmploymentEnd", "schema": "werkovereenkomst",
+        "source": "Employees.EmploymentEnd", "type": "date", "required": False,
+        "description": "Einddatum werkovereenkomst (leeg = actief)",
+        "field_concept_uri": f"{ONZ_G}eindDatum",
+        "field_concept_label": "einddatum",
+    },
+    {
+        "concept": "Werkovereenkomst", "concept_uri": f"{ONZ_PERS}WerkOvereenkomst",
+        "field": "OrgUnit", "schema": "werkovereenkomst",
+        "source": "Employees.OrgUnit", "type": "string", "required": True,
+        "description": "Organisatie-eenheid / locatie van de medewerker",
+        "field_concept_uri": f"{ONZ_ORG}OrganisatorischeEenheid",
+        "field_concept_label": "Organisatorische eenheid",
+    },
+    {
+        "concept": "Contractomvang", "concept_uri": f"{ONZ_PERS}ContractOmvang",
+        "field": "HourPerWeek", "schema": "werkovereenkomst",
+        "source": "Employees.HourPerWeek", "type": "number", "required": True,
+        "description": "Contractueel aantal uren per week",
+        "field_concept_uri": f"{ONZ_PERS}ContractOmvangWaarde",
+        "field_concept_label": "Contractomvangwaarde",
+    },
+    # ── Functie ───────────────────────────────────────────────────────────────
+    {
+        "concept": "Zorgverlener functie", "concept_uri": f"{ONZ_PERS}ZorgverlenerFunctie",
+        "field": "FunctionName", "schema": "functie",
+        "source": "Functions.description", "type": "string", "required": True,
+        "description": "Naam van de functie",
+        "field_concept_uri": f"{ONZ_PERS}ZorgverlenerFunctie",
+        "field_concept_label": "Zorgverlener (functie)",
+    },
+    {
+        "concept": "Kwalificatieniveau", "concept_uri": f"{ONZ_PERS}IGJKwalificatieWaarde",
+        "field": "QualificationLevel", "schema": "functie",
+        "source": "Functions.level", "type": "string", "required": False,
+        "description": "IGJ kwalificatieniveau van de functie",
+        "field_concept_uri": f"{ONZ_PERS}IGJKwalificatieWaarde",
+        "field_concept_label": "IGJ Kwalificatiewaarde",
+    },
+    # ── Verzuim ───────────────────────────────────────────────────────────────
+    {
+        "concept": "Verzuimperiode", "concept_uri": f"{ONZ_PERS}VerzuimPeriode",
+        "field": "IllnessStart", "schema": "verzuim",
+        "source": "Illness.startdate", "type": "date", "required": False,
+        "description": "Startdatum van de verzuimperiode",
+        "field_concept_uri": f"{ONZ_G}startDatum",
+        "field_concept_label": "startdatum",
+    },
+    {
+        "concept": "Verzuimperiode", "concept_uri": f"{ONZ_PERS}VerzuimPeriode",
+        "field": "IllnessEnd", "schema": "verzuim",
+        "source": "Illness.enddate", "type": "date", "required": False,
+        "description": "Einddatum van de verzuimperiode",
+        "field_concept_uri": f"{ONZ_G}eindDatum",
+        "field_concept_label": "einddatum",
+    },
+    {
+        "concept": "Arbeidsongeschiktheidspercentage", "concept_uri": f"{ONZ_PERS}AOPercentage",
+        "field": "Presence", "schema": "verzuim",
+        "source": "100% - Illness.Presence", "type": "number", "required": False,
+        "description": "Ziekteverzuimpercentage (0-100)",
+        "field_concept_uri": f"{ONZ_PERS}AOPercentage",
+        "field_concept_label": "Arbeidsongeschiktheidspercentage",
+    },
+    {
+        "concept": "Verzuimperiode", "concept_uri": f"{ONZ_PERS}VerzuimPeriode",
+        "field": "SoortVerzuim", "schema": "verzuim",
+        "source": "Illness.type", "type": "string", "required": False,
+        "description": "Soort verzuim (ZiektePeriode, ZwangerschapsVerlof, etc.)",
+        "allowed_values": VERZUIMTYPE_VALUES,
+        "field_concept_uri": f"{ONZ_PERS}VerzuimPeriode",
+        "field_concept_label": "Verzuimperiode",
+    },
 ]
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -206,10 +412,30 @@ def detect_schema(filename: str, headers: list) -> str | None:
     if "kwalificatieniveau" in fn or "kwn" in fn: return "kwalificatieniveau"
     if "kwaliteitsgr" in fn or "graden" in fn: return "kwaliteitsgraden"
     if "verzuim" in fn or "illness" in fn: return "verzuim"
+    if "vestiging" in fn or "locatie" in fn or "teams" in fn: return "vestiging"
+    if "client" in fn or "cliënt" in fn or "patient" in fn: return "client"
+    # Financiële bestanden: herken als kostenplaats of grootboek (voor Financiën domein)
+    if "kostenplaats" in fn or "wlzkostenplaats" in fn: return "kostenplaats"
+    if "grootboek" in fn or "journaal" in fn: return "grootboek"
+    # Overige financiële bestanden worden niet als HRM-schema herkend
+    if any(x in fn for x in ("boeking", "rubriek", "balans", "resultaat",
+                              "declaratie", "factuur", "budget", "fin")):
+        return None
     best, best_score = None, 0
+    norm_headers = [normalize(h) for h in headers]
     for key, schema in KIKV_REFERENCE.items():
-        score = sum(1 for h in headers if any(normalize(h) == a for al in schema["col_aliases"].values() for a in al))
-        if score > best_score: best_score, best = score, key
+        # Eis minimaal 2 matches én dat het primaire id-veld aanwezig is
+        aliases_flat = [a for al in schema["col_aliases"].values() for a in al]
+        score = sum(1 for nh in norm_headers if nh in aliases_flat)
+        if score < 2:
+            continue
+        # Controleer of een discriminerend veld aanwezig is (personeelsnummer o.i.d.)
+        primary_fields = list(schema["col_aliases"].keys())[:2]   # eerste 2 velden zijn primair
+        primary_aliases = [a for f in primary_fields for a in schema["col_aliases"].get(f, [])]
+        if not any(nh in primary_aliases for nh in norm_headers):
+            continue
+        if score > best_score:
+            best_score, best = score, key
     return best
 
 # ─── PER-FILE CHECKS ──────────────────────────────────────────────────────────
@@ -639,7 +865,24 @@ def validate_files(files_input: list) -> dict:
         schema = KIKV_REFERENCE[sk]
         mapping = auto_map(fi["headers"], schema["col_aliases"])
         issues = run_file_checks(sk, fi["rows"], mapping)
-        files_data[sk] = {"rows": fi["rows"], "mapping": mapping}
+
+        # Pre-scan: formaat-validatie op extra kolommen (niet in schema-mapping)
+        known_col_names = set(mapping.values())
+        prescan_issues  = prescan_columns(fi["rows"], known_cols=known_col_names)
+        issues.extend(prescan_issues)
+
+        # Normaliseer rijen naar interne veldnamen zodat cross-check werkt
+        # over meerdere bronsystemen met verschillende kolomnamen (bijv. ONS + AFAS HRM)
+        rev_map = {col: field for field, col in mapping.items()}
+        norm_rows = [{rev_map.get(k, k): v for k, v in row.items()} for row in fi["rows"]]
+        # Samenvoegen (niet overschrijven) zodat ONS + AFAS HRM samen cross-gecheckt worden
+        if sk not in files_data:
+            files_data[sk] = {"rows": norm_rows, "mapping": {f: f for f in mapping.keys()}}
+        else:
+            files_data[sk]["rows"].extend(norm_rows)
+            # Mapping uitbreiden met velden uit dit bestand (volgorde-onafhankelijk)
+            for f in mapping.keys():
+                files_data[sk]["mapping"].setdefault(f, f)
         file_results.append({
             "schema_key":  sk,
             "filename":    fi["filename"],

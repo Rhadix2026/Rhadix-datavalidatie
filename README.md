@@ -1,145 +1,60 @@
-# Rhadix Validator
+# Rhadix v131 — Deployment
 
-Volledige webapplicatie voor het valideren van AFAS Profit HRM exports tegen het KIK-V Modelgegevensset referentieontwerp.
+## Wat is nieuw in v131
+- KIK-V Profielimport uit GitLab (tag 1.3.4)
+- Gereedheidsmatrix per indicator (fully / partially / blocked)
+- OWL structurele validatie + SPARQL use-case scores
+- Traceerbaarheid drilldown (17 velden per issue)
+- Data Actualiteit Score met histogram
 
-## Stack
+## Poorten
+| Service   | Extern         | Intern |
+|-----------|----------------|--------|
+| Frontend  | localhost:5174 | 80     |
+| Backend   | localhost:8010 | 8000   |
+| Database  | localhost:5433 | 5432   |
 
-| Laag      | Technologie                        |
-|-----------|------------------------------------|
-| Frontend  | React 18 + Vite + React Router     |
-| Backend   | Python 3.12 + FastAPI + SQLAlchemy |
-| Database  | PostgreSQL 16                      |
-| Export    | openpyxl (Excel) + ReportLab (PDF) |
-| Deploy    | Docker Compose                     |
+## Vereisten
+- Docker Desktop (of Docker Engine + Compose plugin)
+- Poorten 5174, 8010 en 5433 vrij op je machine
 
-## Functionaliteit
-
-- **Multi-bestand upload** — sleep meerdere CSV/Excel bestanden tegelijk
-- **Automatische schema-herkenning** — op bestandsnaam én kolominhoud
-- **Per-bestand validatie** — type, formaat, verplichte velden, geldige waarden
-- **Cross-bestand controles** — referentiële integriteit tussen bestanden
-- **Validatiegeschiedenis** — alle runs opgeslagen in PostgreSQL
-- **Export** — rapport als Excel (.xlsx) of PDF
-- **Referentie browser** — alle KIK-V velden en AFAS-mappings doorzoekbaar
-
-## Snel starten met Docker
-
+## Opstarten
 ```bash
-git clone <repo>
-cd kikv-app
-docker-compose up --build
+./start.sh
 ```
+Open daarna http://localhost:5174
 
-App beschikbaar op:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API docs: http://localhost:8000/docs
-
-## Lokaal ontwikkelen
-
-### Backend
-
+## Stoppen
 ```bash
-cd backend
-
-# Maak virtualenv
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# Installeer dependencies
-pip install -r requirements.txt
-
-# Stel database in (PostgreSQL moet draaien)
-cp .env.example .env
-# Pas DATABASE_URL aan in .env
-
-# Start backend
-uvicorn app.main:app --reload --port 8000
+./stop.sh
 ```
 
-### Frontend
-
+## Volledig herinstalleren (database wissen + opnieuw bouwen)
 ```bash
-cd frontend
-npm install
-npm run dev
+./reset.sh
 ```
 
-Frontend draait op http://localhost:5173 en proxyt `/api` naar de backend.
-
-## Projectstructuur
-
-```
-kikv-app/
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI app + CORS
-│   │   ├── database.py          # SQLAlchemy setup
-│   │   ├── models/
-│   │   │   └── models.py        # ValidationRun model
-│   │   ├── routers/
-│   │   │   ├── validate.py      # POST /api/validate/upload
-│   │   │   ├── history.py       # GET/DELETE /api/history
-│   │   │   ├── reference.py     # GET /api/reference
-│   │   │   └── export.py        # GET /api/export/{id}/excel|pdf
-│   │   └── services/
-│   │       └── validator.py     # Alle validatielogica + KIK-V regels
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .env.example
-│
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx              # Routing + sidebar nav
-│   │   ├── index.css            # Design tokens
-│   │   ├── pages/
-│   │   │   ├── Dashboard.jsx    # Statistieken + overzicht
-│   │   │   ├── Validator.jsx    # Upload + validatie flow
-│   │   │   ├── History.jsx      # Lijst van alle runs
-│   │   │   ├── RunDetail.jsx    # Detail van één run
-│   │   │   └── Reference.jsx    # KIK-V velden browser
-│   │   ├── components/
-│   │   │   └── UI.jsx           # Gedeelde UI componenten
-│   │   └── services/
-│   │       └── api.js           # API calls naar backend
-│   ├── vite.config.js
-│   ├── package.json
-│   ├── Dockerfile
-│   └── nginx.conf
-│
-└── docker-compose.yml
+## Logs bekijken
+```bash
+docker compose -p rhadix-v131 logs -f
+docker compose -p rhadix-v131 logs -f backend
+docker compose -p rhadix-v131 logs -f frontend
 ```
 
-## Gevalideerde bestanden
+## Naast v127 draaien
+v131 gebruikt project-naam `rhadix-v131` en volume `rhadix_v131_pgdata`.
+v127 gebruikt project-naam `rhadix-v127` en volume `rhadix_v127_pgdata`.
+Ze delen geen containers, volumes of netwerken en conflicteren niet.
 
-| Bestand            | Verplichte kolommen                                  |
-|--------------------|------------------------------------------------------|
-| Medewerker         | PersoneelsNummer, GeboorteDatum                     |
-| Werkovereenkomst   | DienstverbandNummer, PersoneelsNummer, OvereenkomstType, StartDatum |
-| Functie            | Functie                                              |
-| KwalificatieNiveau | Code                                                 |
-| KwaliteitsGraden   | Kwaliteit                                            |
-| Verzuim            | PersoneelsNummer, Startmoment                        |
+## KIK-V Profielimport gebruiken
+1. Zorg dat je internetverbinding hebt (GitLab is publiek toegankelijk)
+2. Ga naar "KIK-V Profielimport" via de landingspagina
+3. Klik "+ Nieuw importeren" — standaard instellingen zijn correct
+4. Na import: upload bronbestanden en klik "Analyseer gereedheid"
 
-## Cross-bestand controles
-
-- Werkovereenkomst → personen niet in Medewerker
-- Medewerkers zonder werkovereenkomst
-- Verzuim → personen niet in Medewerker
-- KwalificatieNiveau codes niet in KwaliteitsGraden
-- Functie kwalificatieniveaus niet in referentietabel
-
-## API endpoints
-
-| Methode | URL                          | Beschrijving               |
-|---------|------------------------------|----------------------------|
-| POST    | /api/validate/upload         | Upload en valideer bestanden|
-| GET     | /api/history/                | Lijst van alle runs        |
-| GET     | /api/history/{id}            | Detail van één run         |
-| DELETE  | /api/history/{id}            | Verwijder run              |
-| GET     | /api/history/stats/summary   | Statistieken               |
-| GET     | /api/reference/fields        | KIK-V veldmapping          |
-| GET     | /api/reference/schemas       | Bestandsschema's           |
-| GET     | /api/export/{id}/excel       | Exporteer als Excel        |
-| GET     | /api/export/{id}/pdf         | Exporteer als PDF          |
-| GET     | /api/docs                    | Swagger UI                 |
+## Handmatig (zonder script)
+```bash
+docker compose -p rhadix-v131 up --build -d      # starten
+docker compose -p rhadix-v131 down               # stoppen
+docker compose -p rhadix-v131 down -v            # stoppen + database wissen
+```

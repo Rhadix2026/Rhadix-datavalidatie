@@ -38,12 +38,12 @@ export function NavLink({ children, onClick }) {
   )
 }
 
-export function NavBack({ onClick }) {
+export function NavBack({ onClick, dark }) {
   return (
     <button onClick={onClick} style={{
       background: 'none', border: 'none', cursor: 'pointer',
-      fontSize: 14, color: 'rgba(255,255,255,.6)', fontFamily: 'var(--font)',
-      display: 'flex', alignItems: 'center', gap: 4,
+      fontSize: 14, color: dark ? 'var(--text2)' : 'rgba(255,255,255,.6)', fontFamily: 'var(--font)',
+      display: 'flex', alignItems: 'center', gap: 4, fontWeight: dark ? 600 : 400,
     }}>← Terug</button>
   )
 }
@@ -51,7 +51,7 @@ export function NavBack({ onClick }) {
 // ─── Page wrapper ─────────────────────────────────────────────────────────────
 export function Page({ children }) {
   return (
-    <div style={{ maxWidth: 740, margin: '0 auto', padding: '40px 24px' }}>
+    <div className="page-container">
       {children}
     </div>
   )

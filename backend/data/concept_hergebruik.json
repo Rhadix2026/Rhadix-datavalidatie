@@ -1,0 +1,1297 @@
+{
+  "source": "https://kik-v-publicatieplatform.nl/kik-v-concepten",
+  "total_profiles": 8,
+  "total_concepts": 54,
+  "concepts": {
+    "onz-pers#ArbeidsOvereenkomst": {
+      "label": "Arbeidsovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomst",
+      "short_uri": "onz-pers#ArbeidsOvereenkomst",
+      "profile_count": 8,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#ArbeidsOvereenkomstBepaaldeTijd": {
+      "label": "Arbeidsovereenkomst bepaalde tijd",
+      "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomstBepaaldeTijd",
+      "short_uri": "onz-pers#ArbeidsOvereenkomstBepaaldeTijd",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#ArbeidsOvereenkomstBBL": {
+      "label": "Arbeidsovereenkomst beroeps begeleidende leerweg",
+      "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomstBBL",
+      "short_uri": "onz-pers#ArbeidsOvereenkomstBBL",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#ArbeidsOvereenkomstOnbepaaldeTijd": {
+      "label": "Arbeidsovereenkomst onbepaalde tijd",
+      "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomstOnbepaaldeTijd",
+      "short_uri": "onz-pers#ArbeidsOvereenkomstOnbepaaldeTijd",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-g#Business": {
+      "label": "Bedrijf",
+      "uri": "http://purl.org/ozo/onz-g#Business",
+      "short_uri": "onz-g#Business",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-g#OccupancyQuality": {
+      "label": "Bezettingseigenschap",
+      "uri": "http://purl.org/ozo/onz-g#OccupancyQuality",
+      "short_uri": "onz-g#OccupancyQuality",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-g#OccupancyValue": {
+      "label": "Bezettingswaarde",
+      "uri": "http://purl.org/ozo/onz-g#OccupancyValue",
+      "short_uri": "onz-g#OccupancyValue",
+      "profile_count": 0,
+      "profiles": []
+    },
+    "onz-g#CapacityValue": {
+      "label": "Capaciteitswaarde",
+      "uri": "http://purl.org/ozo/onz-g#CapacityValue",
+      "short_uri": "onz-g#CapacityValue",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#ContractOmvang": {
+      "label": "Contractomvang",
+      "uri": "http://purl.org/ozo/onz-pers#ContractOmvang",
+      "short_uri": "onz-pers#ContractOmvang",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#ContractOmvangWaarde": {
+      "label": "Contractomvangwaarde",
+      "uri": "http://purl.org/ozo/onz-pers#ContractOmvangWaarde",
+      "short_uri": "onz-pers#ContractOmvangWaarde",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-fin#EindSaldo": {
+      "label": "Eind saldo",
+      "uri": "http://purl.org/ozo/onz-fin#EindSaldo",
+      "short_uri": "onz-fin#EindSaldo",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-g#FinancialEntity": {
+      "label": "Financiële entiteit",
+      "uri": "http://purl.org/ozo/onz-g#FinancialEntity",
+      "short_uri": "onz-g#FinancialEntity",
+      "profile_count": 0,
+      "profiles": []
+    },
+    "onz-zorg#ForensischeIndicatieStelling": {
+      "label": "Forensische indicatiestelling",
+      "uri": "http://purl.org/ozo/onz-zorg#ForensischeIndicatieStelling",
+      "short_uri": "onz-zorg#ForensischeIndicatieStelling",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-g#OccupationalPositionRole": {
+      "label": "Functie in organisatie-rol",
+      "uri": "http://purl.org/ozo/onz-g#OccupationalPositionRole",
+      "short_uri": "onz-g#OccupationalPositionRole",
+      "profile_count": 4,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-plan#PlannedEntity": {
+      "label": "Geplande entiteit",
+      "uri": "http://purl.org/ozo/onz-plan#PlannedEntity",
+      "short_uri": "onz-plan#PlannedEntity",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek"
+      ]
+    },
+    "onz-plan#PlannedEntityAssertion": {
+      "label": "Geplande entiteit relatie",
+      "uri": "http://purl.org/ozo/onz-plan#PlannedEntityAssertion",
+      "short_uri": "onz-plan#PlannedEntityAssertion",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek"
+      ]
+    },
+    "onz-pers#GewerktePeriode": {
+      "label": "Gewerkte periode",
+      "uri": "http://purl.org/ozo/onz-pers#GewerktePeriode",
+      "short_uri": "onz-pers#GewerktePeriode",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-fin#Grootboekpost": {
+      "label": "Grootboekpost",
+      "uri": "http://purl.org/ozo/onz-fin#Grootboekpost",
+      "short_uri": "onz-fin#Grootboekpost",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-fin#Grootboekrubriek": {
+      "label": "Grootboekrubriek",
+      "uri": "http://purl.org/ozo/onz-fin#Grootboekrubriek",
+      "short_uri": "onz-fin#Grootboekrubriek",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-zorg#IndicatieBesluit": {
+      "label": "Indicatiebesluit",
+      "uri": "http://purl.org/ozo/onz-zorg#IndicatieBesluit",
+      "short_uri": "onz-zorg#IndicatieBesluit",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#InhuurOvereenkomst": {
+      "label": "Inhuurovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#InhuurOvereenkomst",
+      "short_uri": "onz-pers#InhuurOvereenkomst",
+      "profile_count": 7,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-fin#Kostenplaats": {
+      "label": "Kostenplaats",
+      "uri": "http://purl.org/ozo/onz-fin#Kostenplaats",
+      "short_uri": "onz-fin#Kostenplaats",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-g#Quality": {
+      "label": "Kwaliteit",
+      "uri": "http://purl.org/ozo/onz-g#Quality",
+      "short_uri": "onz-g#Quality",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-zorg#LangdurigeZorgSector": {
+      "label": "Langdurige zorg sector",
+      "uri": "http://purl.org/ozo/onz-zorg#LangdurigeZorgSector",
+      "short_uri": "onz-zorg#LangdurigeZorgSector",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-zorg#Leveringsvorm": {
+      "label": "Leveringsvorm",
+      "uri": "http://purl.org/ozo/onz-zorg#Leveringsvorm",
+      "short_uri": "onz-zorg#Leveringsvorm",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-g#Human": {
+      "label": "Mens",
+      "uri": "http://purl.org/ozo/onz-g#Human",
+      "short_uri": "onz-g#Human",
+      "profile_count": 7,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#ODBKwalificatieWaarde": {
+      "label": "ODB Kwalificatiewaarde",
+      "uri": "http://purl.org/ozo/onz-pers#ODBKwalificatieWaarde",
+      "short_uri": "onz-pers#ODBKwalificatieWaarde",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-g#StationaryArtifact": {
+      "label": "Onverplaatsbaar artefact",
+      "uri": "http://purl.org/ozo/onz-g#StationaryArtifact",
+      "short_uri": "onz-g#StationaryArtifact",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#OproepOvereenkomst": {
+      "label": "Oproepovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#OproepOvereenkomst",
+      "short_uri": "onz-pers#OproepOvereenkomst",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#PayrollOvereenkomst": {
+      "label": "Payrollovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#PayrollOvereenkomst",
+      "short_uri": "onz-pers#PayrollOvereenkomst",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt"
+      ]
+    },
+    "onz-plan#PlanInformationObject": {
+      "label": "Planning",
+      "uri": "http://purl.org/ozo/onz-plan#PlanInformationObject",
+      "short_uri": "onz-plan#PlanInformationObject",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek"
+      ]
+    },
+    "onz-pers#StageOvereenkomst": {
+      "label": "Stage-overeenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#StageOvereenkomst",
+      "short_uri": "onz-pers#StageOvereenkomst",
+      "profile_count": 4,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging"
+      ]
+    },
+    "onz-g#DurationValue": {
+      "label": "Tijdsduurwaarde",
+      "uri": "http://purl.org/ozo/onz-g#DurationValue",
+      "short_uri": "onz-g#DurationValue",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek"
+      ]
+    },
+    "onz-pers#UitzendOvereenkomst": {
+      "label": "Uitzendovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#UitzendOvereenkomst",
+      "short_uri": "onz-pers#UitzendOvereenkomst",
+      "profile_count": 7,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-fin#VerloondePeriode": {
+      "label": "Verloonde periode",
+      "uri": "http://purl.org/ozo/onz-fin#VerloondePeriode",
+      "short_uri": "onz-fin#VerloondePeriode",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-zorg#NursingProcess": {
+      "label": "Verpleegproces",
+      "uri": "http://purl.org/ozo/onz-zorg#NursingProcess",
+      "short_uri": "onz-zorg#NursingProcess",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#VerzuimTijdKwaliteit": {
+      "label": "Verzuimtijd",
+      "uri": "http://purl.org/ozo/onz-pers#VerzuimTijdKwaliteit",
+      "short_uri": "onz-pers#VerzuimTijdKwaliteit",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-org#Vestiging": {
+      "label": "Vestiging",
+      "uri": "http://purl.org/ozo/onz-org#Vestiging",
+      "short_uri": "onz-org#Vestiging",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-org#Vestigingsnummer": {
+      "label": "Vestigingsnummer",
+      "uri": "http://purl.org/ozo/onz-org#Vestigingsnummer",
+      "short_uri": "onz-org#Vestigingsnummer",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#VrijwilligersOvereenkomst": {
+      "label": "Vrijwilligersovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#VrijwilligersOvereenkomst",
+      "short_uri": "onz-pers#VrijwilligersOvereenkomst",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#WerkOvereenkomst": {
+      "label": "Werkovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#WerkOvereenkomst",
+      "short_uri": "onz-pers#WerkOvereenkomst",
+      "profile_count": 4,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging"
+      ]
+    },
+    "onz-pers#WerkOvereenkomstAfspraak": {
+      "label": "Werkovereenkomst afspraak",
+      "uri": "http://purl.org/ozo/onz-pers#WerkOvereenkomstAfspraak",
+      "short_uri": "onz-pers#WerkOvereenkomstAfspraak",
+      "profile_count": 7,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-zorg#WlzIndicatie": {
+      "label": "Wlz-indicatie",
+      "uri": "http://purl.org/ozo/onz-zorg#WlzIndicatie",
+      "short_uri": "onz-zorg#WlzIndicatie",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-zorg#WmoIndicatie": {
+      "label": "Wmo-indicatie",
+      "uri": "http://purl.org/ozo/onz-zorg#WmoIndicatie",
+      "short_uri": "onz-zorg#WmoIndicatie",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-org#WoonEenheid": {
+      "label": "Wooneenheid",
+      "uri": "http://purl.org/ozo/onz-org#WoonEenheid",
+      "short_uri": "onz-org#WoonEenheid",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#ZiektePeriode": {
+      "label": "Ziekteperiode",
+      "uri": "http://purl.org/ozo/onz-pers#ZiektePeriode",
+      "short_uri": "onz-pers#ZiektePeriode",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-g#CareInvoice": {
+      "label": "ZorgDeclaratie",
+      "uri": "http://purl.org/ozo/onz-g#CareInvoice",
+      "short_uri": "onz-g#CareInvoice",
+      "profile_count": 4,
+      "profiles": [
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-g#CureAndCareProcess": {
+      "label": "ZorgEnVerpleegProces",
+      "uri": "http://purl.org/ozo/onz-g#CureAndCareProcess",
+      "short_uri": "onz-g#CureAndCareProcess",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-org#ZorgkantoorRegio": {
+      "label": "Zorgkantoor regio",
+      "uri": "http://purl.org/ozo/onz-org#ZorgkantoorRegio",
+      "short_uri": "onz-org#ZorgkantoorRegio",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-zorg#ZorgProces": {
+      "label": "Zorgproces",
+      "uri": "http://purl.org/ozo/onz-zorg#ZorgProces",
+      "short_uri": "onz-zorg#ZorgProces",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-zorg#ZorgProfiel": {
+      "label": "Zorgprofiel",
+      "uri": "http://purl.org/ozo/onz-zorg#ZorgProfiel",
+      "short_uri": "onz-zorg#ZorgProfiel",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging"
+      ]
+    },
+    "onz-pers#ZorgverlenerFunctie": {
+      "label": "Zorgverlener (functie)",
+      "uri": "http://purl.org/ozo/onz-pers#ZorgverlenerFunctie",
+      "short_uri": "onz-pers#ZorgverlenerFunctie",
+      "profile_count": 7,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-zorg#ZvwIndicatie": {
+      "label": "Zvw-indicatie",
+      "uri": "http://purl.org/ozo/onz-zorg#ZvwIndicatie",
+      "short_uri": "onz-zorg#ZvwIndicatie",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "onz-pers#ZwangerschapsVerlof": {
+      "label": "Zwangerschapsverlof",
+      "uri": "http://purl.org/ozo/onz-pers#ZwangerschapsVerlof",
+      "short_uri": "onz-pers#ZwangerschapsVerlof",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    }
+  },
+  "by_fragment": {
+    "ArbeidsOvereenkomst": {
+      "label": "Arbeidsovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomst",
+      "short_uri": "onz-pers#ArbeidsOvereenkomst",
+      "profile_count": 8,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ArbeidsOvereenkomstBepaaldeTijd": {
+      "label": "Arbeidsovereenkomst bepaalde tijd",
+      "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomstBepaaldeTijd",
+      "short_uri": "onz-pers#ArbeidsOvereenkomstBepaaldeTijd",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ArbeidsOvereenkomstBBL": {
+      "label": "Arbeidsovereenkomst beroeps begeleidende leerweg",
+      "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomstBBL",
+      "short_uri": "onz-pers#ArbeidsOvereenkomstBBL",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ArbeidsOvereenkomstOnbepaaldeTijd": {
+      "label": "Arbeidsovereenkomst onbepaalde tijd",
+      "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomstOnbepaaldeTijd",
+      "short_uri": "onz-pers#ArbeidsOvereenkomstOnbepaaldeTijd",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "Business": {
+      "label": "Bedrijf",
+      "uri": "http://purl.org/ozo/onz-g#Business",
+      "short_uri": "onz-g#Business",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "OccupancyQuality": {
+      "label": "Bezettingseigenschap",
+      "uri": "http://purl.org/ozo/onz-g#OccupancyQuality",
+      "short_uri": "onz-g#OccupancyQuality",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "OccupancyValue": {
+      "label": "Bezettingswaarde",
+      "uri": "http://purl.org/ozo/onz-g#OccupancyValue",
+      "short_uri": "onz-g#OccupancyValue",
+      "profile_count": 0,
+      "profiles": []
+    },
+    "CapacityValue": {
+      "label": "Capaciteitswaarde",
+      "uri": "http://purl.org/ozo/onz-g#CapacityValue",
+      "short_uri": "onz-g#CapacityValue",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ContractOmvang": {
+      "label": "Contractomvang",
+      "uri": "http://purl.org/ozo/onz-pers#ContractOmvang",
+      "short_uri": "onz-pers#ContractOmvang",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ContractOmvangWaarde": {
+      "label": "Contractomvangwaarde",
+      "uri": "http://purl.org/ozo/onz-pers#ContractOmvangWaarde",
+      "short_uri": "onz-pers#ContractOmvangWaarde",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "EindSaldo": {
+      "label": "Eind saldo",
+      "uri": "http://purl.org/ozo/onz-fin#EindSaldo",
+      "short_uri": "onz-fin#EindSaldo",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "FinancialEntity": {
+      "label": "Financiële entiteit",
+      "uri": "http://purl.org/ozo/onz-g#FinancialEntity",
+      "short_uri": "onz-g#FinancialEntity",
+      "profile_count": 0,
+      "profiles": []
+    },
+    "ForensischeIndicatieStelling": {
+      "label": "Forensische indicatiestelling",
+      "uri": "http://purl.org/ozo/onz-zorg#ForensischeIndicatieStelling",
+      "short_uri": "onz-zorg#ForensischeIndicatieStelling",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "OccupationalPositionRole": {
+      "label": "Functie in organisatie-rol",
+      "uri": "http://purl.org/ozo/onz-g#OccupationalPositionRole",
+      "short_uri": "onz-g#OccupationalPositionRole",
+      "profile_count": 4,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "PlannedEntity": {
+      "label": "Geplande entiteit",
+      "uri": "http://purl.org/ozo/onz-plan#PlannedEntity",
+      "short_uri": "onz-plan#PlannedEntity",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek"
+      ]
+    },
+    "PlannedEntityAssertion": {
+      "label": "Geplande entiteit relatie",
+      "uri": "http://purl.org/ozo/onz-plan#PlannedEntityAssertion",
+      "short_uri": "onz-plan#PlannedEntityAssertion",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek"
+      ]
+    },
+    "GewerktePeriode": {
+      "label": "Gewerkte periode",
+      "uri": "http://purl.org/ozo/onz-pers#GewerktePeriode",
+      "short_uri": "onz-pers#GewerktePeriode",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "Grootboekpost": {
+      "label": "Grootboekpost",
+      "uri": "http://purl.org/ozo/onz-fin#Grootboekpost",
+      "short_uri": "onz-fin#Grootboekpost",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "Grootboekrubriek": {
+      "label": "Grootboekrubriek",
+      "uri": "http://purl.org/ozo/onz-fin#Grootboekrubriek",
+      "short_uri": "onz-fin#Grootboekrubriek",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "IndicatieBesluit": {
+      "label": "Indicatiebesluit",
+      "uri": "http://purl.org/ozo/onz-zorg#IndicatieBesluit",
+      "short_uri": "onz-zorg#IndicatieBesluit",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "InhuurOvereenkomst": {
+      "label": "Inhuurovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#InhuurOvereenkomst",
+      "short_uri": "onz-pers#InhuurOvereenkomst",
+      "profile_count": 7,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "Kostenplaats": {
+      "label": "Kostenplaats",
+      "uri": "http://purl.org/ozo/onz-fin#Kostenplaats",
+      "short_uri": "onz-fin#Kostenplaats",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "Quality": {
+      "label": "Kwaliteit",
+      "uri": "http://purl.org/ozo/onz-g#Quality",
+      "short_uri": "onz-g#Quality",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "LangdurigeZorgSector": {
+      "label": "Langdurige zorg sector",
+      "uri": "http://purl.org/ozo/onz-zorg#LangdurigeZorgSector",
+      "short_uri": "onz-zorg#LangdurigeZorgSector",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "Leveringsvorm": {
+      "label": "Leveringsvorm",
+      "uri": "http://purl.org/ozo/onz-zorg#Leveringsvorm",
+      "short_uri": "onz-zorg#Leveringsvorm",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "Human": {
+      "label": "Mens",
+      "uri": "http://purl.org/ozo/onz-g#Human",
+      "short_uri": "onz-g#Human",
+      "profile_count": 7,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ODBKwalificatieWaarde": {
+      "label": "ODB Kwalificatiewaarde",
+      "uri": "http://purl.org/ozo/onz-pers#ODBKwalificatieWaarde",
+      "short_uri": "onz-pers#ODBKwalificatieWaarde",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "StationaryArtifact": {
+      "label": "Onverplaatsbaar artefact",
+      "uri": "http://purl.org/ozo/onz-g#StationaryArtifact",
+      "short_uri": "onz-g#StationaryArtifact",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "OproepOvereenkomst": {
+      "label": "Oproepovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#OproepOvereenkomst",
+      "short_uri": "onz-pers#OproepOvereenkomst",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "PayrollOvereenkomst": {
+      "label": "Payrollovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#PayrollOvereenkomst",
+      "short_uri": "onz-pers#PayrollOvereenkomst",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt"
+      ]
+    },
+    "PlanInformationObject": {
+      "label": "Planning",
+      "uri": "http://purl.org/ozo/onz-plan#PlanInformationObject",
+      "short_uri": "onz-plan#PlanInformationObject",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek"
+      ]
+    },
+    "StageOvereenkomst": {
+      "label": "Stage-overeenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#StageOvereenkomst",
+      "short_uri": "onz-pers#StageOvereenkomst",
+      "profile_count": 4,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging"
+      ]
+    },
+    "DurationValue": {
+      "label": "Tijdsduurwaarde",
+      "uri": "http://purl.org/ozo/onz-g#DurationValue",
+      "short_uri": "onz-g#DurationValue",
+      "profile_count": 1,
+      "profiles": [
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek"
+      ]
+    },
+    "UitzendOvereenkomst": {
+      "label": "Uitzendovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#UitzendOvereenkomst",
+      "short_uri": "onz-pers#UitzendOvereenkomst",
+      "profile_count": 7,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "VerloondePeriode": {
+      "label": "Verloonde periode",
+      "uri": "http://purl.org/ozo/onz-fin#VerloondePeriode",
+      "short_uri": "onz-fin#VerloondePeriode",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "NursingProcess": {
+      "label": "Verpleegproces",
+      "uri": "http://purl.org/ozo/onz-zorg#NursingProcess",
+      "short_uri": "onz-zorg#NursingProcess",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "VerzuimTijdKwaliteit": {
+      "label": "Verzuimtijd",
+      "uri": "http://purl.org/ozo/onz-pers#VerzuimTijdKwaliteit",
+      "short_uri": "onz-pers#VerzuimTijdKwaliteit",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "Vestiging": {
+      "label": "Vestiging",
+      "uri": "http://purl.org/ozo/onz-org#Vestiging",
+      "short_uri": "onz-org#Vestiging",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "Vestigingsnummer": {
+      "label": "Vestigingsnummer",
+      "uri": "http://purl.org/ozo/onz-org#Vestigingsnummer",
+      "short_uri": "onz-org#Vestigingsnummer",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "VrijwilligersOvereenkomst": {
+      "label": "Vrijwilligersovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#VrijwilligersOvereenkomst",
+      "short_uri": "onz-pers#VrijwilligersOvereenkomst",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "WerkOvereenkomst": {
+      "label": "Werkovereenkomst",
+      "uri": "http://purl.org/ozo/onz-pers#WerkOvereenkomst",
+      "short_uri": "onz-pers#WerkOvereenkomst",
+      "profile_count": 4,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging"
+      ]
+    },
+    "WerkOvereenkomstAfspraak": {
+      "label": "Werkovereenkomst afspraak",
+      "uri": "http://purl.org/ozo/onz-pers#WerkOvereenkomstAfspraak",
+      "short_uri": "onz-pers#WerkOvereenkomstAfspraak",
+      "profile_count": 7,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "WlzIndicatie": {
+      "label": "Wlz-indicatie",
+      "uri": "http://purl.org/ozo/onz-zorg#WlzIndicatie",
+      "short_uri": "onz-zorg#WlzIndicatie",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "WmoIndicatie": {
+      "label": "Wmo-indicatie",
+      "uri": "http://purl.org/ozo/onz-zorg#WmoIndicatie",
+      "short_uri": "onz-zorg#WmoIndicatie",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "WoonEenheid": {
+      "label": "Wooneenheid",
+      "uri": "http://purl.org/ozo/onz-org#WoonEenheid",
+      "short_uri": "onz-org#WoonEenheid",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ZiektePeriode": {
+      "label": "Ziekteperiode",
+      "uri": "http://purl.org/ozo/onz-pers#ZiektePeriode",
+      "short_uri": "onz-pers#ZiektePeriode",
+      "profile_count": 5,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Basisinformatie kostenonderzoek",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "CareInvoice": {
+      "label": "ZorgDeclaratie",
+      "uri": "http://purl.org/ozo/onz-g#CareInvoice",
+      "short_uri": "onz-g#CareInvoice",
+      "profile_count": 4,
+      "profiles": [
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "CureAndCareProcess": {
+      "label": "ZorgEnVerpleegProces",
+      "uri": "http://purl.org/ozo/onz-g#CureAndCareProcess",
+      "short_uri": "onz-g#CureAndCareProcess",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ZorgkantoorRegio": {
+      "label": "Zorgkantoor regio",
+      "uri": "http://purl.org/ozo/onz-org#ZorgkantoorRegio",
+      "short_uri": "onz-org#ZorgkantoorRegio",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ZorgProces": {
+      "label": "Zorgproces",
+      "uri": "http://purl.org/ozo/onz-zorg#ZorgProces",
+      "short_uri": "onz-zorg#ZorgProces",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ZorgProfiel": {
+      "label": "Zorgprofiel",
+      "uri": "http://purl.org/ozo/onz-zorg#ZorgProfiel",
+      "short_uri": "onz-zorg#ZorgProfiel",
+      "profile_count": 3,
+      "profiles": [
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging"
+      ]
+    },
+    "ZorgverlenerFunctie": {
+      "label": "Zorgverlener (functie)",
+      "uri": "http://purl.org/ozo/onz-pers#ZorgverlenerFunctie",
+      "short_uri": "onz-pers#ZorgverlenerFunctie",
+      "profile_count": 7,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ZvwIndicatie": {
+      "label": "Zvw-indicatie",
+      "uri": "http://purl.org/ozo/onz-zorg#ZvwIndicatie",
+      "short_uri": "onz-zorg#ZvwIndicatie",
+      "profile_count": 6,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. aangekondigd inspectiebezoek",
+        "Uitwisselprofiel IGJ Contextinformatie t.b.v. onaangekondigd inspectiebezoek",
+        "Uitwisselprofiel ActiZ Belangenbehartiging",
+        "Uitwisselprofiel NZa Structurele Informatieverstrekking Bedrijfsvoering Wmg",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    },
+    "ZwangerschapsVerlof": {
+      "label": "Zwangerschapsverlof",
+      "uri": "http://purl.org/ozo/onz-pers#ZwangerschapsVerlof",
+      "short_uri": "onz-pers#ZwangerschapsVerlof",
+      "profile_count": 2,
+      "profiles": [
+        "Uitwisselprofiel Ministerie van VWS Beleidsontwikkeling over Macro-Economische Vraagstukken en Arbeidsmarkt",
+        "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling"
+      ]
+    }
+  }
+}

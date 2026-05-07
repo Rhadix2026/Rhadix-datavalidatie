@@ -55,20 +55,26 @@ SCHEMA_META: dict[str, dict] = {
     "medewerker":      {"label": "Medewerker",      "concept": "Mens"},
     "werkovereenkomst":{"label": "Werkovereenkomst", "concept": "WerkOvereenkomst"},
     "functie":         {"label": "Functie",          "concept": "WerkOvereenkomst"},
-    "verzuim":         {"label": "Verzuim",          "concept": "Verzuimperiode"},
+    "verzuim":         {"label": "Verzuim",          "concept": "VerzuimPeriode"},
+    "vestiging":       {"label": "Vestiging",        "concept": "Vestiging"},
+    "client":          {"label": "Cliënt",           "concept": "Mens"},
+    "kostenplaats":    {"label": "Kostenplaats",     "concept": "Kostenplaats"},
+    "grootboek":       {"label": "Grootboek",        "concept": "Grootboekrubriek"},
 }
 
-SCHEMA_ORDER = ["medewerker", "werkovereenkomst", "functie", "verzuim"]
+SCHEMA_ORDER = ["medewerker", "werkovereenkomst", "functie", "verzuim", "vestiging", "client", "kostenplaats", "grootboek"]
 
 # ─── KIK-V Uitwisselindicatoren ───────────────────────────────────────────────
 # Elk uitwisselprofiel beschrijft welke velden nodig zijn voor één KIK-V uitwisseling.
 # Formaat field_refs: "schema_key.field_key"
 
 KIKV_INDICATORS: list[dict] = [
+    # ── HRM ──────────────────────────────────────────────────────────────────
     {
         "indicator_id":    "mens_identificatie",
         "indicator_name":  "Medewerker identificatie",
         "exchange_profile":"Mens — Basisgegevens",
+        "domain":          "HRM",
         "description":     "Unieke identificatie van iedere zorgmedewerker via personeelsnummer en geboortedatum.",
         "required_fields": ["medewerker.personeelsnummer", "medewerker.geboortedatum"],
     },
@@ -76,6 +82,7 @@ KIKV_INDICATORS: list[dict] = [
         "indicator_id":    "dienstverband_type",
         "indicator_name":  "Dienstverbandtype",
         "exchange_profile":"WerkOvereenkomst — Contracttype",
+        "domain":          "HRM",
         "description":     "Contracttype conform KIK-V OvereenkomstType codelijst, inclusief einddatum voor tijdelijke contracten.",
         "required_fields": ["werkovereenkomst.overeenkomsttype", "werkovereenkomst.startdatum", "werkovereenkomst.personeelsnummer"],
     },
@@ -83,6 +90,7 @@ KIKV_INDICATORS: list[dict] = [
         "indicator_id":    "dienstverband_periode",
         "indicator_name":  "Dienstverbandperiode",
         "exchange_profile":"WerkOvereenkomst — Looptijd",
+        "domain":          "HRM",
         "description":     "Start- en einddatum van het dienstverband voor tijdelijke contracten.",
         "required_fields": ["werkovereenkomst.startdatum", "werkovereenkomst.einddatum"],
     },
@@ -90,6 +98,7 @@ KIKV_INDICATORS: list[dict] = [
         "indicator_id":    "functie_kwalificatie",
         "indicator_name":  "Functie & kwalificatieniveau",
         "exchange_profile":"WerkOvereenkomst — Functie",
+        "domain":          "HRM",
         "description":     "Functienaam en KIK-V kwalificatieniveaucode voor rapportage over scholing.",
         "required_fields": ["functie.functie", "functie.kwalificatieniveau"],
     },
@@ -97,6 +106,7 @@ KIKV_INDICATORS: list[dict] = [
         "indicator_id":    "verzuim_registratie",
         "indicator_name":  "Verzuimregistratie",
         "exchange_profile":"Verzuimperiode — Basisgegevens",
+        "domain":          "HRM",
         "description":     "Start en soort verzuim conform KIK-V SoortVerzuim codelijst.",
         "required_fields": ["verzuim.personeelsnummer", "verzuim.startmoment", "verzuim.soortverzuim"],
     },
@@ -104,8 +114,52 @@ KIKV_INDICATORS: list[dict] = [
         "indicator_id":    "verzuim_percentage",
         "indicator_name":  "Verzuimpercentage",
         "exchange_profile":"Verzuimperiode — Omvang",
+        "domain":          "HRM",
         "description":     "Mate van arbeidsongeschiktheid als percentage (0–100) voor KIK-V-rapportage.",
         "required_fields": ["verzuim.startmoment", "verzuim.verzuimpercentage"],
+    },
+    # ── Locatie ───────────────────────────────────────────────────────────────
+    {
+        "indicator_id":    "vestiging_identificatie",
+        "indicator_name":  "Vestiging identificatie",
+        "exchange_profile":"Vestiging — Basisgegevens",
+        "domain":          "Locatie",
+        "description":     "Unieke identificatie van de zorglocatie met vestigingsnummer en zorgkantoor-regio (vereist voor Zorgkantoren uitwisseling).",
+        "required_fields": ["vestiging.vestigingsnummer", "vestiging.naam", "vestiging.zorgkantoorregiocode"],
+    },
+    # ── Cliënt ────────────────────────────────────────────────────────────────
+    {
+        "indicator_id":    "client_identificatie",
+        "indicator_name":  "Cliënt identificatie",
+        "exchange_profile":"Cliënt — Basisgegevens",
+        "domain":          "Cliënt",
+        "description":     "Unieke identificatie van de cliënt met geboortedatum voor leeftijdscategorisering.",
+        "required_fields": ["client.clientid", "client.geboortedatum"],
+    },
+    {
+        "indicator_id":    "client_indicatie",
+        "indicator_name":  "ZorgIndicatie (WLZ/WMO)",
+        "exchange_profile":"Cliënt — Indicatiestelling",
+        "domain":          "Cliënt",
+        "description":     "WLZ- of WMO-indicatie van de cliënt conform KIK-V onz-zorg ontologie.",
+        "required_fields": ["client.wlzindicatie", "client.wmoindicatie"],
+    },
+    # ── Financiën ─────────────────────────────────────────────────────────────
+    {
+        "indicator_id":    "kostenplaats_registratie",
+        "indicator_name":  "Kostenplaats registratie",
+        "exchange_profile":"Kostenplaats — NZa / VWS",
+        "domain":          "Financiën",
+        "description":     "Kostenplaatsen met bedragen voor NZa kostenonderzoek en VWS Jaarverantwoording.",
+        "required_fields": ["kostenplaats.kostenplaatsid", "kostenplaats.bedrag"],
+    },
+    {
+        "indicator_id":    "grootboek_registratie",
+        "indicator_name":  "Grootboek registratie",
+        "exchange_profile":"Grootboek — NZa / VWS",
+        "domain":          "Financiën",
+        "description":     "Grootboekrekeningen met saldo voor NZa kostenonderzoek en VWS Jaarverantwoording.",
+        "required_fields": ["grootboek.rekeningnummer", "grootboek.bedrag"],
     },
 ]
 
@@ -200,7 +254,8 @@ def _build_availability(results: dict, file_index: dict[str, dict]) -> Availabil
                 coverage_pct = (filled_rows / total_rows * 100) if total_rows > 0 else 0.0
 
                 # Mappingstatus: check of kolom herkend is
-                mapped_column = fr.get("columns_mapped", {}).get(field_key)
+                # validator.py slaat de kolomkoppeling op als "mapping" (niet "columns_mapped")
+                mapped_column = fr.get("mapping", {}).get(field_key)
 
                 # Bepaal status
                 if errors > 0 and empty_count >= total_rows * 0.5:
@@ -226,13 +281,18 @@ def _build_availability(results: dict, file_index: dict[str, dict]) -> Availabil
                 source=source,
             ))
 
-        # Schema-score: gewogen gemiddelde veldstatus
+        # Schema-score: gewogen gemiddelde over KIK-V veldstatus
+        # Alleen schema's mét KIK-V veldregels (fields > 0) tellen mee.
+        # Een geüpload schema zónder regels scoort None (niet 0%) — het is aangeleverd
+        # maar Rhadix heeft nog geen KIK-V norm voor dat schema.
         if fields:
             present     = sum(1 for f in fields if f.status == AvailabilityStatus.aanwezig)
             ambiguous   = sum(1 for f in fields if f.status == AvailabilityStatus.niet_eenduidig)
             avail_score = _clamp((present * 1.0 + ambiguous * 0.5) / len(fields) * 100)
+            has_rules   = True
         else:
             avail_score = 0.0
+            has_rules   = False  # geen KIK-V regels gedefinieerd → telt niet mee in score
 
         schemas.append(SchemaAvailability(
             schema_key=schema_key,
@@ -240,13 +300,18 @@ def _build_availability(results: dict, file_index: dict[str, dict]) -> Availabil
             file_uploaded=fr is not None,
             filename=fr.get("filename") if fr else None,
             row_count=fr.get("row_count", 0) if fr else 0,
-            recognized_columns=len(fr.get("columns_mapped", {})) if fr else 0,
-            total_columns=fr.get("total_columns", 0) if fr else 0,
+            recognized_columns=len(fr.get("mapping", {})) if fr else 0,
+            total_columns=len(fr.get("headers", [])) if fr else 0,
             availability_score=round(avail_score, 1),
             fields=fields,
         ))
 
     # Totaaltellingen
+    # Beschikbaarheidsscore = gemiddelde over schema's die:
+    #   (a) KIK-V veldregels hebben (has_rules = True), EN
+    #   (b) aangeleverd zijn (file_uploaded = True)
+    # Niet-aangeleverde schema's met regels tellen als 0% (ze ontbreken).
+    # Aangeleverde schema's zonder regels tellen NIET mee (geen KIK-V norm bekend).
     all_fields    = [f for s in schemas for f in s.fields]
     total_schemas = len(schemas)
     uploaded      = sum(1 for s in schemas if s.file_uploaded)
@@ -256,8 +321,13 @@ def _build_availability(results: dict, file_index: dict[str, dict]) -> Availabil
     ambiguous_f   = sum(1 for f in all_fields if f.status == AvailabilityStatus.niet_eenduidig)
     req_missing   = sum(1 for f in all_fields if f.is_required and f.status == AvailabilityStatus.ontbreekt)
 
-    uploaded_scores = [s.availability_score for s in schemas if s.file_uploaded]
-    overall_score   = sum(uploaded_scores) / len(uploaded_scores) if uploaded_scores else 0.0
+    # Scores: alleen schema's mét KIK-V regels (uploaded of not — ontbrekend telt als 0%)
+    schemas_with_rules = [s for s in schemas if FIELD_RULES.get(s.schema_key)]
+    scored_schemas     = schemas_with_rules  # alle schema's met regels tellen mee
+    overall_score      = (
+        sum(s.availability_score for s in scored_schemas) / len(scored_schemas)
+        if scored_schemas else 0.0
+    )
 
     return AvailabilitySummary(
         total_schemas=total_schemas,
@@ -735,17 +805,21 @@ def _build_executive_summary(
     quality: QualitySummary,
     kikv: KikvReadinessSummary,
 ) -> str:
-    score = int(getattr(run, "score", 0) or 0)
-    rhadix_index = min(100, round((score + max(0, score - 20)) / 2))
+    # Rhadix Index = Beschikbaarheid × Kwaliteit / 100  (zelfde formule als frontend)
+    rhadix_index = min(100, round(availability.availability_score * quality.quality_score / 100))
 
     ready_pct   = round(kikv.indicators_ready / kikv.indicators_total * 100) if kikv.indicators_total else 0
     partial_pct = round(kikv.indicators_partial / kikv.indicators_total * 100) if kikv.indicators_total else 0
 
+    # Bereken KIK-V-niveau beschikbaarheid (velden uit schema's mét KIK-V regels)
+    kikv_fields_total   = availability.total_fields
+    kikv_fields_present = availability.fields_present
+
     return (
         f"De Rhadix-analyse over {getattr(run, 'label', 'deze scan')} toont een Rhadix Index van "
         f"{rhadix_index}/100. "
-        f"De databeschikbaarheid bedraagt {availability.availability_score:.0f}% "
-        f"({availability.fields_present} van {availability.total_fields} velden aanwezig). "
+        f"De KIK-V-beschikbaarheid bedraagt {availability.availability_score:.0f}% "
+        f"({kikv_fields_present} van {kikv_fields_total} KIK-V-velden aanwezig). "
         f"De datakwaliteitsscore is {quality.quality_score:.0f}%"
         f"{' — onder de aanbevolen drempel van 80%' if quality.quality_score < 80 else ''}. "
         f"Van de {kikv.indicators_total} KIK-V uitwisselindicatoren is "
@@ -794,8 +868,8 @@ def build_report(
     file_index  = _index_files(results)
     rtype       = ReportType(report_type)
 
-    score       = int(getattr(run, "score", None) or results.get("score", 0) or 0)
-    rhadix_index = min(100, round((score + max(0, score - 20)) / 2))
+    # Rhadix Index = Beschikbaarheid × Kwaliteit / 100  (zelfde formule als frontend dashboard)
+    # Wordt hieronder overschreven nadat availability en quality zijn opgebouwd
 
     meta = ReportMeta(
         report_type=rtype,
@@ -827,6 +901,9 @@ def build_report(
     kikv    = _build_kikv_readiness(availability, quality, file_index)
     actions = _build_actions(issues)
     recs    = _build_recommendations(availability, quality, kikv, issues)
+
+    # Rhadix Index = Beschikbaarheid × Kwaliteit / 100  (identiek aan frontend dashboard)
+    rhadix_index = min(100, round(availability.availability_score * quality.quality_score / 100))
 
     if rtype == ReportType.kikv_readiness:
         return KikvReadinessReport(

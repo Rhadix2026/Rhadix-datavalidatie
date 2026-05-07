@@ -1,9 +1,11 @@
 const BASE = '/api'
 
-export async function uploadFiles(files, label = '') {
+export async function uploadFiles(files, label = '', standard = 'kikv', maxAgeDays = 30) {
   const form = new FormData()
   files.forEach(f => form.append('files', f))
   if (label) form.append('label', label)
+  form.append('standard', standard)
+  form.append('max_age_days', String(maxAgeDays))
   const res = await fetch(`${BASE}/validate/upload`, { method: 'POST', body: form })
   if (!res.ok) throw new Error(await res.text())
   return res.json()

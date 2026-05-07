@@ -1,0 +1,18 @@
+# IN-V-01 — Verzuim: record gekoppeld aan bekende medewerker
+# Verwacht: elk verzuimrecord verwijst naar een bestaande medewerker.
+# Slaagt als: gekoppeld_count / totaal >= 0.98
+
+PREFIX onz: <http://purl.org/ozo/onz-pers#>
+PREFIX onzg: <http://purl.org/ozo/onz-g#>
+
+SELECT
+  (COUNT(?v)  AS ?totaal)
+  (COUNT(?m)  AS ?gekoppeld)
+WHERE {
+  ?v a onz:VerzuimPeriode .
+  OPTIONAL {
+    ?v  onzg:personeelsnummer ?pn .
+    ?m  a onz:Medewerker .
+    ?m  onzg:personeelsnummer ?pn .
+  }
+}

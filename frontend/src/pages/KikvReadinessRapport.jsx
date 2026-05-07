@@ -421,12 +421,12 @@ export default function KikvReadinessRapport({ results, systems, onBack }) {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Nav right={<NavBack onClick={onBack} />} /><Spinner />
+      <Nav right={<NavBack onClick={onBack} dark />} /><Spinner />
     </div>
   )
   if (error) return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Nav right={<NavBack onClick={onBack} />} />
+      <Nav right={<NavBack onClick={onBack} dark />} />
       <div style={{ maxWidth: 740, margin: '40px auto', padding: '0 24px' }}>
         <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-light)', borderRadius: 'var(--radius-xl)', padding: 24, color: 'var(--red)' }}>
           <strong>Fout bij laden rapport:</strong> {error}
@@ -465,24 +465,24 @@ export default function KikvReadinessRapport({ results, systems, onBack }) {
         padding: '0 32px', height: 56,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <NavBack onClick={onBack} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <NavBack onClick={onBack} dark />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--blue)' }}>Rhadix</span>
             <span style={{ color: 'var(--border2)' }}>›</span>
             <span style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 500 }}>KIK-V Readiness rapport</span>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
           {exportError && <span style={{ fontSize: 12, color: 'var(--red)' }}>{exportError}</span>}
           <button onClick={handleExport} disabled={exporting} style={{
             display: 'flex', alignItems: 'center', gap: 6,
             background: exporting ? 'var(--border)' : 'var(--blue)',
             color: '#fff', border: 'none', borderRadius: 'var(--radius)',
-            padding: '9px 18px', fontSize: 13, fontWeight: 600,
-            cursor: exporting ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)',
+            padding: '9px 16px', fontSize: 13, fontWeight: 600,
+            cursor: exporting ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)', whiteSpace: 'nowrap',
           }}>
-            {exporting ? '⏳ Exporteren…' : '⬇ Exporteer KIK-V readiness rapport'}
+            {exporting ? '⏳ Exporteren…' : '⬇ Exporteer PDF'}
           </button>
         </div>
       </div>

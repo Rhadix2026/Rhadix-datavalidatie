@@ -1,0 +1,14 @@
+# IN-M-03 — Medewerker: geboortedatum aanwezig
+# Verwacht: elk medewerker-record heeft een geboortedatum.
+# Slaagt als: aanwezig_count / totaal >= 0.95
+
+PREFIX onz: <http://purl.org/ozo/onz-pers#>
+PREFIX onzg: <http://purl.org/ozo/onz-g#>
+
+SELECT
+  (COUNT(?m)  AS ?totaal)
+  (COUNT(?gd) AS ?aanwezig)
+WHERE {
+  ?m a onz:Medewerker .
+  OPTIONAL { ?m onzg:geboortedatum ?gd . FILTER(STRLEN(STR(?gd)) > 0) }
+}

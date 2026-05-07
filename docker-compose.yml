@@ -1,16 +1,16 @@
-
 services:
   db:
     image: postgres:16-alpine
+    container_name: rhadix-v131-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: kikv
       POSTGRES_PASSWORD: kikv
       POSTGRES_DB: kikv_validator
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_v131:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kikv -d kikv_validator"]
       interval: 5s
@@ -19,6 +19,7 @@ services:
 
   backend:
     build: ./backend
+    container_name: rhadix-v131-backend
     restart: unless-stopped
     depends_on:
       db:
@@ -26,17 +27,20 @@ services:
     environment:
       DATABASE_URL: postgresql://kikv:kikv@db:5432/kikv_validator
     ports:
-      - "8000:8000"
+      - "8010:8000"
     volumes:
       - ./backend:/app
+      - ./backend/data:/app/data
 
   frontend:
     build: ./frontend
+    container_name: rhadix-v131-frontend
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "5173:80"
+      - "5174:80"
 
 volumes:
-  pgdata:
+  pgdata_v131:
+    name: rhadix_v131_pgdata

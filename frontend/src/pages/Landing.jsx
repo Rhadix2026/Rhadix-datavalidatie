@@ -1,6 +1,6 @@
 import { Nav } from '../components/UI'
 
-export default function Landing({ onStart }) {
+export default function Landing({ onStart, onProfiles }) {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Nav />
@@ -51,16 +51,28 @@ export default function Landing({ onStart }) {
             Analyseer de gereedheid van uw zorgdata voor uitwisseling via moderne standaarden. Van mapping tot implementatie in weken in plaats van maanden.
           </p>
 
-          <button onClick={onStart} style={{
-            alignSelf: 'flex-start',
-            background: 'var(--rhadix-accent)', color: '#fff',
-            border: 'none', borderRadius: 'var(--radius)', padding: '13px 28px',
-            fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)',
-            display: 'flex', alignItems: 'center', gap: 8,
-            boxShadow: '0 4px 16px rgba(111,168,208,.35)',
-          }}>
-            Start nieuwe scan →
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <button onClick={onStart} style={{
+              background: 'var(--rhadix-accent)', color: '#fff',
+              border: 'none', borderRadius: 'var(--radius)', padding: '13px 28px',
+              fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)',
+              display: 'flex', alignItems: 'center', gap: 8,
+              boxShadow: '0 4px 16px rgba(111,168,208,.35)',
+            }}>
+              Start nieuwe scan →
+            </button>
+            {onProfiles && (
+              <button onClick={onProfiles} style={{
+                background: 'rgba(255,255,255,0.12)', color: 'rgba(168,197,224,.9)',
+                border: '1px solid rgba(111,168,208,.35)', borderRadius: 'var(--radius)',
+                padding: '12px 20px', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'var(--font)',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                📋 KIK-V Profielimport
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Right score card */}

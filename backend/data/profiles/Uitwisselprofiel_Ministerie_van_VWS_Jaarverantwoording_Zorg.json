@@ -1,0 +1,1049 @@
+{
+  "name": "Uitwisselprofiel Ministerie van VWS Jaarverantwoording Zorg",
+  "version": "1.1.1",
+  "source": "https://gitlab.com/kik-v/uitwisselprofielen/uitwisselprofiel-ministerie-van-vws-jaarverantwoording-zorg",
+  "ref": "1.1.1",
+  "folder": "Gevalideerde_vragen_technisch",
+  "imported_at": "2026-05-07T17:55:18.321581+00:00",
+  "indicator_count": 4,
+  "file_count": 10,
+  "parse_errors": [],
+  "indicators": {
+    "-INDEX": {
+      "id": "-INDEX",
+      "files": {
+        "markdown": {
+          "raw": "Deze sectie bevat de volgende indicatoren:\n### Paragraaf 4\n- [4.1. Hoeveel zorgverleners verleenden zorg?](/Gevalideerde_vragen_technisch/Indicator%204.1.md)\n- [4.2. Wat is het ziekteverzuimpercentage van de zorgverleners?](/Gevalideerde_vragen_technisch/Indicator%204.2.md)\n### Paragraaf 5\n- [5.1. Aan hoeveel unieke patiënten is zorg verleend?](/Gevalideerde_vragen_technisch/Indicator%205.1.md)\n",
+          "parsed": {
+            "title": null,
+            "description": "Deze sectie bevat de volgende indicatoren:",
+            "frontmatter": {},
+            "sections": [],
+            "key_value_pairs": {},
+            "concepts": [
+              {
+                "label": "4.1. Hoeveel zorgverleners verleenden zorg?",
+                "uri": "/Gevalideerde_vragen_technisch/Indicator%204.1.md"
+              },
+              {
+                "label": "4.2. Wat is het ziekteverzuimpercentage van de zorgverleners?",
+                "uri": "/Gevalideerde_vragen_technisch/Indicator%204.2.md"
+              },
+              {
+                "label": "5.1. Aan hoeveel unieke patiënten is zorg verleend?",
+                "uri": "/Gevalideerde_vragen_technisch/Indicator%205.1.md"
+              }
+            ],
+            "tables": [],
+            "raw": "Deze sectie bevat de volgende indicatoren:\n### Paragraaf 4\n- [4.1. Hoeveel zorgverleners verleenden zorg?](/Gevalideerde_vragen_technisch/Indicator%204.1.md)\n- [4.2. Wat is het ziekteverzuimpercentage van de zorgverleners?](/Gevalideerde_vragen_technisch/Indicator%204.2.md)\n### Paragraaf 5\n- [5.1. Aan hoeveel unieke patiënten is zorg verleend?](/Gevalideerde_vragen_technisch/Indicator%205.1.md)\n"
+          }
+        }
+      },
+      "metadata": {
+        "title": null,
+        "description": "Deze sectie bevat de volgende indicatoren:",
+        "sections": [],
+        "kv_pairs": {},
+        "concepts": [
+          {
+            "label": "4.1. Hoeveel zorgverleners verleenden zorg?",
+            "uri": "/Gevalideerde_vragen_technisch/Indicator%204.1.md"
+          },
+          {
+            "label": "4.2. Wat is het ziekteverzuimpercentage van de zorgverleners?",
+            "uri": "/Gevalideerde_vragen_technisch/Indicator%204.2.md"
+          },
+          {
+            "label": "5.1. Aan hoeveel unieke patiënten is zorg verleend?",
+            "uri": "/Gevalideerde_vragen_technisch/Indicator%205.1.md"
+          }
+        ]
+      }
+    },
+    "4.1": {
+      "id": "4.1",
+      "files": {
+        "markdown": {
+          "raw": "---\ntitle: 4.1. Hoeveel zorgverleners verleenden zorg?\nweight: 4\n---\n## Concepten\n- [Arbeidsovereenkomst](http://purl.org/ozo/onz-pers#ArbeidsOvereenkomst)\n- [Inhuurovereenkomst](http://purl.org/ozo/onz-pers#InhuurOvereenkomst)\n- [Uitzendovereenkomst](http://purl.org/ozo/onz-pers#UitzendOvereenkomst)\n- [Werkovereenkomst afspraak](http://purl.org/ozo/onz-pers#WerkOvereenkomstAfspraak)\n- [Zorgverlener (functie)](http://purl.org/ozo/onz-pers#ZorgverlenerFunctie)\n## Relaties\n- [gaat over](http://purl.org/ozo/onz-g#isAbout)\n- [heeft deel](http://purl.org/ozo/onz-g#hasPart)\n- [heeft opdrachtnemer](http://purl.org/ozo/onz-pers#heeftOpdrachtnemer)\n## Eigenschappen\n- [einddatum](http://purl.org/ozo/onz-g#eindDatum)\n- [startdatum](http://purl.org/ozo/onz-g#startDatum)\n## SPARQL query\n```\n# Indicator: VWS JVZ 4.1\n# Parameters: ?jaar\n# Ontologie: versie 3.0\n\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nPREFIX onz-pers: <http://purl.org/ozo/onz-pers#>\nPREFIX onz-g: <http://purl.org/ozo/onz-g#>\n\nSELECT \n\t(?teller AS ?Teller)\n    (\"Niet van toepassing\" AS ?Noemer)\n\t(?teller/?aantal_geldige_maanden AS ?Indicator)\n{\n    SELECT\n\t\t(COUNT(xsd:integer(?zorgverleners)>0) AS ?aantal_geldige_maanden)\n    \t(SUM(?zorgverleners) AS ?teller)\n    {\n        SELECT\n            ?maand\n            (COUNT(DISTINCT(?persoon)) AS ?zorgverleners)\n        {\n            # BIND(2024 AS ?jaar)  # Parameter\n\n            VALUES ?maand {01 02 03 04 05 06 07 08 09 10 11 12}\n            BIND(xsd:date(CONCAT(STR(?jaar),'-',STR(?maand),'-01')) AS ?start_periode)    \n            BIND(?start_periode + \"P1M\"^^xsd:duration + \"-P1D\"^^xsd:duration AS ?eind_periode)\n\n            # Bepaal filter voor definitie van overeenkomsten die geldig zijn voor personeelsleden\n            VALUES ?personeels_overeenkomst \n            { \n                onz-pers:ArbeidsOvereenkomst\n                onz-pers:UitzendOvereenkomst\n                onz-pers:InhuurOvereenkomst\n            }\n            ?overeenkomst \n                a ?personeels_overeenkomst ;\n                onz-pers:heeftOpdrachtnemer ?persoon ;\n                onz-g:hasPart ?overeenkomst_afspraak .\n            ?overeenkomst_afspraak\n                a onz-pers:WerkOvereenkomstAfspraak ;\n                onz-g:startDatum ?start_afspraak .\n            OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }\n            FILTER(?start_afspraak <= ?eind_periode && ((?eind_afspraak >= ?start_periode) || (!BOUND(?eind_afspraak))))\n\n            ?overeenkomst_afspraak onz-g:isAbout ?functie .                \n            ?functie a onz-pers:ZorgverlenerFunctie .\n        }\n        GROUP BY ?maand\n        ORDER BY ?maand\n    }\n}\n",
+          "parsed": {
+            "title": "4.1. Hoeveel zorgverleners verleenden zorg?",
+            "description": "",
+            "frontmatter": {
+              "title": "4.1. Hoeveel zorgverleners verleenden zorg?",
+              "weight": "4"
+            },
+            "sections": [
+              "Concepten",
+              "Relaties",
+              "Eigenschappen",
+              "SPARQL query"
+            ],
+            "key_value_pairs": {},
+            "concepts": [
+              {
+                "label": "Arbeidsovereenkomst",
+                "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomst"
+              },
+              {
+                "label": "Inhuurovereenkomst",
+                "uri": "http://purl.org/ozo/onz-pers#InhuurOvereenkomst"
+              },
+              {
+                "label": "Uitzendovereenkomst",
+                "uri": "http://purl.org/ozo/onz-pers#UitzendOvereenkomst"
+              },
+              {
+                "label": "Werkovereenkomst afspraak",
+                "uri": "http://purl.org/ozo/onz-pers#WerkOvereenkomstAfspraak"
+              },
+              {
+                "label": "Zorgverlener (functie)",
+                "uri": "http://purl.org/ozo/onz-pers#ZorgverlenerFunctie"
+              },
+              {
+                "label": "gaat over",
+                "uri": "http://purl.org/ozo/onz-g#isAbout"
+              },
+              {
+                "label": "heeft deel",
+                "uri": "http://purl.org/ozo/onz-g#hasPart"
+              },
+              {
+                "label": "heeft opdrachtnemer",
+                "uri": "http://purl.org/ozo/onz-pers#heeftOpdrachtnemer"
+              },
+              {
+                "label": "einddatum",
+                "uri": "http://purl.org/ozo/onz-g#eindDatum"
+              },
+              {
+                "label": "startdatum",
+                "uri": "http://purl.org/ozo/onz-g#startDatum"
+              }
+            ],
+            "tables": [],
+            "raw": "---\ntitle: 4.1. Hoeveel zorgverleners verleenden zorg?\nweight: 4\n---\n## Concepten\n- [Arbeidsovereenkomst](http://purl.org/ozo/onz-pers#ArbeidsOvereenkomst)\n- [Inhuurovereenkomst](http://purl.org/ozo/onz-pers#InhuurOvereenkomst)\n- [Uitzendovereenkomst](http://purl.org/ozo/onz-pers#UitzendOvereenkomst)\n- [Werkovereenkomst afspraak](http://purl.org/ozo/onz-pers#WerkOvereenkomstAfspraak)\n- [Zorgverlener (functie)](http://purl.org/ozo/onz-pers#ZorgverlenerFunctie)\n## Relaties\n- [gaat over](http://purl.org/ozo/onz-g#isAbout)\n- [heeft deel](http://purl.org/ozo/onz-g#hasPart)\n- [heeft opdrachtnemer](http://purl.org/ozo/onz-pers#heeftOpdrachtnemer)\n## Eigenschappen\n- [einddatum](http://purl.org/ozo/onz-g#eindDatum)\n- [startdatum](http://purl.org/ozo/onz-g#startDatum)\n## SPARQL query\n```\n# Indicator: VWS JVZ 4.1\n# Parameters: ?jaar\n# Ontologie: versie 3.0\n\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nPREFIX onz-pers: <http://purl.org/ozo/onz-pers#>\nPREFIX onz-g: <http://purl.org/ozo/onz-g#>\n\nSELECT \n\t(?teller AS ?Teller)\n    (\"Niet van toepassing\" AS ?Noemer)\n\t(?teller/?aantal_geldige_maanden AS ?Indicator)\n{\n    SELECT\n\t\t(COUNT(xsd:integer(?zorgverleners)>0) AS ?aantal_geldige_maanden)\n    \t(SUM(?zorgverleners) AS ?teller)\n    {\n        SELECT\n            ?maand\n            (COUNT(DISTINCT(?persoon)) AS ?zorgverleners)\n        {\n            # BIND(2024 AS ?jaar)  # Parameter\n\n            VALUES ?maand {01 02 03 04 05 06 07 08 09 10 11 12}\n            BIND(xsd:date(CONCAT(STR(?jaar),'-',STR(?maand),'-01')) AS ?start_periode)    \n            BIND(?start_periode + \"P1M\"^^xsd:duration + \"-P1D\"^^xsd:duration AS ?eind_periode)\n\n            # Bepaal filter voor definitie van overeenkomsten die geldig zijn voor personeelsleden\n            VALUES ?personeels_overeenkomst \n            { \n                onz-pers:ArbeidsOvereenkomst\n                onz-pers:UitzendOvereenkomst\n                onz-pers:InhuurOvereenkomst\n            }\n            ?overeenkomst \n                a ?personeels_overeenkomst ;\n                onz-pers:heeftOpdrachtnemer ?persoon ;\n                onz-g:hasPart ?overeenkomst_afspraak .\n            ?overeenkomst_afspraak\n                a onz-pers:WerkOvereenkomstAfspraak ;\n                onz-g:startDatum ?start_afspraak .\n            OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }\n            FILTER(?start_afspraak <= ?eind_periode && ((?eind_afspraak >= ?start_periode) || (!BOUND(?eind_afspraak))))\n\n            ?overeenkomst_afspraak onz-g:isAbout ?functie .                \n            ?functie a onz-pers:ZorgverlenerFunctie .\n        }\n        GROUP BY ?maand\n        ORDER BY ?maand\n    }\n}\n"
+          }
+        },
+        "sparql": {
+          "raw": "# Indicator: VWS JVZ 4.1\n# Parameters: ?jaar\n# Ontologie: versie 3.0\n\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nPREFIX onz-pers: <http://purl.org/ozo/onz-pers#>\nPREFIX onz-g: <http://purl.org/ozo/onz-g#>\n\nSELECT \n\t(?teller AS ?Teller)\n    (\"Niet van toepassing\" AS ?Noemer)\n\t(?teller/?aantal_geldige_maanden AS ?Indicator)\n{\n    SELECT\n\t\t(COUNT(xsd:integer(?zorgverleners)>0) AS ?aantal_geldige_maanden)\n    \t(SUM(?zorgverleners) AS ?teller)\n    {\n        SELECT\n            ?maand\n            (COUNT(DISTINCT(?persoon)) AS ?zorgverleners)\n        {\n            # BIND(2024 AS ?jaar)  # Parameter\n\n            VALUES ?maand {01 02 03 04 05 06 07 08 09 10 11 12}\n            BIND(xsd:date(CONCAT(STR(?jaar),'-',STR(?maand),'-01')) AS ?start_periode)    \n            BIND(?start_periode + \"P1M\"^^xsd:duration + \"-P1D\"^^xsd:duration AS ?eind_periode)\n\n            # Bepaal filter voor definitie van overeenkomsten die geldig zijn voor personeelsleden\n            VALUES ?personeels_overeenkomst \n            { \n                onz-pers:ArbeidsOvereenkomst\n                onz-pers:UitzendOvereenkomst\n                onz-pers:InhuurOvereenkomst\n            }\n            ?overeenkomst \n                a ?personeels_overeenkomst ;\n                onz-pers:heeftOpdrachtnemer ?persoon ;\n                onz-g:hasPart ?overeenkomst_afspraak .\n            ?overeenkomst_afspraak\n                a onz-pers:WerkOvereenkomstAfspraak ;\n                onz-g:startDatum ?start_afspraak .\n            OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }\n            FILTER(?start_afspraak <= ?eind_periode && ((?eind_afspraak >= ?start_periode) || (!BOUND(?eind_afspraak))))\n\n            ?overeenkomst_afspraak onz-g:isAbout ?functie .                \n            ?functie a onz-pers:ZorgverlenerFunctie .\n        }\n        GROUP BY ?maand\n        ORDER BY ?maand\n    }\n}",
+          "parsed": {
+            "prefixes": {
+              "xsd:": "http://www.w3.org/2001/XMLSchema#"
+            },
+            "select_vars": [],
+            "parameters": [
+              "jaar",
+              "teller",
+              "Teller",
+              "Noemer",
+              "aantal_geldige_maanden",
+              "Indicator",
+              "zorgverleners",
+              "maand",
+              "persoon",
+              "start_periode",
+              "eind_periode",
+              "personeels_overeenkomst",
+              "overeenkomst",
+              "overeenkomst_afspraak",
+              "start_afspraak",
+              "eind_afspraak",
+              "functie"
+            ],
+            "predicates": [],
+            "filters": [
+              "?start_afspraak <= ?eind_periode && ((?eind_afspraak >= ?start_periode"
+            ],
+            "group_by_vars": [
+              "maand"
+            ],
+            "having": [],
+            "order_by": [
+              "?maand",
+              "}",
+              "}"
+            ],
+            "limit": null,
+            "date_logic": [
+              "xsd:date"
+            ],
+            "binds": [
+              {
+                "expression": "2024",
+                "as": "jaar"
+              },
+              {
+                "expression": "xsd:date(CONCAT(STR(?jaar),'-',STR(?maand),'-01'))",
+                "as": "start_periode"
+              },
+              {
+                "expression": "?start_periode + \"P1M\"^^xsd:duration + \"-P1D\"^^xsd:duration",
+                "as": "eind_periode"
+              }
+            ],
+            "aggregate_functions": [
+              "COUNT",
+              "SUM"
+            ]
+          }
+        },
+        "turtle": {
+          "raw": "@prefix sh: <http://www.w3.org/ns/shacl#> .\n@prefix schema: <http://schema.org/> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n@prefix dash: <http://datashapes.org/dash#> .\n@prefix foaf: <http://xmlns.com/foaf/0.1/> .\n@prefix vcard: <http://www.w3.org/2006/vcard/ns#> .\n@prefix ex: <http://example.com/> .\n\n# Parameter-shapes voor jaarwaarde. De parameter biedt de gebruiker éém selectieveld voor het jaar. \nex:YearValuePickList\n    a sh:NodeShape ;\n    sh:targetClass ex:YearValuePickList ;\n    rdfs:label \"Jaarwaarden\" ;\n    rdfs:comment \"Een shape met één eigenschap: om een keuzelijstveld te creëren waarmee de gebruiker met handmatige invoer het jaar kan specificeren.\"@nl ;\n    sh:property [\n          sh:path ex:jaar ;\n          sh:name \"jaar\";\n          sh:description \"Handmatige invoer van de jaarwaarde.\"@nl ;\n          sh:maxCount 1 ;\n          sh:minCount 1 ;\n          sh:datatype xsd:gYear ;\n          sh:maxInclusive \"2026\"^^xsd:gYear ;\n          sh:minInclusive \"2024\"^^xsd:gYear ;\n      ]\n.\n",
+          "parsed": {
+            "prefixes": {
+              "sh:": "http://www.w3.org/ns/shacl#",
+              "schema:": "http://schema.org/",
+              "rdfs:": "http://www.w3.org/2000/01/rdf-schema#",
+              "xsd:": "http://www.w3.org/2001/XMLSchema#",
+              "dash:": "http://datashapes.org/dash#",
+              "foaf:": "http://xmlns.com/foaf/0.1/",
+              "vcard:": "http://www.w3.org/2006/vcard/ns#",
+              "ex:": "http://example.com/"
+            },
+            "named_resources": [
+              "ex:YearValuePickList"
+            ],
+            "class_declarations": [],
+            "property_triples": [],
+            "subclass_relations": [],
+            "all_references": [
+              "ex:YearValuePickList",
+              "sh:NodeShape",
+              "sh:targetClass",
+              "rdfs:label",
+              "rdfs:comment",
+              "sh:property",
+              "sh:path",
+              "ex:jaar",
+              "sh:name",
+              "sh:description",
+              "sh:maxCount",
+              "sh:minCount",
+              "sh:datatype",
+              "xsd:gYear",
+              "sh:maxInclusive",
+              "sh:minInclusive"
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "title": "4.1. Hoeveel zorgverleners verleenden zorg?",
+        "description": "",
+        "sections": [
+          "Concepten",
+          "Relaties",
+          "Eigenschappen",
+          "SPARQL query"
+        ],
+        "kv_pairs": {},
+        "concepts": [
+          {
+            "label": "Arbeidsovereenkomst",
+            "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomst"
+          },
+          {
+            "label": "Inhuurovereenkomst",
+            "uri": "http://purl.org/ozo/onz-pers#InhuurOvereenkomst"
+          },
+          {
+            "label": "Uitzendovereenkomst",
+            "uri": "http://purl.org/ozo/onz-pers#UitzendOvereenkomst"
+          },
+          {
+            "label": "Werkovereenkomst afspraak",
+            "uri": "http://purl.org/ozo/onz-pers#WerkOvereenkomstAfspraak"
+          },
+          {
+            "label": "Zorgverlener (functie)",
+            "uri": "http://purl.org/ozo/onz-pers#ZorgverlenerFunctie"
+          },
+          {
+            "label": "gaat over",
+            "uri": "http://purl.org/ozo/onz-g#isAbout"
+          },
+          {
+            "label": "heeft deel",
+            "uri": "http://purl.org/ozo/onz-g#hasPart"
+          },
+          {
+            "label": "heeft opdrachtnemer",
+            "uri": "http://purl.org/ozo/onz-pers#heeftOpdrachtnemer"
+          },
+          {
+            "label": "einddatum",
+            "uri": "http://purl.org/ozo/onz-g#eindDatum"
+          },
+          {
+            "label": "startdatum",
+            "uri": "http://purl.org/ozo/onz-g#startDatum"
+          }
+        ],
+        "select_vars": [],
+        "parameters": [
+          "jaar",
+          "teller",
+          "Teller",
+          "Noemer",
+          "aantal_geldige_maanden",
+          "Indicator",
+          "zorgverleners",
+          "maand",
+          "persoon",
+          "start_periode",
+          "eind_periode",
+          "personeels_overeenkomst",
+          "overeenkomst",
+          "overeenkomst_afspraak",
+          "start_afspraak",
+          "eind_afspraak",
+          "functie"
+        ],
+        "predicates": [],
+        "filters": [
+          "?start_afspraak <= ?eind_periode && ((?eind_afspraak >= ?start_periode"
+        ],
+        "group_by_vars": [
+          "maand"
+        ],
+        "date_logic": [
+          "xsd:date"
+        ],
+        "aggregate_functions": [
+          "COUNT",
+          "SUM"
+        ],
+        "limit": null,
+        "sparql_prefixes": {
+          "xsd:": "http://www.w3.org/2001/XMLSchema#"
+        },
+        "rdf_classes": [
+          "ex:YearValuePickList"
+        ],
+        "subclass_relations": [],
+        "property_triples": []
+      }
+    },
+    "4.2": {
+      "id": "4.2",
+      "files": {
+        "markdown": {
+          "raw": "---\ntitle: 4.2. Wat is het ziekteverzuimpercentage van de zorgverleners?\nweight: 4\n---\n## Concepten\n- [Arbeidsovereenkomst](http://purl.org/ozo/onz-pers#ArbeidsOvereenkomst)\n- [Contractomvang](http://purl.org/ozo/onz-pers#ContractOmvang)\n- [Contractomvangwaarde](http://purl.org/ozo/onz-pers#ContractOmvangWaarde)\n- [Onverplaatsbaar artefact](http://purl.org/ozo/onz-g#StationaryArtifact)\n- [Verzuimtijd](http://purl.org/ozo/onz-pers#VerzuimTijdKwaliteit)\n- [Vestiging](http://purl.org/ozo/onz-org#Vestiging)\n- [Werkovereenkomst afspraak](http://purl.org/ozo/onz-pers#WerkOvereenkomstAfspraak)\n- [Ziekteperiode](http://purl.org/ozo/onz-pers#ZiektePeriode)\n- [Zorgverlener (functie)](http://purl.org/ozo/onz-pers#ZorgverlenerFunctie)\n## Relaties\n- [deel van](http://purl.org/ozo/onz-g#partOf)\n- [gaat over](http://purl.org/ozo/onz-g#isAbout)\n- [gedefinieerd door](http://purl.org/ozo/onz-g#definedBy)\n- [heeft deel](http://purl.org/ozo/onz-g#hasPart)\n- [heeft eigenschap of kenmerk](http://purl.org/ozo/onz-g#hasQuality)\n- [heeft eigenschapswaarde](http://purl.org/ozo/onz-g#hasQualityValue)\n- [heeft meeteenheid](http://purl.org/ozo/onz-g#hasUnitOfMeasure)\n## Eigenschappen\n- [einddatum](http://purl.org/ozo/onz-g#eindDatum)\n- [heeft datawaarde](http://purl.org/ozo/onz-g#hasDataValue)\n- [startdatum](http://purl.org/ozo/onz-g#startDatum)\n## Instanties\n- [Procent](http://purl.org/ozo/onz-g#percent)\n## SPARQL query\n```\n# Indicator: VWS JVZ 4.2\n# Parameters: ?jaar\n# Ontologie: versie 3.0 of nieuwer\n\nPREFIX onz-g: <http://purl.org/ozo/onz-g#>\nPREFIX onz-org: <http://purl.org/ozo/onz-org#>\nPREFIX time: <http://www.w3.org/2006/time#>\nPREFIX onz-pers: <http://purl.org/ozo/onz-pers#>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT\n    (?teller AS ?Teller)\n    (?noemer AS ?Noemer)\n    (IF(?noemer = 0, \"Ongedefineerd\", 100 * ?teller / ?noemer) AS ?Indicator)\n{\n    SELECT \n        (SUM(?netto_verzuim_totaal) AS ?teller)\n        (SUM(?netto_dagen_afspraak) AS ?noemer)\n    {\n        {\n            SELECT\n                ?overeenkomst_afspraak\n                (MAX(?dagen_afspraak * ?ptf) AS ?netto_dagen_afspraak)\n                (SUM((?dagen_verzuim - ?totaal_hersteld) * ?ptf) AS ?netto_verzuim_totaal)\n            {\n                SELECT\n                    ?overeenkomst_afspraak\n                    ?ptf\n                    ?ziekte\n                    ?dagen_afspraak\n                    ?dagen_verzuim\n                    (SUM(?dagen_hersteld) AS ?totaal_hersteld)\n                {\n                    # BIND(2024 AS ?jaar)  # Parameter\n\n                    BIND(STRDT(CONCAT(STR(?jaar), \"-01-01\"), xsd:date) AS ?start_periode)\n                    BIND(STRDT(CONCAT(STR(?jaar), \"-12-31\"), xsd:date) AS ?eind_periode)  \n                    \n                    ?eind_periode ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_periode_reken .\n                    ?overeenkomst \n                        a onz-pers:ArbeidsOvereenkomst ;\n                        onz-g:hasPart ?overeenkomst_afspraak .\n                    ?overeenkomst_afspraak\n                        a onz-pers:WerkOvereenkomstAfspraak ;\n                        onz-g:isAbout/a onz-pers:ZorgverlenerFunctie ;\n                        onz-g:startDatum ?start_afspraak .\n                    OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }\n                    FILTER (?start_afspraak <= ?eind_periode && (?eind_afspraak >= ?start_periode || !BOUND(?eind_afspraak)))\n                    ?overeenkomst_afspraak onz-g:hasPart ?omvang .\n                    ?omvang\n                        a onz-pers:ContractOmvang ;\n                        onz-g:isAbout ?omvang_waarde .\n                    ?omvang_waarde\n                        a onz-pers:ContractOmvangWaarde ;\n                        onz-g:hasDataValue ?omvang_getal ;\n                        onz-g:hasUnitOfMeasure ?omvang_eenheid .\n                    ?omvang_eenheid onz-g:hasDataValue ?eenheid_factor .\n                    BIND(?omvang_getal/(36/?eenheid_factor) AS ?ptf)\n                    \n                    BIND(IF(?start_afspraak < ?start_periode, ?start_periode, ?start_afspraak) AS ?start_afspraak_corr)\n                    BIND(IF(?eind_afspraak > ?eind_periode || !BOUND(?eind_afspraak), ?eind_periode, ?eind_afspraak) AS ?eind_afspraak_corr)\n                    ?start_afspraak_corr ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_afspraak_reken .\n                    ?eind_afspraak_corr ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_afspraak_reken .\n                    BIND(?eind_afspraak_reken - ?start_afspraak_reken + 1 AS ?dagen_afspraak)\n                    OPTIONAL {\n                        VALUES ?type_verzuim # Keuze in-/exclusief zwangerschapsverlog\n                        { \n                            onz-pers:ZiektePeriode\n                            # onz-pers:ZwangerschapsVerlof\n                        }\n                        ?ziekte \n                            a ?type_verzuim ;\n                            onz-g:definedBy ?overeenkomst ;\n                            onz-g:startDatum ?start_ziekte_periode .\n                        ?start_ziekte_periode ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_ziekte_periode_reken .\n                        OPTIONAL {\n                            ?ziekte onz-g:eindDatum ?eind_ziekte_periode_temp .\n                            ?eind_ziekte_periode_temp ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_ziekte_periode_temp_reken .\n                        }\n                        # FILTER(?start_ziekte_periode <= ?eind_afspraak_corr && (?eind_ziekte_periode_temp >= ?start_afspraak_corr || !BOUND(?eind_ziekte_periode_temp)))\n                        OPTIONAL {\n                            ?ziekte onz-g:hasQuality ?verzuim_tijd .\n                            ?verzuim_tijd\n                                a onz-pers:VerzuimTijdKwaliteit ;\n                                onz-g:hasQualityValue ?verzuim_waarde .\n                            ?verzuim_waarde\n                                onz-g:hasUnitOfMeasure onz-g:percent ;\n                                onz-g:startDatum ?start_verzuim_waarde_temp ;\n                                onz-g:hasDataValue ?verzuim_percentage .\n                            ?start_verzuim_waarde_temp ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_verzuim_waarde_temp_reken_temp\n                            OPTIONAL {\n                                ?verzuim_waarde onz-g:eindDatum ?eind_verzuim_waarde_temp .\n                                ?eind_verzuim_waarde_temp ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_verzuim_waarde_temp_reken_temp\n                            }\n                        }\n                    }\n                    BIND(IF(!BOUND(?start_verzuim_waarde_temp), ?unbound, IF(?start_verzuim_waarde_temp_reken_temp < ?start_afspraak_reken, ?start_afspraak_reken, ?start_verzuim_waarde_temp_reken_temp)) AS ?start_verzuim_waarde_reken)\n                    BIND(IF(!BOUND(?start_verzuim_waarde_temp), ?unbound, IF(!BOUND(?eind_verzuim_waarde_temp_reken_temp) || ?eind_verzuim_waarde_temp_reken_temp > ?eind_afspraak_reken, ?eind_afspraak_reken, ?eind_verzuim_waarde_temp_reken_temp)) AS ?eind_verzuim_waarde_reken)\n\n                    # Gebruikt totale ziekteperiode t/m eind meetperiode als maat voor kort/langdurend verzuim\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(!BOUND(?eind_ziekte_periode_temp) || ?eind_ziekte_periode_temp > ?eind_periode, ?eind_periode, ?eind_ziekte_periode_temp)) AS ?eind_ziekte_periode)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(!BOUND(?eind_ziekte_periode_temp_reken) || ?eind_ziekte_periode_temp_reken > ?eind_periode_reken, ?eind_periode_reken, ?eind_ziekte_periode_temp_reken)) AS ?eind_ziekte_periode_reken)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, ?eind_ziekte_periode_reken - ?start_ziekte_periode_reken + 1) AS ?dagen_ziekte_periode)\n                    # Filter kort/langdurend verzuim\n                    #BIND(IF(?dagen_ziekte_periode <= 28 || !BOUND(?ziekte), 1, 0) AS ?voorwaarde_1)\n                    BIND(IF(BOUND(?ziekte) && (?start_ziekte_periode <= ?eind_afspraak_corr && (?eind_ziekte_periode >= ?start_afspraak_corr || !BOUND(?eind_ziekte_periode))), 1, 0) AS ?voorwaarde_2)\n                    BIND(IF(!BOUND(?verzuim_tijd) || (BOUND(?verzuim_tijd) && (?start_verzuim_waarde_temp <= ?eind_afspraak_corr && (?eind_verzuim_waarde_temp >= ?start_afspraak_corr || !BOUND(?eind_verzuim_waarde_temp)))), 1, 0) AS ?voorwaarde_3)\n                    BIND(?voorwaarde_2 * ?voorwaarde_3 AS ?geldige_ziekte)\n\n                    BIND(IF(BOUND(?verzuim_tijd), ?geldige_ziekte * (100 - ?verzuim_percentage)/100 * (?eind_verzuim_waarde_reken - ?start_verzuim_waarde_reken + 1), 0) AS ?dagen_hersteld)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(?start_ziekte_periode_reken < ?start_afspraak_reken, ?start_afspraak_reken, ?start_ziekte_periode_reken)) AS ?start_ziekte_reken)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(?eind_ziekte_periode_temp_reken > ?eind_afspraak_reken || !BOUND(?eind_ziekte_periode_temp_reken), ?eind_afspraak_reken, ?eind_ziekte_periode_temp_reken)) AS ?eind_ziekte_reken)\n                    BIND(IF(BOUND(?ziekte), ?geldige_ziekte * (?eind_ziekte_reken - ?start_ziekte_reken + 1), 0) AS ?dagen_verzuim)\n                }\n                GROUP BY\n                    ?overeenkomst_afspraak\n                    ?ptf\n                    ?ziekte\n                    ?dagen_afspraak\n                    ?dagen_verzuim\n            }\n            GROUP BY\n                ?overeenkomst_afspraak\n        }\n        ?overeenkomst_afspraak onz-g:isAbout ?locatie .\n        ?locatie \n            a onz-g:StationaryArtifact ;\n            onz-g:partOf* ?vestiging_uri .\n        ?vestiging_uri a onz-org:Vestiging ;\n        .\n    }\n}\n",
+          "parsed": {
+            "title": "4.2. Wat is het ziekteverzuimpercentage van de zorgverleners?",
+            "description": "",
+            "frontmatter": {
+              "title": "4.2. Wat is het ziekteverzuimpercentage van de zorgverleners?",
+              "weight": "4"
+            },
+            "sections": [
+              "Concepten",
+              "Relaties",
+              "Eigenschappen",
+              "Instanties",
+              "SPARQL query"
+            ],
+            "key_value_pairs": {},
+            "concepts": [
+              {
+                "label": "Arbeidsovereenkomst",
+                "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomst"
+              },
+              {
+                "label": "Contractomvang",
+                "uri": "http://purl.org/ozo/onz-pers#ContractOmvang"
+              },
+              {
+                "label": "Contractomvangwaarde",
+                "uri": "http://purl.org/ozo/onz-pers#ContractOmvangWaarde"
+              },
+              {
+                "label": "Onverplaatsbaar artefact",
+                "uri": "http://purl.org/ozo/onz-g#StationaryArtifact"
+              },
+              {
+                "label": "Verzuimtijd",
+                "uri": "http://purl.org/ozo/onz-pers#VerzuimTijdKwaliteit"
+              },
+              {
+                "label": "Vestiging",
+                "uri": "http://purl.org/ozo/onz-org#Vestiging"
+              },
+              {
+                "label": "Werkovereenkomst afspraak",
+                "uri": "http://purl.org/ozo/onz-pers#WerkOvereenkomstAfspraak"
+              },
+              {
+                "label": "Ziekteperiode",
+                "uri": "http://purl.org/ozo/onz-pers#ZiektePeriode"
+              },
+              {
+                "label": "Zorgverlener (functie)",
+                "uri": "http://purl.org/ozo/onz-pers#ZorgverlenerFunctie"
+              },
+              {
+                "label": "deel van",
+                "uri": "http://purl.org/ozo/onz-g#partOf"
+              },
+              {
+                "label": "gaat over",
+                "uri": "http://purl.org/ozo/onz-g#isAbout"
+              },
+              {
+                "label": "gedefinieerd door",
+                "uri": "http://purl.org/ozo/onz-g#definedBy"
+              },
+              {
+                "label": "heeft deel",
+                "uri": "http://purl.org/ozo/onz-g#hasPart"
+              },
+              {
+                "label": "heeft eigenschap of kenmerk",
+                "uri": "http://purl.org/ozo/onz-g#hasQuality"
+              },
+              {
+                "label": "heeft eigenschapswaarde",
+                "uri": "http://purl.org/ozo/onz-g#hasQualityValue"
+              },
+              {
+                "label": "heeft meeteenheid",
+                "uri": "http://purl.org/ozo/onz-g#hasUnitOfMeasure"
+              },
+              {
+                "label": "einddatum",
+                "uri": "http://purl.org/ozo/onz-g#eindDatum"
+              },
+              {
+                "label": "heeft datawaarde",
+                "uri": "http://purl.org/ozo/onz-g#hasDataValue"
+              },
+              {
+                "label": "startdatum",
+                "uri": "http://purl.org/ozo/onz-g#startDatum"
+              },
+              {
+                "label": "Procent",
+                "uri": "http://purl.org/ozo/onz-g#percent"
+              }
+            ],
+            "tables": [],
+            "raw": "---\ntitle: 4.2. Wat is het ziekteverzuimpercentage van de zorgverleners?\nweight: 4\n---\n## Concepten\n- [Arbeidsovereenkomst](http://purl.org/ozo/onz-pers#ArbeidsOvereenkomst)\n- [Contractomvang](http://purl.org/ozo/onz-pers#ContractOmvang)\n- [Contractomvangwaarde](http://purl.org/ozo/onz-pers#ContractOmvangWaarde)\n- [Onverplaatsbaar artefact](http://purl.org/ozo/onz-g#StationaryArtifact)\n- [Verzuimtijd](http://purl.org/ozo/onz-pers#VerzuimTijdKwaliteit)\n- [Vestiging](http://purl.org/ozo/onz-org#Vestiging)\n- [Werkovereenkomst afspraak](http://purl.org/ozo/onz-pers#WerkOvereenkomstAfspraak)\n- [Ziekteperiode](http://purl.org/ozo/onz-pers#ZiektePeriode)\n- [Zorgverlener (functie)](http://purl.org/ozo/onz-pers#ZorgverlenerFunctie)\n## Relaties\n- [deel van](http://purl.org/ozo/onz-g#partOf)\n- [gaat over](http://purl.org/ozo/onz-g#isAbout)\n- [gedefinieerd door](http://purl.org/ozo/onz-g#definedBy)\n- [heeft deel](http://purl.org/ozo/onz-g#hasPart)\n- [heeft eigenschap of kenmerk](http://purl.org/ozo/onz-g#hasQuality)\n- [heeft eigenschapswaarde](http://purl.org/ozo/onz-g#hasQualityValue)\n- [heeft meeteenheid](http://purl.org/ozo/onz-g#hasUnitOfMeasure)\n## Eigenschappen\n- [einddatum](http://purl.org/ozo/onz-g#eindDatum)\n- [heeft datawaarde](http://purl.org/ozo/onz-g#hasDataValue)\n- [startdatum](http://purl.org/ozo/onz-g#startDatum)\n## Instanties\n- [Procent](http://purl.org/ozo/onz-g#percent)\n## SPARQL query\n```\n# Indicator: VWS JVZ 4.2\n# Parameters: ?jaar\n# Ontologie: versie 3.0 of nieuwer\n\nPREFIX onz-g: <http://purl.org/ozo/onz-g#>\nPREFIX onz-org: <http://purl.org/ozo/onz-org#>\nPREFIX time: <http://www.w3.org/2006/time#>\nPREFIX onz-pers: <http://purl.org/ozo/onz-pers#>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT\n    (?teller AS ?Teller)\n    (?noemer AS ?Noemer)\n    (IF(?noemer = 0, \"Ongedefineerd\", 100 * ?teller / ?noemer) AS ?Indicator)\n{\n    SELECT \n        (SUM(?netto_verzuim_totaal) AS ?teller)\n        (SUM(?netto_dagen_afspraak) AS ?noemer)\n    {\n        {\n            SELECT\n                ?overeenkomst_afspraak\n                (MAX(?dagen_afspraak * ?ptf) AS ?netto_dagen_afspraak)\n                (SUM((?dagen_verzuim - ?totaal_hersteld) * ?ptf) AS ?netto_verzuim_totaal)\n            {\n                SELECT\n                    ?overeenkomst_afspraak\n                    ?ptf\n                    ?ziekte\n                    ?dagen_afspraak\n                    ?dagen_verzuim\n                    (SUM(?dagen_hersteld) AS ?totaal_hersteld)\n                {\n                    # BIND(2024 AS ?jaar)  # Parameter\n\n                    BIND(STRDT(CONCAT(STR(?jaar), \"-01-01\"), xsd:date) AS ?start_periode)\n                    BIND(STRDT(CONCAT(STR(?jaar), \"-12-31\"), xsd:date) AS ?eind_periode)  \n                    \n                    ?eind_periode ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_periode_reken .\n                    ?overeenkomst \n                        a onz-pers:ArbeidsOvereenkomst ;\n                        onz-g:hasPart ?overeenkomst_afspraak .\n                    ?overeenkomst_afspraak\n                        a onz-pers:WerkOvereenkomstAfspraak ;\n                        onz-g:isAbout/a onz-pers:ZorgverlenerFunctie ;\n                        onz-g:startDatum ?start_afspraak .\n                    OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }\n                    FILTER (?start_afspraak <= ?eind_periode && (?eind_afspraak >= ?start_periode || !BOUND(?eind_afspraak)))\n                    ?overeenkomst_afspraak onz-g:hasPart ?omvang .\n                    ?omvang\n                        a onz-pers:ContractOmvang ;\n                        onz-g:isAbout ?omvang_waarde .\n                    ?omvang_waarde\n                        a onz-pers:ContractOmvangWaarde ;\n                        onz-g:hasDataValue ?omvang_getal ;\n                        onz-g:hasUnitOfMeasure ?omvang_eenheid .\n                    ?omvang_eenheid onz-g:hasDataValue ?eenheid_factor .\n                    BIND(?omvang_getal/(36/?eenheid_factor) AS ?ptf)\n                    \n                    BIND(IF(?start_afspraak < ?start_periode, ?start_periode, ?start_afspraak) AS ?start_afspraak_corr)\n                    BIND(IF(?eind_afspraak > ?eind_periode || !BOUND(?eind_afspraak), ?eind_periode, ?eind_afspraak) AS ?eind_afspraak_corr)\n                    ?start_afspraak_corr ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_afspraak_reken .\n                    ?eind_afspraak_corr ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_afspraak_reken .\n                    BIND(?eind_afspraak_reken - ?start_afspraak_reken + 1 AS ?dagen_afspraak)\n                    OPTIONAL {\n                        VALUES ?type_verzuim # Keuze in-/exclusief zwangerschapsverlog\n                        { \n                            onz-pers:ZiektePeriode\n                            # onz-pers:ZwangerschapsVerlof\n                        }\n                        ?ziekte \n                            a ?type_verzuim ;\n                            onz-g:definedBy ?overeenkomst ;\n                            onz-g:startDatum ?start_ziekte_periode .\n                        ?start_ziekte_periode ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_ziekte_periode_reken .\n                        OPTIONAL {\n                            ?ziekte onz-g:eindDatum ?eind_ziekte_periode_temp .\n                            ?eind_ziekte_periode_temp ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_ziekte_periode_temp_reken .\n                        }\n                        # FILTER(?start_ziekte_periode <= ?eind_afspraak_corr && (?eind_ziekte_periode_temp >= ?start_afspraak_corr || !BOUND(?eind_ziekte_periode_temp)))\n                        OPTIONAL {\n                            ?ziekte onz-g:hasQuality ?verzuim_tijd .\n                            ?verzuim_tijd\n                                a onz-pers:VerzuimTijdKwaliteit ;\n                                onz-g:hasQualityValue ?verzuim_waarde .\n                            ?verzuim_waarde\n                                onz-g:hasUnitOfMeasure onz-g:percent ;\n                                onz-g:startDatum ?start_verzuim_waarde_temp ;\n                                onz-g:hasDataValue ?verzuim_percentage .\n                            ?start_verzuim_waarde_temp ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_verzuim_waarde_temp_reken_temp\n                            OPTIONAL {\n                                ?verzuim_waarde onz-g:eindDatum ?eind_verzuim_waarde_temp .\n                                ?eind_verzuim_waarde_temp ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_verzuim_waarde_temp_reken_temp\n                            }\n                        }\n                    }\n                    BIND(IF(!BOUND(?start_verzuim_waarde_temp), ?unbound, IF(?start_verzuim_waarde_temp_reken_temp < ?start_afspraak_reken, ?start_afspraak_reken, ?start_verzuim_waarde_temp_reken_temp)) AS ?start_verzuim_waarde_reken)\n                    BIND(IF(!BOUND(?start_verzuim_waarde_temp), ?unbound, IF(!BOUND(?eind_verzuim_waarde_temp_reken_temp) || ?eind_verzuim_waarde_temp_reken_temp > ?eind_afspraak_reken, ?eind_afspraak_reken, ?eind_verzuim_waarde_temp_reken_temp)) AS ?eind_verzuim_waarde_reken)\n\n                    # Gebruikt totale ziekteperiode t/m eind meetperiode als maat voor kort/langdurend verzuim\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(!BOUND(?eind_ziekte_periode_temp) || ?eind_ziekte_periode_temp > ?eind_periode, ?eind_periode, ?eind_ziekte_periode_temp)) AS ?eind_ziekte_periode)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(!BOUND(?eind_ziekte_periode_temp_reken) || ?eind_ziekte_periode_temp_reken > ?eind_periode_reken, ?eind_periode_reken, ?eind_ziekte_periode_temp_reken)) AS ?eind_ziekte_periode_reken)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, ?eind_ziekte_periode_reken - ?start_ziekte_periode_reken + 1) AS ?dagen_ziekte_periode)\n                    # Filter kort/langdurend verzuim\n                    #BIND(IF(?dagen_ziekte_periode <= 28 || !BOUND(?ziekte), 1, 0) AS ?voorwaarde_1)\n                    BIND(IF(BOUND(?ziekte) && (?start_ziekte_periode <= ?eind_afspraak_corr && (?eind_ziekte_periode >= ?start_afspraak_corr || !BOUND(?eind_ziekte_periode))), 1, 0) AS ?voorwaarde_2)\n                    BIND(IF(!BOUND(?verzuim_tijd) || (BOUND(?verzuim_tijd) && (?start_verzuim_waarde_temp <= ?eind_afspraak_corr && (?eind_verzuim_waarde_temp >= ?start_afspraak_corr || !BOUND(?eind_verzuim_waarde_temp)))), 1, 0) AS ?voorwaarde_3)\n                    BIND(?voorwaarde_2 * ?voorwaarde_3 AS ?geldige_ziekte)\n\n                    BIND(IF(BOUND(?verzuim_tijd), ?geldige_ziekte * (100 - ?verzuim_percentage)/100 * (?eind_verzuim_waarde_reken - ?start_verzuim_waarde_reken + 1), 0) AS ?dagen_hersteld)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(?start_ziekte_periode_reken < ?start_afspraak_reken, ?start_afspraak_reken, ?start_ziekte_periode_reken)) AS ?start_ziekte_reken)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(?eind_ziekte_periode_temp_reken > ?eind_afspraak_reken || !BOUND(?eind_ziekte_periode_temp_reken), ?eind_afspraak_reken, ?eind_ziekte_periode_temp_reken)) AS ?eind_ziekte_reken)\n                    BIND(IF(BOUND(?ziekte), ?geldige_ziekte * (?eind_ziekte_reken - ?start_ziekte_reken + 1), 0) AS ?dagen_verzuim)\n                }\n                GROUP BY\n                    ?overeenkomst_afspraak\n                    ?ptf\n                    ?ziekte\n                    ?dagen_afspraak\n                    ?dagen_verzuim\n            }\n            GROUP BY\n                ?overeenkomst_afspraak\n        }\n        ?overeenkomst_afspraak onz-g:isAbout ?locatie .\n        ?locatie \n            a onz-g:StationaryArtifact ;\n            onz-g:partOf* ?vestiging_uri .\n        ?vestiging_uri a onz-org:Vestiging ;\n        .\n    }\n}\n"
+          }
+        },
+        "sparql": {
+          "raw": "# Indicator: VWS JVZ 4.2\n# Parameters: ?jaar\n# Ontologie: versie 3.0 of nieuwer\n\nPREFIX onz-g: <http://purl.org/ozo/onz-g#>\nPREFIX onz-org: <http://purl.org/ozo/onz-org#>\nPREFIX time: <http://www.w3.org/2006/time#>\nPREFIX onz-pers: <http://purl.org/ozo/onz-pers#>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT\n    (?teller AS ?Teller)\n    (?noemer AS ?Noemer)\n    (IF(?noemer = 0, \"Ongedefineerd\", 100 * ?teller / ?noemer) AS ?Indicator)\n{\n    SELECT \n        (SUM(?netto_verzuim_totaal) AS ?teller)\n        (SUM(?netto_dagen_afspraak) AS ?noemer)\n    {\n        {\n            SELECT\n                ?overeenkomst_afspraak\n                (MAX(?dagen_afspraak * ?ptf) AS ?netto_dagen_afspraak)\n                (SUM((?dagen_verzuim - ?totaal_hersteld) * ?ptf) AS ?netto_verzuim_totaal)\n            {\n                SELECT\n                    ?overeenkomst_afspraak\n                    ?ptf\n                    ?ziekte\n                    ?dagen_afspraak\n                    ?dagen_verzuim\n                    (SUM(?dagen_hersteld) AS ?totaal_hersteld)\n                {\n                    # BIND(2024 AS ?jaar)  # Parameter\n\n                    BIND(STRDT(CONCAT(STR(?jaar), \"-01-01\"), xsd:date) AS ?start_periode)\n                    BIND(STRDT(CONCAT(STR(?jaar), \"-12-31\"), xsd:date) AS ?eind_periode)  \n                    \n                    ?eind_periode ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_periode_reken .\n                    ?overeenkomst \n                        a onz-pers:ArbeidsOvereenkomst ;\n                        onz-g:hasPart ?overeenkomst_afspraak .\n                    ?overeenkomst_afspraak\n                        a onz-pers:WerkOvereenkomstAfspraak ;\n                        onz-g:isAbout/a onz-pers:ZorgverlenerFunctie ;\n                        onz-g:startDatum ?start_afspraak .\n                    OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }\n                    FILTER (?start_afspraak <= ?eind_periode && (?eind_afspraak >= ?start_periode || !BOUND(?eind_afspraak)))\n                    ?overeenkomst_afspraak onz-g:hasPart ?omvang .\n                    ?omvang\n                        a onz-pers:ContractOmvang ;\n                        onz-g:isAbout ?omvang_waarde .\n                    ?omvang_waarde\n                        a onz-pers:ContractOmvangWaarde ;\n                        onz-g:hasDataValue ?omvang_getal ;\n                        onz-g:hasUnitOfMeasure ?omvang_eenheid .\n                    ?omvang_eenheid onz-g:hasDataValue ?eenheid_factor .\n                    BIND(?omvang_getal/(36/?eenheid_factor) AS ?ptf)\n                    \n                    BIND(IF(?start_afspraak < ?start_periode, ?start_periode, ?start_afspraak) AS ?start_afspraak_corr)\n                    BIND(IF(?eind_afspraak > ?eind_periode || !BOUND(?eind_afspraak), ?eind_periode, ?eind_afspraak) AS ?eind_afspraak_corr)\n                    ?start_afspraak_corr ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_afspraak_reken .\n                    ?eind_afspraak_corr ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_afspraak_reken .\n                    BIND(?eind_afspraak_reken - ?start_afspraak_reken + 1 AS ?dagen_afspraak)\n                    OPTIONAL {\n                        VALUES ?type_verzuim # Keuze in-/exclusief zwangerschapsverlog\n                        { \n                            onz-pers:ZiektePeriode\n                            # onz-pers:ZwangerschapsVerlof\n                        }\n                        ?ziekte \n                            a ?type_verzuim ;\n                            onz-g:definedBy ?overeenkomst ;\n                            onz-g:startDatum ?start_ziekte_periode .\n                        ?start_ziekte_periode ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_ziekte_periode_reken .\n                        OPTIONAL {\n                            ?ziekte onz-g:eindDatum ?eind_ziekte_periode_temp .\n                            ?eind_ziekte_periode_temp ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_ziekte_periode_temp_reken .\n                        }\n                        # FILTER(?start_ziekte_periode <= ?eind_afspraak_corr && (?eind_ziekte_periode_temp >= ?start_afspraak_corr || !BOUND(?eind_ziekte_periode_temp)))\n                        OPTIONAL {\n                            ?ziekte onz-g:hasQuality ?verzuim_tijd .\n                            ?verzuim_tijd\n                                a onz-pers:VerzuimTijdKwaliteit ;\n                                onz-g:hasQualityValue ?verzuim_waarde .\n                            ?verzuim_waarde\n                                onz-g:hasUnitOfMeasure onz-g:percent ;\n                                onz-g:startDatum ?start_verzuim_waarde_temp ;\n                                onz-g:hasDataValue ?verzuim_percentage .\n                            ?start_verzuim_waarde_temp ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_verzuim_waarde_temp_reken_temp\n                            OPTIONAL {\n                                ?verzuim_waarde onz-g:eindDatum ?eind_verzuim_waarde_temp .\n                                ?eind_verzuim_waarde_temp ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_verzuim_waarde_temp_reken_temp\n                            }\n                        }\n                    }\n                    BIND(IF(!BOUND(?start_verzuim_waarde_temp), ?unbound, IF(?start_verzuim_waarde_temp_reken_temp < ?start_afspraak_reken, ?start_afspraak_reken, ?start_verzuim_waarde_temp_reken_temp)) AS ?start_verzuim_waarde_reken)\n                    BIND(IF(!BOUND(?start_verzuim_waarde_temp), ?unbound, IF(!BOUND(?eind_verzuim_waarde_temp_reken_temp) || ?eind_verzuim_waarde_temp_reken_temp > ?eind_afspraak_reken, ?eind_afspraak_reken, ?eind_verzuim_waarde_temp_reken_temp)) AS ?eind_verzuim_waarde_reken)\n\n                    # Gebruikt totale ziekteperiode t/m eind meetperiode als maat voor kort/langdurend verzuim\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(!BOUND(?eind_ziekte_periode_temp) || ?eind_ziekte_periode_temp > ?eind_periode, ?eind_periode, ?eind_ziekte_periode_temp)) AS ?eind_ziekte_periode)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(!BOUND(?eind_ziekte_periode_temp_reken) || ?eind_ziekte_periode_temp_reken > ?eind_periode_reken, ?eind_periode_reken, ?eind_ziekte_periode_temp_reken)) AS ?eind_ziekte_periode_reken)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, ?eind_ziekte_periode_reken - ?start_ziekte_periode_reken + 1) AS ?dagen_ziekte_periode)\n                    # Filter kort/langdurend verzuim\n                    #BIND(IF(?dagen_ziekte_periode <= 28 || !BOUND(?ziekte), 1, 0) AS ?voorwaarde_1)\n                    BIND(IF(BOUND(?ziekte) && (?start_ziekte_periode <= ?eind_afspraak_corr && (?eind_ziekte_periode >= ?start_afspraak_corr || !BOUND(?eind_ziekte_periode))), 1, 0) AS ?voorwaarde_2)\n                    BIND(IF(!BOUND(?verzuim_tijd) || (BOUND(?verzuim_tijd) && (?start_verzuim_waarde_temp <= ?eind_afspraak_corr && (?eind_verzuim_waarde_temp >= ?start_afspraak_corr || !BOUND(?eind_verzuim_waarde_temp)))), 1, 0) AS ?voorwaarde_3)\n                    BIND(?voorwaarde_2 * ?voorwaarde_3 AS ?geldige_ziekte)\n\n                    BIND(IF(BOUND(?verzuim_tijd), ?geldige_ziekte * (100 - ?verzuim_percentage)/100 * (?eind_verzuim_waarde_reken - ?start_verzuim_waarde_reken + 1), 0) AS ?dagen_hersteld)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(?start_ziekte_periode_reken < ?start_afspraak_reken, ?start_afspraak_reken, ?start_ziekte_periode_reken)) AS ?start_ziekte_reken)\n                    BIND(IF(!BOUND(?ziekte), ?unbound, IF(?eind_ziekte_periode_temp_reken > ?eind_afspraak_reken || !BOUND(?eind_ziekte_periode_temp_reken), ?eind_afspraak_reken, ?eind_ziekte_periode_temp_reken)) AS ?eind_ziekte_reken)\n                    BIND(IF(BOUND(?ziekte), ?geldige_ziekte * (?eind_ziekte_reken - ?start_ziekte_reken + 1), 0) AS ?dagen_verzuim)\n                }\n                GROUP BY\n                    ?overeenkomst_afspraak\n                    ?ptf\n                    ?ziekte\n                    ?dagen_afspraak\n                    ?dagen_verzuim\n            }\n            GROUP BY\n                ?overeenkomst_afspraak\n        }\n        ?overeenkomst_afspraak onz-g:isAbout ?locatie .\n        ?locatie \n            a onz-g:StationaryArtifact ;\n            onz-g:partOf* ?vestiging_uri .\n        ?vestiging_uri a onz-org:Vestiging ;\n        .\n    }\n}",
+          "parsed": {
+            "prefixes": {
+              "time:": "http://www.w3.org/2006/time#",
+              "xsd:": "http://www.w3.org/2001/XMLSchema#"
+            },
+            "select_vars": [],
+            "parameters": [
+              "jaar",
+              "teller",
+              "Teller",
+              "noemer",
+              "Noemer",
+              "Indicator",
+              "netto_verzuim_totaal",
+              "netto_dagen_afspraak",
+              "overeenkomst_afspraak",
+              "dagen_afspraak",
+              "ptf",
+              "dagen_verzuim",
+              "totaal_hersteld",
+              "ziekte",
+              "dagen_hersteld",
+              "start_periode",
+              "eind_periode",
+              "eind_periode_reken",
+              "overeenkomst",
+              "start_afspraak",
+              "eind_afspraak",
+              "omvang",
+              "omvang_waarde",
+              "omvang_getal",
+              "omvang_eenheid",
+              "eenheid_factor",
+              "start_afspraak_corr",
+              "eind_afspraak_corr",
+              "start_afspraak_reken",
+              "eind_afspraak_reken",
+              "type_verzuim",
+              "start_ziekte_periode",
+              "start_ziekte_periode_reken",
+              "eind_ziekte_periode_temp",
+              "eind_ziekte_periode_temp_reken",
+              "verzuim_tijd",
+              "verzuim_waarde",
+              "start_verzuim_waarde_temp",
+              "verzuim_percentage",
+              "start_verzuim_waarde_temp_reken_temp",
+              "eind_verzuim_waarde_temp",
+              "eind_verzuim_waarde_temp_reken_temp",
+              "unbound",
+              "start_verzuim_waarde_reken",
+              "eind_verzuim_waarde_reken",
+              "eind_ziekte_periode",
+              "eind_ziekte_periode_reken",
+              "dagen_ziekte_periode",
+              "voorwaarde_1",
+              "voorwaarde_2",
+              "voorwaarde_3",
+              "geldige_ziekte",
+              "start_ziekte_reken",
+              "eind_ziekte_reken",
+              "locatie",
+              "vestiging_uri"
+            ],
+            "predicates": [],
+            "filters": [
+              "?start_afspraak <= ?eind_periode && (?eind_afspraak >= ?start_periode || !BOUND(?eind_afspraak",
+              "?start_ziekte_periode <= ?eind_afspraak_corr && (?eind_ziekte_periode_temp >= ?start_afspraak_corr || !BOUND(?eind_ziekte_periode_temp"
+            ],
+            "group_by_vars": [
+              "overeenkomst_afspraak",
+              "ptf",
+              "ziekte",
+              "dagen_afspraak",
+              "dagen_verzuim",
+              "overeenkomst_afspraak",
+              "overeenkomst_afspraak",
+              "locatie",
+              "locatie",
+              "vestiging_uri",
+              "vestiging_uri"
+            ],
+            "having": [],
+            "order_by": [],
+            "limit": null,
+            "date_logic": [
+              "STRDT"
+            ],
+            "binds": [
+              {
+                "expression": "2024",
+                "as": "jaar"
+              },
+              {
+                "expression": "STRDT(CONCAT(STR(?jaar), \"-01-01\"), xsd:date)",
+                "as": "start_periode"
+              },
+              {
+                "expression": "STRDT(CONCAT(STR(?jaar), \"-12-31\"), xsd:date)",
+                "as": "eind_periode"
+              },
+              {
+                "expression": "?omvang_getal/(36/?eenheid_factor)",
+                "as": "ptf"
+              },
+              {
+                "expression": "IF(?start_afspraak < ?start_periode, ?start_periode, ?start_afspraak)",
+                "as": "start_afspraak_corr"
+              },
+              {
+                "expression": "IF(?eind_afspraak > ?eind_periode || !BOUND(?eind_afspraak), ?eind_periode, ?eind_afspraak)",
+                "as": "eind_afspraak_corr"
+              },
+              {
+                "expression": "?eind_afspraak_reken - ?start_afspraak_reken + 1",
+                "as": "dagen_afspraak"
+              },
+              {
+                "expression": "IF(!BOUND(?start_verzuim_waarde_temp), ?unbound, IF(?start_verzuim_waarde_temp_reken_temp < ?start_afspraak_reken, ?start_afspraak_reken, ?start_verzuim_waarde_temp_reken_temp))",
+                "as": "start_verzuim_waarde_reken"
+              },
+              {
+                "expression": "IF(!BOUND(?start_verzuim_waarde_temp), ?unbound, IF(!BOUND(?eind_verzuim_waarde_temp_reken_temp) || ?eind_verzuim_waarde_temp_reken_temp > ?eind_afspraak_reken, ?eind_afspraak_reken, ?eind_verzuim_waarde_temp_reken_temp))",
+                "as": "eind_verzuim_waarde_reken"
+              },
+              {
+                "expression": "IF(!BOUND(?ziekte), ?unbound, IF(!BOUND(?eind_ziekte_periode_temp) || ?eind_ziekte_periode_temp > ?eind_periode, ?eind_periode, ?eind_ziekte_periode_temp))",
+                "as": "eind_ziekte_periode"
+              },
+              {
+                "expression": "IF(!BOUND(?ziekte), ?unbound, IF(!BOUND(?eind_ziekte_periode_temp_reken) || ?eind_ziekte_periode_temp_reken > ?eind_periode_reken, ?eind_periode_reken, ?eind_ziekte_periode_temp_reken))",
+                "as": "eind_ziekte_periode_reken"
+              },
+              {
+                "expression": "IF(!BOUND(?ziekte), ?unbound, ?eind_ziekte_periode_reken - ?start_ziekte_periode_reken + 1)",
+                "as": "dagen_ziekte_periode"
+              },
+              {
+                "expression": "IF(?dagen_ziekte_periode <= 28 || !BOUND(?ziekte), 1, 0)",
+                "as": "voorwaarde_1"
+              },
+              {
+                "expression": "IF(BOUND(?ziekte) && (?start_ziekte_periode <= ?eind_afspraak_corr && (?eind_ziekte_periode >= ?start_afspraak_corr || !BOUND(?eind_ziekte_periode))), 1, 0)",
+                "as": "voorwaarde_2"
+              },
+              {
+                "expression": "IF(!BOUND(?verzuim_tijd) || (BOUND(?verzuim_tijd) && (?start_verzuim_waarde_temp <= ?eind_afspraak_corr && (?eind_verzuim_waarde_temp >= ?start_afspraak_corr || !BOUND(?eind_verzuim_waarde_temp)))), 1, 0)",
+                "as": "voorwaarde_3"
+              },
+              {
+                "expression": "?voorwaarde_2 * ?voorwaarde_3",
+                "as": "geldige_ziekte"
+              },
+              {
+                "expression": "IF(BOUND(?verzuim_tijd), ?geldige_ziekte * (100 - ?verzuim_percentage)/100 * (?eind_verzuim_waarde_reken - ?start_verzuim_waarde_reken + 1), 0)",
+                "as": "dagen_hersteld"
+              },
+              {
+                "expression": "IF(!BOUND(?ziekte), ?unbound, IF(?start_ziekte_periode_reken < ?start_afspraak_reken, ?start_afspraak_reken, ?start_ziekte_periode_reken))",
+                "as": "start_ziekte_reken"
+              },
+              {
+                "expression": "IF(!BOUND(?ziekte), ?unbound, IF(?eind_ziekte_periode_temp_reken > ?eind_afspraak_reken || !BOUND(?eind_ziekte_periode_temp_reken), ?eind_afspraak_reken, ?eind_ziekte_periode_temp_reken))",
+                "as": "eind_ziekte_reken"
+              },
+              {
+                "expression": "IF(BOUND(?ziekte), ?geldige_ziekte * (?eind_ziekte_reken - ?start_ziekte_reken + 1), 0)",
+                "as": "dagen_verzuim"
+              }
+            ],
+            "aggregate_functions": [
+              "SUM",
+              "MAX"
+            ]
+          }
+        },
+        "turtle": {
+          "raw": "@prefix sh: <http://www.w3.org/ns/shacl#> .\n@prefix schema: <http://schema.org/> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n@prefix dash: <http://datashapes.org/dash#> .\n@prefix foaf: <http://xmlns.com/foaf/0.1/> .\n@prefix vcard: <http://www.w3.org/2006/vcard/ns#> .\n@prefix ex: <http://example.com/> .\n\n# Parameter-shapes voor jaarwaarde. De parameter biedt de gebruiker éém selectieveld voor het jaar. \nex:YearValuePickList\n    a sh:NodeShape ;\n    sh:targetClass ex:YearValuePickList ;\n    rdfs:label \"Jaarwaarden\" ;\n    rdfs:comment \"Een shape met één eigenschap: om een keuzelijstveld te creëren waarmee de gebruiker met handmatige invoer het jaar kan specificeren.\"@nl ;\n    sh:property [\n          sh:path ex:jaar ;\n          sh:name \"jaar\";\n          sh:description \"Handmatige invoer van de jaarwaarde.\"@nl ;\n          sh:maxCount 1 ;\n          sh:minCount 1 ;\n          sh:datatype xsd:gYear ;\n          sh:maxInclusive \"2026\"^^xsd:gYear ;\n          sh:minInclusive \"2024\"^^xsd:gYear ;\n      ]\n.\n",
+          "parsed": {
+            "prefixes": {
+              "sh:": "http://www.w3.org/ns/shacl#",
+              "schema:": "http://schema.org/",
+              "rdfs:": "http://www.w3.org/2000/01/rdf-schema#",
+              "xsd:": "http://www.w3.org/2001/XMLSchema#",
+              "dash:": "http://datashapes.org/dash#",
+              "foaf:": "http://xmlns.com/foaf/0.1/",
+              "vcard:": "http://www.w3.org/2006/vcard/ns#",
+              "ex:": "http://example.com/"
+            },
+            "named_resources": [
+              "ex:YearValuePickList"
+            ],
+            "class_declarations": [],
+            "property_triples": [],
+            "subclass_relations": [],
+            "all_references": [
+              "ex:YearValuePickList",
+              "sh:NodeShape",
+              "sh:targetClass",
+              "rdfs:label",
+              "rdfs:comment",
+              "sh:property",
+              "sh:path",
+              "ex:jaar",
+              "sh:name",
+              "sh:description",
+              "sh:maxCount",
+              "sh:minCount",
+              "sh:datatype",
+              "xsd:gYear",
+              "sh:maxInclusive",
+              "sh:minInclusive"
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "title": "4.2. Wat is het ziekteverzuimpercentage van de zorgverleners?",
+        "description": "",
+        "sections": [
+          "Concepten",
+          "Relaties",
+          "Eigenschappen",
+          "Instanties",
+          "SPARQL query"
+        ],
+        "kv_pairs": {},
+        "concepts": [
+          {
+            "label": "Arbeidsovereenkomst",
+            "uri": "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomst"
+          },
+          {
+            "label": "Contractomvang",
+            "uri": "http://purl.org/ozo/onz-pers#ContractOmvang"
+          },
+          {
+            "label": "Contractomvangwaarde",
+            "uri": "http://purl.org/ozo/onz-pers#ContractOmvangWaarde"
+          },
+          {
+            "label": "Onverplaatsbaar artefact",
+            "uri": "http://purl.org/ozo/onz-g#StationaryArtifact"
+          },
+          {
+            "label": "Verzuimtijd",
+            "uri": "http://purl.org/ozo/onz-pers#VerzuimTijdKwaliteit"
+          },
+          {
+            "label": "Vestiging",
+            "uri": "http://purl.org/ozo/onz-org#Vestiging"
+          },
+          {
+            "label": "Werkovereenkomst afspraak",
+            "uri": "http://purl.org/ozo/onz-pers#WerkOvereenkomstAfspraak"
+          },
+          {
+            "label": "Ziekteperiode",
+            "uri": "http://purl.org/ozo/onz-pers#ZiektePeriode"
+          },
+          {
+            "label": "Zorgverlener (functie)",
+            "uri": "http://purl.org/ozo/onz-pers#ZorgverlenerFunctie"
+          },
+          {
+            "label": "deel van",
+            "uri": "http://purl.org/ozo/onz-g#partOf"
+          },
+          {
+            "label": "gaat over",
+            "uri": "http://purl.org/ozo/onz-g#isAbout"
+          },
+          {
+            "label": "gedefinieerd door",
+            "uri": "http://purl.org/ozo/onz-g#definedBy"
+          },
+          {
+            "label": "heeft deel",
+            "uri": "http://purl.org/ozo/onz-g#hasPart"
+          },
+          {
+            "label": "heeft eigenschap of kenmerk",
+            "uri": "http://purl.org/ozo/onz-g#hasQuality"
+          },
+          {
+            "label": "heeft eigenschapswaarde",
+            "uri": "http://purl.org/ozo/onz-g#hasQualityValue"
+          },
+          {
+            "label": "heeft meeteenheid",
+            "uri": "http://purl.org/ozo/onz-g#hasUnitOfMeasure"
+          },
+          {
+            "label": "einddatum",
+            "uri": "http://purl.org/ozo/onz-g#eindDatum"
+          },
+          {
+            "label": "heeft datawaarde",
+            "uri": "http://purl.org/ozo/onz-g#hasDataValue"
+          },
+          {
+            "label": "startdatum",
+            "uri": "http://purl.org/ozo/onz-g#startDatum"
+          },
+          {
+            "label": "Procent",
+            "uri": "http://purl.org/ozo/onz-g#percent"
+          }
+        ],
+        "select_vars": [],
+        "parameters": [
+          "jaar",
+          "teller",
+          "Teller",
+          "noemer",
+          "Noemer",
+          "Indicator",
+          "netto_verzuim_totaal",
+          "netto_dagen_afspraak",
+          "overeenkomst_afspraak",
+          "dagen_afspraak",
+          "ptf",
+          "dagen_verzuim",
+          "totaal_hersteld",
+          "ziekte",
+          "dagen_hersteld",
+          "start_periode",
+          "eind_periode",
+          "eind_periode_reken",
+          "overeenkomst",
+          "start_afspraak",
+          "eind_afspraak",
+          "omvang",
+          "omvang_waarde",
+          "omvang_getal",
+          "omvang_eenheid",
+          "eenheid_factor",
+          "start_afspraak_corr",
+          "eind_afspraak_corr",
+          "start_afspraak_reken",
+          "eind_afspraak_reken",
+          "type_verzuim",
+          "start_ziekte_periode",
+          "start_ziekte_periode_reken",
+          "eind_ziekte_periode_temp",
+          "eind_ziekte_periode_temp_reken",
+          "verzuim_tijd",
+          "verzuim_waarde",
+          "start_verzuim_waarde_temp",
+          "verzuim_percentage",
+          "start_verzuim_waarde_temp_reken_temp",
+          "eind_verzuim_waarde_temp",
+          "eind_verzuim_waarde_temp_reken_temp",
+          "unbound",
+          "start_verzuim_waarde_reken",
+          "eind_verzuim_waarde_reken",
+          "eind_ziekte_periode",
+          "eind_ziekte_periode_reken",
+          "dagen_ziekte_periode",
+          "voorwaarde_1",
+          "voorwaarde_2",
+          "voorwaarde_3",
+          "geldige_ziekte",
+          "start_ziekte_reken",
+          "eind_ziekte_reken",
+          "locatie",
+          "vestiging_uri"
+        ],
+        "predicates": [],
+        "filters": [
+          "?start_afspraak <= ?eind_periode && (?eind_afspraak >= ?start_periode || !BOUND(?eind_afspraak",
+          "?start_ziekte_periode <= ?eind_afspraak_corr && (?eind_ziekte_periode_temp >= ?start_afspraak_corr || !BOUND(?eind_ziekte_periode_temp"
+        ],
+        "group_by_vars": [
+          "overeenkomst_afspraak",
+          "ptf",
+          "ziekte",
+          "dagen_afspraak",
+          "dagen_verzuim",
+          "overeenkomst_afspraak",
+          "overeenkomst_afspraak",
+          "locatie",
+          "locatie",
+          "vestiging_uri",
+          "vestiging_uri"
+        ],
+        "date_logic": [
+          "STRDT"
+        ],
+        "aggregate_functions": [
+          "SUM",
+          "MAX"
+        ],
+        "limit": null,
+        "sparql_prefixes": {
+          "time:": "http://www.w3.org/2006/time#",
+          "xsd:": "http://www.w3.org/2001/XMLSchema#"
+        },
+        "rdf_classes": [
+          "ex:YearValuePickList"
+        ],
+        "subclass_relations": [],
+        "property_triples": []
+      }
+    },
+    "5.1": {
+      "id": "5.1",
+      "files": {
+        "markdown": {
+          "raw": "---\ntitle: 5.1. Aan hoeveel unieke patiënten is zorg verleend?\nweight: 5\n---\n## Concepten\n- [Mens](http://purl.org/ozo/onz-g#Human)\n- [ZorgEnVerpleegProces](http://purl.org/ozo/onz-g#CureAndCareProcess)\n## Relaties\n- [heeft deelnemer](http://purl.org/ozo/onz-g#hasParticipant)\n## Eigenschappen\n- [einddatum](http://purl.org/ozo/onz-g#eindDatum)\n- [startdatum](http://purl.org/ozo/onz-g#startDatum)\n## SPARQL query\n```\n# Indicator: VWS JVZ 5.1\n# Parameters: ?jaar\n# Ontologie: versie 3.0 of nieuwer\n\nPREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>\nPREFIX onz-org: <http://purl.org/ozo/onz-org#>\nPREFIX onz-g: <http://purl.org/ozo/onz-g#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT\n    (COUNT(DISTINCT ?client) AS ?Teller)\n    (\"Niet van toepassing\" AS ?Noemer)\n    (COUNT(DISTINCT ?client) AS ?Indicator)\nWHERE {\n    # BIND (2024 AS ?jaar) .  # Parameter\n\n    BIND(STRDT(CONCAT(STR(?jaar), \"-01-01\"), xsd:date) AS ?start_periode) .\n    BIND(STRDT(CONCAT(STR(?jaar), \"-12-31\"), xsd:date) AS ?eind_periode) .\n\n    ?client a onz-g:Human .\n\n    ?zorgproces\n        a onz-g:CureAndCareProcess ;\n        onz-g:hasParticipant ?client ;\n        onz-g:startDatum ?start_zorgproces .\n\n    OPTIONAL { ?zorgproces onz-g:eindDatum ?eind_zorgproces }\n    FILTER (?start_zorgproces <= ?eind_periode && ((?eind_zorgproces >= ?start_periode) || (!BOUND(?eind_zorgproces))))\n}\n",
+          "parsed": {
+            "title": "5.1. Aan hoeveel unieke patiënten is zorg verleend?",
+            "description": "",
+            "frontmatter": {
+              "title": "5.1. Aan hoeveel unieke patiënten is zorg verleend?",
+              "weight": "5"
+            },
+            "sections": [
+              "Concepten",
+              "Relaties",
+              "Eigenschappen",
+              "SPARQL query"
+            ],
+            "key_value_pairs": {},
+            "concepts": [
+              {
+                "label": "Mens",
+                "uri": "http://purl.org/ozo/onz-g#Human"
+              },
+              {
+                "label": "ZorgEnVerpleegProces",
+                "uri": "http://purl.org/ozo/onz-g#CureAndCareProcess"
+              },
+              {
+                "label": "heeft deelnemer",
+                "uri": "http://purl.org/ozo/onz-g#hasParticipant"
+              },
+              {
+                "label": "einddatum",
+                "uri": "http://purl.org/ozo/onz-g#eindDatum"
+              },
+              {
+                "label": "startdatum",
+                "uri": "http://purl.org/ozo/onz-g#startDatum"
+              }
+            ],
+            "tables": [],
+            "raw": "---\ntitle: 5.1. Aan hoeveel unieke patiënten is zorg verleend?\nweight: 5\n---\n## Concepten\n- [Mens](http://purl.org/ozo/onz-g#Human)\n- [ZorgEnVerpleegProces](http://purl.org/ozo/onz-g#CureAndCareProcess)\n## Relaties\n- [heeft deelnemer](http://purl.org/ozo/onz-g#hasParticipant)\n## Eigenschappen\n- [einddatum](http://purl.org/ozo/onz-g#eindDatum)\n- [startdatum](http://purl.org/ozo/onz-g#startDatum)\n## SPARQL query\n```\n# Indicator: VWS JVZ 5.1\n# Parameters: ?jaar\n# Ontologie: versie 3.0 of nieuwer\n\nPREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>\nPREFIX onz-org: <http://purl.org/ozo/onz-org#>\nPREFIX onz-g: <http://purl.org/ozo/onz-g#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT\n    (COUNT(DISTINCT ?client) AS ?Teller)\n    (\"Niet van toepassing\" AS ?Noemer)\n    (COUNT(DISTINCT ?client) AS ?Indicator)\nWHERE {\n    # BIND (2024 AS ?jaar) .  # Parameter\n\n    BIND(STRDT(CONCAT(STR(?jaar), \"-01-01\"), xsd:date) AS ?start_periode) .\n    BIND(STRDT(CONCAT(STR(?jaar), \"-12-31\"), xsd:date) AS ?eind_periode) .\n\n    ?client a onz-g:Human .\n\n    ?zorgproces\n        a onz-g:CureAndCareProcess ;\n        onz-g:hasParticipant ?client ;\n        onz-g:startDatum ?start_zorgproces .\n\n    OPTIONAL { ?zorgproces onz-g:eindDatum ?eind_zorgproces }\n    FILTER (?start_zorgproces <= ?eind_periode && ((?eind_zorgproces >= ?start_periode) || (!BOUND(?eind_zorgproces))))\n}\n"
+          }
+        },
+        "sparql": {
+          "raw": "# Indicator: VWS JVZ 5.1\n# Parameters: ?jaar\n# Ontologie: versie 3.0 of nieuwer\n\nPREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>\nPREFIX onz-org: <http://purl.org/ozo/onz-org#>\nPREFIX onz-g: <http://purl.org/ozo/onz-g#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT\n    (COUNT(DISTINCT ?client) AS ?Teller)\n    (\"Niet van toepassing\" AS ?Noemer)\n    (COUNT(DISTINCT ?client) AS ?Indicator)\nWHERE {\n    # BIND (2024 AS ?jaar) .  # Parameter\n\n    BIND(STRDT(CONCAT(STR(?jaar), \"-01-01\"), xsd:date) AS ?start_periode) .\n    BIND(STRDT(CONCAT(STR(?jaar), \"-12-31\"), xsd:date) AS ?eind_periode) .\n\n    ?client a onz-g:Human .\n\n    ?zorgproces\n        a onz-g:CureAndCareProcess ;\n        onz-g:hasParticipant ?client ;\n        onz-g:startDatum ?start_zorgproces .\n\n    OPTIONAL { ?zorgproces onz-g:eindDatum ?eind_zorgproces }\n    FILTER (?start_zorgproces <= ?eind_periode && ((?eind_zorgproces >= ?start_periode) || (!BOUND(?eind_zorgproces))))\n}",
+          "parsed": {
+            "prefixes": {
+              "rdfs:": "http://www.w3.org/2000/01/rdf-schema#",
+              "xsd:": "http://www.w3.org/2001/XMLSchema#"
+            },
+            "select_vars": [
+              "client",
+              "Teller",
+              "Noemer",
+              "client",
+              "Indicator"
+            ],
+            "parameters": [
+              "jaar",
+              "start_periode",
+              "eind_periode",
+              "zorgproces",
+              "start_zorgproces",
+              "eind_zorgproces"
+            ],
+            "predicates": [],
+            "filters": [
+              "?start_zorgproces <= ?eind_periode && ((?eind_zorgproces >= ?start_periode"
+            ],
+            "group_by_vars": [],
+            "having": [],
+            "order_by": [],
+            "limit": null,
+            "date_logic": [
+              "STRDT"
+            ],
+            "binds": [
+              {
+                "expression": "2024",
+                "as": "jaar"
+              },
+              {
+                "expression": "STRDT(CONCAT(STR(?jaar), \"-01-01\"), xsd:date)",
+                "as": "start_periode"
+              },
+              {
+                "expression": "STRDT(CONCAT(STR(?jaar), \"-12-31\"), xsd:date)",
+                "as": "eind_periode"
+              }
+            ],
+            "aggregate_functions": [
+              "COUNT"
+            ]
+          }
+        },
+        "turtle": {
+          "raw": "@prefix sh: <http://www.w3.org/ns/shacl#> .\n@prefix schema: <http://schema.org/> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n@prefix dash: <http://datashapes.org/dash#> .\n@prefix foaf: <http://xmlns.com/foaf/0.1/> .\n@prefix vcard: <http://www.w3.org/2006/vcard/ns#> .\n@prefix ex: <http://example.com/> .\n\n# Parameter-shapes voor jaarwaarde. De parameter biedt de gebruiker éém selectieveld voor het jaar. \nex:YearValuePickList\n    a sh:NodeShape ;\n    sh:targetClass ex:YearValuePickList ;\n    rdfs:label \"Jaarwaarden\" ;\n    rdfs:comment \"Een shape met één eigenschap: om een keuzelijstveld te creëren waarmee de gebruiker met handmatige invoer het jaar kan specificeren.\"@nl ;\n    sh:property [\n          sh:path ex:jaar ;\n          sh:name \"jaar\";\n          sh:description \"Handmatige invoer van de jaarwaarde.\"@nl ;\n          sh:maxCount 1 ;\n          sh:minCount 1 ;\n          sh:datatype xsd:gYear ;\n          sh:maxInclusive \"2026\"^^xsd:gYear ;\n          sh:minInclusive \"2024\"^^xsd:gYear ;\n      ]\n.\n",
+          "parsed": {
+            "prefixes": {
+              "sh:": "http://www.w3.org/ns/shacl#",
+              "schema:": "http://schema.org/",
+              "rdfs:": "http://www.w3.org/2000/01/rdf-schema#",
+              "xsd:": "http://www.w3.org/2001/XMLSchema#",
+              "dash:": "http://datashapes.org/dash#",
+              "foaf:": "http://xmlns.com/foaf/0.1/",
+              "vcard:": "http://www.w3.org/2006/vcard/ns#",
+              "ex:": "http://example.com/"
+            },
+            "named_resources": [
+              "ex:YearValuePickList"
+            ],
+            "class_declarations": [],
+            "property_triples": [],
+            "subclass_relations": [],
+            "all_references": [
+              "ex:YearValuePickList",
+              "sh:NodeShape",
+              "sh:targetClass",
+              "rdfs:label",
+              "rdfs:comment",
+              "sh:property",
+              "sh:path",
+              "ex:jaar",
+              "sh:name",
+              "sh:description",
+              "sh:maxCount",
+              "sh:minCount",
+              "sh:datatype",
+              "xsd:gYear",
+              "sh:maxInclusive",
+              "sh:minInclusive"
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "title": "5.1. Aan hoeveel unieke patiënten is zorg verleend?",
+        "description": "",
+        "sections": [
+          "Concepten",
+          "Relaties",
+          "Eigenschappen",
+          "SPARQL query"
+        ],
+        "kv_pairs": {},
+        "concepts": [
+          {
+            "label": "Mens",
+            "uri": "http://purl.org/ozo/onz-g#Human"
+          },
+          {
+            "label": "ZorgEnVerpleegProces",
+            "uri": "http://purl.org/ozo/onz-g#CureAndCareProcess"
+          },
+          {
+            "label": "heeft deelnemer",
+            "uri": "http://purl.org/ozo/onz-g#hasParticipant"
+          },
+          {
+            "label": "einddatum",
+            "uri": "http://purl.org/ozo/onz-g#eindDatum"
+          },
+          {
+            "label": "startdatum",
+            "uri": "http://purl.org/ozo/onz-g#startDatum"
+          }
+        ],
+        "select_vars": [
+          "client",
+          "Teller",
+          "Noemer",
+          "client",
+          "Indicator"
+        ],
+        "parameters": [
+          "jaar",
+          "start_periode",
+          "eind_periode",
+          "zorgproces",
+          "start_zorgproces",
+          "eind_zorgproces"
+        ],
+        "predicates": [],
+        "filters": [
+          "?start_zorgproces <= ?eind_periode && ((?eind_zorgproces >= ?start_periode"
+        ],
+        "group_by_vars": [],
+        "date_logic": [
+          "STRDT"
+        ],
+        "aggregate_functions": [
+          "COUNT"
+        ],
+        "limit": null,
+        "sparql_prefixes": {
+          "rdfs:": "http://www.w3.org/2000/01/rdf-schema#",
+          "xsd:": "http://www.w3.org/2001/XMLSchema#"
+        },
+        "rdf_classes": [
+          "ex:YearValuePickList"
+        ],
+        "subclass_relations": [],
+        "property_triples": []
+      }
+    }
+  }
+}

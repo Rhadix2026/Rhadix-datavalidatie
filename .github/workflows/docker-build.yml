@@ -6,11 +6,6 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
 
-env:
-  REGISTRY: ghcr.io
-  BACKEND_IMAGE:  ghcr.io/${{ github.repository_owner }}/rhadix-backend
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/rhadix-frontend
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -29,23 +24,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Haal versienummer op uit de tag
+      - name: Haal versienummer op
         id: meta
         run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
 
-      # ── Backend ────────────────────────────────────────────────────────────
       - name: Build & push backend
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           push: true
           tags: |
-            ${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.VERSION }}
-            ${{ env.BACKEND_IMAGE }}:latest
+            ghcr.io/rhadix2026/rhadix-backend:${{ steps.meta.outputs.VERSION }}
+            ghcr.io/rhadix2026/rhadix-backend:latest
 
-      # ── Frontend ───────────────────────────────────────────────────────────
-      # VITE_API_URL is leeg: in productie gebruikt de frontend relatieve URLs
-      # (/api/...) die nginx intern doorstuurt naar de backend-container.
       - name: Build & push frontend
         uses: docker/build-push-action@v5
         with:
@@ -54,5 +45,5 @@ jobs:
           build-args: |
             VITE_API_URL=
           tags: |
-            ${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.VERSION }}
-            ${{ env.FRONTEND_IMAGE }}:latest
+            ghcr.io/rhadix2026/rhadix-frontend:${{ steps.meta.outputs.VERSION }}
+            ghcr.io/rhadix2026/rhadix-frontend:latest

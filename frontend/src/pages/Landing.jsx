@@ -10,7 +10,7 @@ function AnimatedCounter() {
       current += 1
       if (current > 100) current = 0
       setCount(current)
-    }, 40)
+    }, 100)
     return () => clearInterval(interval)
   }, [])
 
@@ -46,7 +46,7 @@ function AnimatedCounter() {
         <div style={{
           height: '100%', width: `${count}%`,
           background: color,
-          transition: 'width 0.04s linear, background 0.3s ease',
+          transition: 'width 0.1s linear, background 0.3s ease',
           borderRadius: 2,
         }} />
       </div>

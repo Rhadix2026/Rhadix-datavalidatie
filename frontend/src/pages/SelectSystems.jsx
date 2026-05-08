@@ -3,7 +3,7 @@ import { Nav, NavBack, Page, PageTitle, BtnPrimary } from '../components/UI'
 
 // ── HRM-systemen (KIK-V) ──────────────────────────────────────────────────────
 const KIKV_SYSTEMS = [
-  { id: 'afas_hrm',        label: 'AFAS Profit HRM',        vendor: 'AFAS Software',  color: '#2d6be4', status: 'actief', note: 'KIK-V mapping' },
+  { id: 'afas_hrm',        label: 'AFAS Profit HRM',        vendor: 'AFAS Software',  color: '#2d6be4', status: 'actief', note: 'Referentieontwerp v6.0' },
   { id: 'nedap_ons',       label: 'Nedap/ONS',              vendor: 'Nedap',           color: '#0ea5e9', status: 'actief', note: 'Referentieontwerp v6.0' },
   { id: 'exact_fin',       label: 'Exact Financial',        vendor: 'Exact Software',  color: '#10b981', status: 'actief', note: 'Referentieontwerp v6.0' },
   { id: 'afas_profit_fin', label: 'AFAS PROFIT Financieel', vendor: 'AFAS Software',   color: '#f59e0b', status: 'actief', note: 'Referentieontwerp v6.0' },

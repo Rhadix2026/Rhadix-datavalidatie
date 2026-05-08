@@ -114,7 +114,7 @@ export default function App() {
   const openReadiness = async (filename, profile) => {
     if (!activeScanResult) { alert('Upload eerst een bronbestand om de gereedheidsmatrix te berekenen.'); return }
     try {
-      const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      const API = import.meta.env.VITE_API_URL ?? ''
       const resp = await fetch(`${API}/api/profiles/${encodeURIComponent(filename)}/readiness`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

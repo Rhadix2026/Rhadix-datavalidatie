@@ -1,28 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Nav, NavBack, Page, PageTitle, BtnPrimary } from '../components/UI'
 
 // ── HRM-systemen (KIK-V) ──────────────────────────────────────────────────────
 const KIKV_SYSTEMS = [
-  { id: 'afas_hrm',        label: 'AFAS Profit HRM',        vendor: 'AFAS Software',  color: '#2d6be4', status: 'actief',     note: 'Volledige KIK-V mapping, directe export via GetConnector' },
-  { id: 'nedap_ons',       label: 'Nedap ONS',              vendor: 'Nedap',           color: '#0ea5e9', status: 'actief',     note: 'Referentieontwerp v6.0 — camelCase kolomnamen, contracttype-vertaling ingebouwd' },
-  { id: 'exact_fin',       label: 'Exact Financial',        vendor: 'Exact Software',  color: '#10b981', status: 'actief',     note: 'Referentieontwerp v6.0 — grootboekrubrieken & financiële boekingen (ZK-IB)' },
-  { id: 'afas_profit_fin', label: 'AFAS PROFIT Financieel', vendor: 'AFAS Software',   color: '#f59e0b', status: 'actief',     note: 'Referentieontwerp v6.0 — financiële module voor ZK-IB (los van AFAS HRM)' },
-  { id: 'visma_puur',      label: 'Visma PUUR',             vendor: 'Visma',           color: '#8b5cf6', status: 'actief',     note: 'Referentieontwerp v6.0 — WLZ-arrangementen & zorgproducten (ZK-IB)' },
-  { id: 'nmbrs',           label: 'NMBRS',                  vendor: 'Visma',           color: '#64748b', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
-  { id: 'sap',             label: 'SAP SuccessFactors',     vendor: 'SAP',             color: '#ef4444', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
-  { id: 'unit4',           label: 'Unit4',                  vendor: 'Unit4',           color: '#6366f1', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
-  { id: 'raet',            label: 'Raet / Youforce',        vendor: 'Visma',           color: '#94a3b8', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
+  { id: 'afas_hrm',        label: 'AFAS Profit HRM',        vendor: 'AFAS Software',  color: '#2d6be4', note: 'Referentieontwerp v6.0' },
+  { id: 'nedap_ons',       label: 'Nedap/ONS',              vendor: 'Nedap',           color: '#0ea5e9', note: 'Referentieontwerp v6.0' },
+  { id: 'exact_fin',       label: 'Exact Financial',        vendor: 'Exact Software',  color: '#10b981', note: 'Referentieontwerp v6.0' },
+  { id: 'afas_profit_fin', label: 'AFAS PROFIT Financieel', vendor: 'AFAS Software',   color: '#f59e0b', note: 'Referentieontwerp v6.0' },
+  { id: 'visma_puur',      label: 'Visma PUUR',             vendor: 'Visma',           color: '#8b5cf6', note: 'Referentieontwerp v6.0' },
 ]
 
 // ── EPD/ECD-systemen (ZIB's) ──────────────────────────────────────────────────
 const ZIB_SYSTEMS = [
-  { id: 'chipsoft_hix', label: 'ChipSoft HiX',     vendor: 'ChipSoft',   color: '#0ea5e9', status: 'actief',     note: 'Export via HiX Data Export — Patient, Probleem, Medicatie, Allergie' },
-  { id: 'epic',         label: 'Epic',              vendor: 'Epic',       color: '#2d6be4', status: 'actief',     note: 'FHIR R4 export of CSV-export vanuit Epic Reporting' },
-  { id: 'nedap_evv',    label: 'Nedap EVV/ECD',     vendor: 'Nedap',      color: '#10b981', status: 'actief',     note: 'Nedap elektronisch cliëntendossier — ZIB-gebaseerde export' },
-  { id: 'medicore',     label: 'Medicore',           vendor: 'Medicore',   color: '#8b5cf6', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
-  { id: 'ysis',         label: 'Ysis',               vendor: 'Ysis',       color: '#f59e0b', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
-  { id: 'carebox',      label: 'CareBox',            vendor: 'CareBox',    color: '#ef4444', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
-  { id: 'nexus',        label: 'Nexus',              vendor: 'Nexus',      color: '#6366f1', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
+  { id: 'chipsoft_hix', label: 'ChipSoft HiX', vendor: 'ChipSoft', color: '#0ea5e9', note: 'ZIB-export' },
+  { id: 'epic',         label: 'Epic',         vendor: 'Epic',      color: '#2d6be4', note: 'ZIB-export' },
+  { id: 'nedap_ons',    label: 'Nedap/ONS',    vendor: 'Nedap',     color: '#10b981', note: 'ZIB-export' },
 ]
 
 // ── Standaard-keuze ────────────────────────────────────────────────────────────
@@ -54,16 +46,15 @@ const STANDARDS = [
 // ── Subcomponenten ─────────────────────────────────────────────────────────────
 function SystemRow({ s, selected, onToggle, last }) {
   const isSelected = selected.includes(s.id)
-  const isDisabled = s.status !== 'actief'
   return (
     <div
-      onClick={() => !isDisabled && onToggle(s.id)}
+      onClick={() => onToggle(s.id)}
       style={{
         display: 'flex', alignItems: 'flex-start', gap: 14,
-        padding: '16px 20px', cursor: isDisabled ? 'default' : 'pointer',
+        padding: '16px 20px', cursor: 'pointer',
         borderBottom: last ? 'none' : '1px solid var(--border)',
-        background: isSelected ? 'var(--blue-light)' : isDisabled ? '#fafafa' : '#fff',
-        transition: 'background .1s', opacity: isDisabled ? 0.55 : 1,
+        background: isSelected ? 'var(--blue-light)' : '#fff',
+        transition: 'background .1s',
       }}
     >
       <div style={{
@@ -79,12 +70,7 @@ function SystemRow({ s, selected, onToggle, last }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{s.label}</span>
           <span style={{ fontSize: 11, color: 'var(--text4)' }}>{s.vendor}</span>
-          {s.status === 'actief' && (
-            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: 'var(--green-light)', color: 'var(--green)', letterSpacing: '0.04em' }}>ACTIEF</span>
-          )}
-          {s.status === 'binnenkort' && (
-            <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: 'var(--amber-light)', color: 'var(--amber)' }}>Binnenkort</span>
-          )}
+          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: 'var(--green-light)', color: 'var(--green)', letterSpacing: '0.04em' }}>ACTIEF</span>
         </div>
         {s.note && (
           <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3, lineHeight: 1.4 }}>{s.note}</div>
@@ -95,10 +81,13 @@ function SystemRow({ s, selected, onToggle, last }) {
 }
 
 // ── Hoofdcomponent ─────────────────────────────────────────────────────────────
-export default function SelectSystems({ onNext, onBack }) {
-  const [step, setStep]         = useState('standard')   // 'standard' | 'systems'
-  const [standard, setStandard] = useState(null)
-  const [selected, setSelected] = useState([])
+export default function SelectSystems({ onNext, onBack, onOpenLibrary }) {
+  const [step, setStep]                   = useState('standard')   // 'standard' | 'systems' | 'profile'
+  const [standard, setStandard]           = useState(null)
+  const [selected, setSelected]           = useState([])
+  const [savedProfiles, setSavedProfiles] = useState([])
+  const [profilesLoading, setProfilesLoading] = useState(false)
+  const [selectedProfile, setSelectedProfile] = useState(null)
 
   const toggle = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
@@ -108,9 +97,17 @@ export default function SelectSystems({ onNext, onBack }) {
     setStep('systems')
   }
 
-  const systems    = standard === 'zib' ? ZIB_SYSTEMS : KIKV_SYSTEMS
-  const actief     = systems.filter(s => s.status === 'actief')
-  const binnenkort = systems.filter(s => s.status === 'binnenkort')
+  // Laad opgeslagen profielen zodra stap 'profile' actief wordt
+  useEffect(() => {
+    if (step !== 'profile') return
+    setProfilesLoading(true)
+    fetch('/api/profiles/')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { setSavedProfiles(data); setProfilesLoading(false) })
+      .catch(() => setProfilesLoading(false))
+  }, [step])
+
+  const systems = standard === 'zib' ? ZIB_SYSTEMS : KIKV_SYSTEMS
 
   // ── Stap 1: Standaard kiezen ────────────────────────────────────────────────
   if (step === 'standard') {
@@ -160,8 +157,121 @@ export default function SelectSystems({ onNext, onBack }) {
             ))}
           </div>
 
-          <div style={{ fontSize: 12, color: 'var(--text4)', textAlign: 'center' }}>
-            Meer standaarden (AZR, iWlz, MDS) worden in een volgende versie toegevoegd.
+        </Page>
+      </div>
+    )
+  }
+
+  const std = STANDARDS.find(s => s.id === standard)
+
+  // ── Stap 3: KIK-V uitwisselprofiel kiezen ────────────────────────────────────
+  if (step === 'profile') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+        <Nav right={<NavBack onClick={() => setStep('systems')} />} />
+        <Page>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: std.bg, border: `1px solid ${std.border}`,
+            color: std.color, fontSize: 13, fontWeight: 700,
+            padding: '6px 14px', borderRadius: 20, marginBottom: 20,
+          }}>
+            {std.icon} {std.label} — {std.fullLabel}
+          </div>
+
+          <PageTitle
+            title="Selecteer uitwisselprofiel"
+            sub="Kies het profiel waartegen u wilt valideren — of sla over en doe dit later"
+          />
+
+          {profilesLoading && (
+            <div style={{ color: 'var(--text3)', fontSize: 14, marginBottom: 16 }}>Profielen laden…</div>
+          )}
+
+          {!profilesLoading && savedProfiles.length === 0 && (
+            <div style={{
+              background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)',
+              padding: '24px 20px', marginBottom: 20, textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 12 }}>
+                Nog geen profielen geïmporteerd
+              </div>
+              {onOpenLibrary && (
+                <button
+                  onClick={onOpenLibrary}
+                  style={{
+                    background: 'var(--blue-light)', color: 'var(--blue)',
+                    border: '1px solid var(--blue-mid)', borderRadius: 'var(--radius)',
+                    padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  }}
+                >
+                  📚 Ga naar profielbibliotheek →
+                </button>
+              )}
+            </div>
+          )}
+
+          {!profilesLoading && savedProfiles.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+                Geïmporteerde profielen
+              </div>
+              <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                {savedProfiles.map((p, i) => {
+                  const isSelected = selectedProfile?.filename === p.filename
+                  return (
+                    <div
+                      key={p.filename}
+                      onClick={() => setSelectedProfile(isSelected ? null : p)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 14,
+                        padding: '14px 20px', cursor: 'pointer',
+                        borderBottom: i < savedProfiles.length - 1 ? '1px solid var(--border)' : 'none',
+                        background: isSelected ? 'var(--blue-light)' : '#fff',
+                        transition: 'background .1s',
+                      }}
+                    >
+                      <div style={{
+                        width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                        border: `2px solid ${isSelected ? 'var(--blue)' : 'var(--border2)'}`,
+                        background: isSelected ? 'var(--blue)' : '#fff',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all .1s',
+                      }}>
+                        {isSelected && <span style={{ color: '#fff', fontSize: 13, lineHeight: 1 }}>✓</span>}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                          v{p.version} · {p.indicator_count} indicatoren
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {onOpenLibrary && (
+                <button
+                  onClick={onOpenLibrary}
+                  style={{
+                    marginTop: 10, background: 'none', border: 'none',
+                    color: 'var(--blue)', fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', padding: '4px 0',
+                  }}
+                >
+                  + Profiel importeren uit bibliotheek
+                </button>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <BtnPrimary
+              onClick={() => onNext(selected, standard, selectedProfile?.filename || null)}
+              style={{ flex: 1, justifyContent: 'center', padding: '13px' }}
+            >
+              {selectedProfile ? 'Doorgaan met profiel →' : 'Sla over en ga verder →'}
+            </BtnPrimary>
           </div>
         </Page>
       </div>
@@ -169,12 +279,10 @@ export default function SelectSystems({ onNext, onBack }) {
   }
 
   // ── Stap 2: Systeem kiezen ──────────────────────────────────────────────────
-  const std = STANDARDS.find(s => s.id === standard)
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       <Nav right={<NavBack onClick={() => setStep('standard')} />} />
       <Page>
-        {/* Standaard-indicator */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
           background: std.bg, border: `1px solid ${std.border}`,
@@ -186,33 +294,26 @@ export default function SelectSystems({ onNext, onBack }) {
 
         <PageTitle
           title="Selecteer bronsysteem"
-          sub={`Kies het bronsysteem waaruit uw data afkomstig is`}
+          sub="Kies het bronsysteem waaruit uw data afkomstig is"
         />
 
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
           Ondersteunde systemen
         </div>
         <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 20 }}>
-          {actief.map((s, i) => (
-            <SystemRow key={s.id} s={s} selected={selected} onToggle={toggle} last={i === actief.length - 1} />
+          {systems.map((s, i) => (
+            <SystemRow key={s.id} s={s} selected={selected} onToggle={toggle} last={i === systems.length - 1} />
           ))}
         </div>
 
-        {binnenkort.length > 0 && (
-          <>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-              In ontwikkeling
-            </div>
-            <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 24 }}>
-              {binnenkort.map((s, i) => (
-                <SystemRow key={s.id} s={s} selected={selected} onToggle={toggle} last={i === binnenkort.length - 1} />
-              ))}
-            </div>
-          </>
-        )}
-
         <BtnPrimary
-          onClick={() => onNext(selected, standard)}
+          onClick={() => {
+            if (standard === 'kikv') {
+              setStep('profile')
+            } else {
+              onNext(selected, standard, null)
+            }
+          }}
           disabled={!selected.length}
           style={{ width: '100%', justifyContent: 'center', padding: '13px' }}
         >

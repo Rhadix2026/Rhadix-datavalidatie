@@ -115,14 +115,45 @@ export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
             Sleep bestanden hierheen of klik om te uploaden
           </p>
           <p style={{ fontSize: 13, color: 'var(--text3)' }}>CSV, XML of JSON bestanden</p>
-          <p style={{ marginTop: 12, fontSize: 13, color: 'var(--text3)' }}>
-            Nog geen data?{' '}
-            <a href="https://rhadix.nl/demo/rhadix-demo-dataset.zip" download onClick={e => e.stopPropagation()}
-              style={{ color: 'var(--blue)', fontWeight: 600, textDecoration: 'none' }}>
-              ⬇ Download voorbeelddata
+        </div>
+
+        {/* Testdata downloads */}
+        <div style={{
+          background: 'var(--blue-light)', border: '1px solid var(--blue-mid)',
+          borderRadius: 'var(--radius-xl)', padding: '16px 20px', marginBottom: 16,
+          display: 'flex', flexDirection: 'column', gap: 10,
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--blue)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            📦 Voorbeelddata — pak de ZIP uit en lees eerst de README
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <a
+              href="/rhadix-testdata-kikv.zip"
+              download
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                background: '#fff', border: '1px solid var(--blue-mid)',
+                borderRadius: 'var(--radius)', padding: '8px 16px',
+                fontSize: 13, fontWeight: 600, color: 'var(--blue)',
+                textDecoration: 'none', boxShadow: '0 1px 4px rgba(0,0,0,.05)',
+              }}
+            >
+              ⬇ KIK-V testbestanden
             </a>
-            {' '}— pak de ZIP uit en upload alle bestanden tegelijk.
-          </p>
+            <a
+              href="/rhadix-testdata-zib.zip"
+              download
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                background: '#fff', border: '1px solid var(--blue-mid)',
+                borderRadius: 'var(--radius)', padding: '8px 16px',
+                fontSize: 13, fontWeight: 600, color: 'var(--blue)',
+                textDecoration: 'none', boxShadow: '0 1px 4px rgba(0,0,0,.05)',
+              }}
+            >
+              ⬇ ZIB testbestanden
+            </a>
+          </div>
         </div>
 
         {/* Uploaded files */}

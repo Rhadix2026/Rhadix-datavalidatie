@@ -185,8 +185,8 @@ export default function Dashboard({ results, scanHistory = [], step1Completed, s
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       <Nav right={
         <>
+          <NavLink onClick={onProfiles}>📚 Profielen</NavLink>
           <NavLink onClick={onNewScan}>Nieuwe scan</NavLink>
-          <NavLink>Profiel</NavLink>
         </>
       } />
 

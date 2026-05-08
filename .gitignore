@@ -34,3 +34,6 @@ frontend/vite.config.js.timestamp-*.mjs
 # Uitlevering-artefacten (niet in git)
 *.zip
 *.docx
+
+# Uitzondering: testdata ZIPs in public folder wel meenemen
+!frontend/public/rhadix-testdata-*.zip

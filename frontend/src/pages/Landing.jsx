@@ -1,6 +1,6 @@
 import { Nav } from '../components/UI'
 
-export default function Landing({ onStart, onProfiles }) {
+export default function Landing({ onStart }) {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Nav />
@@ -61,21 +61,10 @@ export default function Landing({ onStart, onProfiles }) {
             }}>
               Start nieuwe scan →
             </button>
-            {onProfiles && (
-              <button onClick={onProfiles} style={{
-                background: 'rgba(255,255,255,0.12)', color: 'rgba(168,197,224,.9)',
-                border: '1px solid rgba(111,168,208,.35)', borderRadius: 'var(--radius)',
-                padding: '12px 20px', fontSize: 13, fontWeight: 600,
-                cursor: 'pointer', fontFamily: 'var(--font)',
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                📋 KIK-V Profielimport
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Right score card */}
+        {/* Right: Hoe het werkt */}
         <div style={{
           width: 340, background: '#fff', padding: '48px 36px',
           display: 'flex', flexDirection: 'column', justifyContent: 'center',
@@ -83,29 +72,27 @@ export default function Landing({ onStart, onProfiles }) {
         }}>
           <div style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-            textTransform: 'uppercase', color: 'var(--rhadix-sub)', marginBottom: 12,
+            textTransform: 'uppercase', color: 'var(--rhadix-sub)', marginBottom: 24,
             fontFamily: 'var(--font-brand)',
           }}>
-            Rhadix Index
+            Hoe het werkt
           </div>
-          <div style={{
-            fontSize: 72, fontWeight: 800, color: 'var(--blue)',
-            letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 6,
-            fontFamily: 'var(--font-brand)',
-          }}>
-            72
-          </div>
-          <div style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 32 }}>Goed, kleine gaps</div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {[
-              { icon: '🗂', label: 'Stap 1: Beschikbaarheid', color: 'var(--blue)' },
-              { icon: '✓', label: 'Stap 2: Kwaliteit',       color: 'var(--green)' },
-              { icon: '↗', label: 'Gemiddelde',              color: 'var(--amber)' },
+              { step: '1', label: 'Kies gegevensstandaard & bronsysteem' },
+              { step: '2', label: 'Upload uw brondata' },
+              { step: '3', label: 'Bekijk beschikbaarheidsrapport' },
+              { step: '4', label: 'Ontvang advies & actiepunten' },
             ].map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 18, color: s.color }}>{s.icon}</span>
-                <span style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 500 }}>{s.label}</span>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                  background: 'var(--blue-light)', border: '1.5px solid var(--blue-mid)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, fontWeight: 800, color: 'var(--blue)',
+                }}>{s.step}</div>
+                <span style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.35 }}>{s.label}</span>
               </div>
             ))}
           </div>

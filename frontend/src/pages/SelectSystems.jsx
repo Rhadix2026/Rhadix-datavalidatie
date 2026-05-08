@@ -3,18 +3,26 @@ import { Nav, NavBack, Page, PageTitle, BtnPrimary } from '../components/UI'
 
 // ── HRM-systemen (KIK-V) ──────────────────────────────────────────────────────
 const KIKV_SYSTEMS = [
-  { id: 'afas_hrm',        label: 'AFAS Profit HRM',        vendor: 'AFAS Software',  color: '#2d6be4', status: 'actief', note: 'Referentieontwerp v6.0' },
-  { id: 'nedap_ons',       label: 'Nedap/ONS',              vendor: 'Nedap',           color: '#0ea5e9', status: 'actief', note: 'Referentieontwerp v6.0' },
-  { id: 'exact_fin',       label: 'Exact Financial',        vendor: 'Exact Software',  color: '#10b981', status: 'actief', note: 'Referentieontwerp v6.0' },
-  { id: 'afas_profit_fin', label: 'AFAS PROFIT Financieel', vendor: 'AFAS Software',   color: '#f59e0b', status: 'actief', note: 'Referentieontwerp v6.0' },
-  { id: 'visma_puur',      label: 'Visma PUUR',             vendor: 'Visma',           color: '#8b5cf6', status: 'actief', note: 'Referentieontwerp v6.0' },
+  { id: 'afas_hrm',        label: 'AFAS Profit HRM',        vendor: 'AFAS Software',  color: '#2d6be4', status: 'actief',     note: 'Volledige KIK-V mapping, directe export via GetConnector' },
+  { id: 'nedap_ons',       label: 'Nedap ONS',              vendor: 'Nedap',           color: '#0ea5e9', status: 'actief',     note: 'Referentieontwerp v6.0 — camelCase kolomnamen, contracttype-vertaling ingebouwd' },
+  { id: 'exact_fin',       label: 'Exact Financial',        vendor: 'Exact Software',  color: '#10b981', status: 'actief',     note: 'Referentieontwerp v6.0 — grootboekrubrieken & financiële boekingen (ZK-IB)' },
+  { id: 'afas_profit_fin', label: 'AFAS PROFIT Financieel', vendor: 'AFAS Software',   color: '#f59e0b', status: 'actief',     note: 'Referentieontwerp v6.0 — financiële module voor ZK-IB (los van AFAS HRM)' },
+  { id: 'visma_puur',      label: 'Visma PUUR',             vendor: 'Visma',           color: '#8b5cf6', status: 'actief',     note: 'Referentieontwerp v6.0 — WLZ-arrangementen & zorgproducten (ZK-IB)' },
+  { id: 'nmbrs',           label: 'NMBRS',                  vendor: 'Visma',           color: '#64748b', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
+  { id: 'sap',             label: 'SAP SuccessFactors',     vendor: 'SAP',             color: '#ef4444', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
+  { id: 'unit4',           label: 'Unit4',                  vendor: 'Unit4',           color: '#6366f1', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
+  { id: 'raet',            label: 'Raet / Youforce',        vendor: 'Visma',           color: '#94a3b8', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
 ]
 
 // ── EPD/ECD-systemen (ZIB's) ──────────────────────────────────────────────────
 const ZIB_SYSTEMS = [
-  { id: 'chipsoft_hix', label: 'ChipSoft HiX', vendor: 'ChipSoft', color: '#0ea5e9', status: 'actief', note: 'ZIB-export' },
-  { id: 'epic',         label: 'Epic',         vendor: 'Epic',      color: '#2d6be4', status: 'actief', note: 'ZIB-export' },
-  { id: 'nedap_ons',    label: 'Nedap/ONS',    vendor: 'Nedap',     color: '#10b981', status: 'actief', note: 'ZIB-export' },
+  { id: 'chipsoft_hix', label: 'ChipSoft HiX',     vendor: 'ChipSoft',   color: '#0ea5e9', status: 'actief',     note: 'Export via HiX Data Export — Patient, Probleem, Medicatie, Allergie' },
+  { id: 'epic',         label: 'Epic',              vendor: 'Epic',       color: '#2d6be4', status: 'actief',     note: 'FHIR R4 export of CSV-export vanuit Epic Reporting' },
+  { id: 'nedap_evv',    label: 'Nedap EVV/ECD',     vendor: 'Nedap',      color: '#10b981', status: 'actief',     note: 'Nedap elektronisch cliëntendossier — ZIB-gebaseerde export' },
+  { id: 'medicore',     label: 'Medicore',           vendor: 'Medicore',   color: '#8b5cf6', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
+  { id: 'ysis',         label: 'Ysis',               vendor: 'Ysis',       color: '#f59e0b', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
+  { id: 'carebox',      label: 'CareBox',            vendor: 'CareBox',    color: '#ef4444', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
+  { id: 'nexus',        label: 'Nexus',              vendor: 'Nexus',      color: '#6366f1', status: 'binnenkort', note: 'Referentieontwerp in ontwikkeling' },
 ]
 
 // ── Standaard-keuze ────────────────────────────────────────────────────────────
@@ -152,6 +160,9 @@ export default function SelectSystems({ onNext, onBack }) {
             ))}
           </div>
 
+          <div style={{ fontSize: 12, color: 'var(--text4)', textAlign: 'center' }}>
+            Meer standaarden (AZR, iWlz, MDS) worden in een volgende versie toegevoegd.
+          </div>
         </Page>
       </div>
     )
@@ -187,6 +198,18 @@ export default function SelectSystems({ onNext, onBack }) {
           ))}
         </div>
 
+        {binnenkort.length > 0 && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+              In ontwikkeling
+            </div>
+            <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 24 }}>
+              {binnenkort.map((s, i) => (
+                <SystemRow key={s.id} s={s} selected={selected} onToggle={toggle} last={i === binnenkort.length - 1} />
+              ))}
+            </div>
+          </>
+        )}
 
         <BtnPrimary
           onClick={() => onNext(selected, standard)}

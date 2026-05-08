@@ -115,18 +115,6 @@ export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
             Sleep bestanden hierheen of klik om te uploaden
           </p>
           <p style={{ fontSize: 13, color: 'var(--text3)' }}>CSV, XML of JSON bestanden</p>
-          <p style={{ marginTop: 12, fontSize: 13, color: 'var(--text3)' }}>
-            Nog geen data?{' '}
-            <a
-              href="https://rhadix.nl/demo/rhadix-demo-dataset.zip"
-              download
-              onClick={e => e.stopPropagation()}
-              style={{ color: 'var(--blue)', fontWeight: 600, textDecoration: 'none' }}
-            >
-              ⬇ Download voorbeelddata
-            </a>
-            {' '}— pak de ZIP uit en upload alle bestanden tegelijk.
-          </p>
         </div>
 
         {/* Uploaded files */}

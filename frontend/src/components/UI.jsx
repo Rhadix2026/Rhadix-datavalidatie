@@ -8,21 +8,19 @@ export function Nav({ right }) {
       position: 'sticky', top: 0, zIndex: 100,
       boxShadow: '0 2px 12px rgba(0,0,0,.25)',
     }}>
-      <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-        <img
-          src="/rhadix-logo.png"
-          alt="Rhadix"
-          style={{ height: 38, objectFit: 'contain' }}
-          onError={e => {
-            e.target.style.display = 'none'
-            e.target.nextSibling.style.display = 'block'
-          }}
-        />
-        <span style={{
-          display: 'none', fontFamily: 'var(--font-brand)',
-          fontWeight: 800, fontSize: 20, color: '#fff', letterSpacing: '3px',
-        }}>RHADIX</span>
-      </a>
+      <img
+        src="/rhadix-logo.png"
+        alt="Rhadix"
+        style={{ height: 38, objectFit: 'contain' }}
+        onError={e => {
+          e.target.style.display = 'none'
+          e.target.nextSibling.style.display = 'block'
+        }}
+      />
+      <span style={{
+        display: 'none', fontFamily: 'var(--font-brand)',
+        fontWeight: 800, fontSize: 20, color: '#fff', letterSpacing: '3px',
+      }}>RHADIX</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
         {right}
       </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
-const API = import.meta.env.VITE_API_URL ?? "";
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 async function apiGet(path) {
   const r = await fetch(`${API}${path}`);
@@ -679,8 +679,8 @@ export default function KIKVProfileImport({ onBack, onAnalyze, scanResult }) {
   const statHasDate     = indicators.filter(i => (i.metadata?.date_logic || []).length > 0).length
 
   // Count imported vs total published profiles
-  const publishedCount = PROFILE_CATALOG.filter(e => !e.comingSoon).length
-  const importedCount  = PROFILE_CATALOG.filter(e => !e.comingSoon && !!findImported(e)).length
+  const publishedCount = PROFILE_CATALOG.filter(e => e.published).length
+  const importedCount  = PROFILE_CATALOG.filter(e => !!findImported(e)).length
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 20px", fontFamily: "Inter, sans-serif" }}>
@@ -738,7 +738,7 @@ export default function KIKVProfileImport({ onBack, onAnalyze, scanResult }) {
             <span style={{ fontSize: 11, fontWeight: 500, color: "#9ca3af" }}>— klik om te importeren of selecteren</span>
           </div>
 
-          {PROFILE_CATALOG.filter(e => !e.comingSoon).map(entry => {
+          {PROFILE_CATALOG.map(entry => {
             const imp = findImported(entry)
             return (
               <CatalogCard

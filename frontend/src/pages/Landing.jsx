@@ -1,4 +1,58 @@
+import { useState, useEffect } from 'react'
 import { Nav } from '../components/UI'
+
+function AnimatedCounter() {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    let current = 0
+    const interval = setInterval(() => {
+      current += 1
+      if (current > 100) current = 0
+      setCount(current)
+    }, 40)
+    return () => clearInterval(interval)
+  }, [])
+
+  const color = count >= 85 ? '#059669' : count >= 65 ? 'var(--blue)' : count >= 50 ? 'var(--amber)' : 'var(--red)'
+
+  return (
+    <div style={{
+      background: '#fff', borderRadius: 'var(--radius-xl)',
+      padding: '20px 24px', marginBottom: 28,
+      border: '1px solid var(--border)',
+      boxShadow: '0 2px 12px rgba(0,0,0,.06)',
+    }}>
+      <div style={{
+        fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+        textTransform: 'uppercase', color: 'var(--rhadix-sub)',
+        fontFamily: 'var(--font-brand)', marginBottom: 10,
+      }}>
+        Rhadix Index
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+        <span style={{
+          fontFamily: 'var(--font)', fontWeight: 900,
+          fontSize: 56, lineHeight: 1, color,
+          transition: 'color 0.3s ease',
+          fontVariantNumeric: 'tabular-nums',
+        }}>{String(count).padStart(2, '0')}</span>
+        <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text3)', marginBottom: 8 }}>/100</span>
+      </div>
+      <div style={{
+        marginTop: 10, height: 4, borderRadius: 2,
+        background: 'var(--border)', overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%', width: `${count}%`,
+          background: color,
+          transition: 'width 0.04s linear, background 0.3s ease',
+          borderRadius: 2,
+        }} />
+      </div>
+    </div>
+  )
+}
 
 export default function Landing({ onStart }) {
   return (
@@ -64,35 +118,40 @@ export default function Landing({ onStart }) {
           </div>
         </div>
 
-        {/* Right: Hoe het werkt */}
+        {/* Right: Index + Hoe het werkt */}
         <div style={{
           width: 340, background: '#fff', padding: '48px 36px',
           display: 'flex', flexDirection: 'column', justifyContent: 'center',
           borderLeft: '1px solid var(--border)',
         }}>
+          <AnimatedCounter />
+
           <div style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-            textTransform: 'uppercase', color: 'var(--rhadix-sub)', marginBottom: 24,
+            textTransform: 'uppercase', color: 'var(--rhadix-sub)', marginBottom: 20,
             fontFamily: 'var(--font-brand)',
           }}>
             Hoe het werkt
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {[
-              { step: '1', label: 'Kies gegevensstandaard & bronsysteem' },
-              { step: '2', label: 'Upload uw brondata' },
-              { step: '3', label: 'Bekijk beschikbaarheidsrapport' },
-              { step: '4', label: 'Ontvang advies & actiepunten' },
+              { step: '1', icon: '🗂️', label: 'Kies gegevensstandaard & bronsysteem' },
+              { step: '2', icon: '⬆️', label: 'Upload uw brondata' },
+              { step: '3', icon: '📊', label: 'Bekijk beschikbaarheidsrapport' },
+              { step: '4', icon: '💡', label: 'Ontvang advies & actiepunten' },
             ].map((s, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{
-                  width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                  width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
                   background: 'var(--blue-light)', border: '1.5px solid var(--blue-mid)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, fontWeight: 800, color: 'var(--blue)',
-                }}>{s.step}</div>
-                <span style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.35 }}>{s.label}</span>
+                  fontSize: 16,
+                }}>{s.icon}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--blue)', letterSpacing: '0.04em' }}>Stap {s.step}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.35 }}>{s.label}</span>
+                </div>
               </div>
             ))}
           </div>

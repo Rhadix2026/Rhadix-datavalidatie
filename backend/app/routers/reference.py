@@ -3,6 +3,13 @@ from app.services.validator import KIKV_REFERENCE, KIKV_FIELDS_REFERENCE
 from app.services.rules import FIELD_RULES
 from app.services.source_systems import get_all_systems, get_system, SOURCE_SYSTEMS
 from app.services.ontology_index import CONCEPTS, PROPERTIES, get_subclasses, label as concept_label
+import httpx
+import time
+
+# ── KIK-V Platform API cache (TTL: 1 uur) ─────────────────────────────────────
+_KIKV_PLATFORM_CACHE: dict = {"data": None, "ts": 0}
+_KIKV_PLATFORM_TTL = 3600  # seconden
+KIKV_PLATFORM_BASE = "https://kik-v-publicatieplatform.nl/api/v1.1"
 
 router = APIRouter()
 
@@ -165,3 +172,47 @@ def get_source_system_schemas(system_id: str):
     if not system:
         raise HTTPException(status_code=404, detail=f"Bronsysteem '{system_id}' niet gevonden.")
     return system.get("schemas", {})
+
+
+# ── KIK-V Publicatieplatform uitwisselprofielen ───────────────────────────────
+
+@router.get("/exchange-profiles")
+async def get_exchange_profiles():
+    """
+    Haalt de actuele lijst van gepubliceerde KIK-V uitwisselprofielen op
+    via het KIK-V Publicatieplatform (kik-v-publicatieplatform.nl).
+    Resultaten worden 1 uur gecached.
+    """
+    global _KIKV_PLATFORM_CACHE
+    now = time.time()
+    if _KIKV_PLATFORM_CACHE["data"] and (now - _KIKV_PLATFORM_CACHE["ts"]) < _KIKV_PLATFORM_TTL:
+        return _KIKV_PLATFORM_CACHE["data"]
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(f"{KIKV_PLATFORM_BASE}/exchange-profiles")
+            resp.raise_for_status()
+            profiles = resp.json()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"KIK-V platform niet bereikbaar: {exc}")
+
+    _KIKV_PLATFORM_CACHE = {"data": profiles, "ts": now}
+    return profiles
+
+
+@router.get("/exchange-profiles/{title}")
+async def get_exchange_profile_versions(title: str):
+    """
+    Haalt de versies van één uitwisselprofiel op via het KIK-V Publicatieplatform.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{KIKV_PLATFORM_BASE}/exchange-profiles/{title}",
+            )
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"KIK-V platform niet bereikbaar: {exc}")

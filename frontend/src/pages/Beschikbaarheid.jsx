@@ -173,50 +173,6 @@ export default function Beschikbaarheid({ results, systems, step1Completed, step
           </div>
         )}
 
-        {/* Stap 2 rapporten — vergrendeld totdat stap 2 is voltooid */}
-        {hasRunId && (
-          <div style={{
-            background: '#fafafa', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-xl)', padding: '16px 20px', marginBottom: 16,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <span style={{ fontSize: 14 }}>🔒</span>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)' }}>Stap 2 rapporten</div>
-              <span style={{ fontSize: 11, background: 'var(--amber-bg)', color: 'var(--amber)', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>
-                Beschikbaar na stap 2
-              </span>
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14 }}>
-              Voer eerst stap 2 uit om kwaliteit en KIK-V readiness te rapporteren.
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {[
-                { icon: '📊', label: 'KIK-V Readiness rapport', sub: 'Per-indicator analyse, kwaliteitsscores' },
-                { icon: '📋', label: 'Gecombineerd managementrapport', sub: 'Rhadix Index, risico\'s, actieplan, advies' },
-              ].map(r => (
-                <div key={r.label} style={{
-                  background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                  padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-                  opacity: 0.6,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 16 }}>{r.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>{r.label}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text3)' }}>{r.sub}</div>
-                    </div>
-                  </div>
-                  <div style={{
-                    flexShrink: 0, background: 'var(--border)', color: 'var(--text3)',
-                    borderRadius: 'var(--radius)', padding: '6px 12px', fontSize: 11, fontWeight: 600,
-                  }}>
-                    🔒 Vergrendeld
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Gap analyse */}
         <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)', padding: '24px', marginBottom: 24, boxShadow: 'var(--shadow)' }}>

@@ -88,6 +88,7 @@ export default function SelectSystems({ onNext, onBack, onOpenLibrary }) {
   const [savedProfiles, setSavedProfiles] = useState([])
   const [profilesLoading, setProfilesLoading] = useState(false)
   const [selectedProfile, setSelectedProfile] = useState(null)
+  const [deletingFile, setDeletingFile] = useState(null)
 
   const toggle = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
@@ -100,12 +101,28 @@ export default function SelectSystems({ onNext, onBack, onOpenLibrary }) {
   // Laad opgeslagen profielen zodra stap 'profile' actief wordt
   useEffect(() => {
     if (step !== 'profile') return
+    loadProfiles()
+  }, [step])
+
+  function loadProfiles() {
     setProfilesLoading(true)
     fetch('/api/profiles/')
       .then(r => r.ok ? r.json() : [])
       .then(data => { setSavedProfiles(data); setProfilesLoading(false) })
       .catch(() => setProfilesLoading(false))
-  }, [step])
+  }
+
+  function handleDelete(filename) {
+    if (!window.confirm(`Profiel "${filename}" verwijderen?`)) return
+    setDeletingFile(filename)
+    fetch(`/api/profiles/${encodeURIComponent(filename)}`, { method: 'DELETE' })
+      .then(() => {
+        if (selectedProfile?.filename === filename) setSelectedProfile(null)
+        loadProfiles()
+      })
+      .catch(() => {})
+      .finally(() => setDeletingFile(null))
+  }
 
   const systems = standard === 'zib' ? ZIB_SYSTEMS : KIKV_SYSTEMS
 
@@ -222,30 +239,45 @@ export default function SelectSystems({ onNext, onBack, onOpenLibrary }) {
                   return (
                     <div
                       key={p.filename}
-                      onClick={() => setSelectedProfile(isSelected ? null : p)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 14,
-                        padding: '14px 20px', cursor: 'pointer',
+                        padding: '14px 20px',
                         borderBottom: i < savedProfiles.length - 1 ? '1px solid var(--border)' : 'none',
                         background: isSelected ? 'var(--blue-light)' : '#fff',
                         transition: 'background .1s',
                       }}
                     >
-                      <div style={{
-                        width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                        border: `2px solid ${isSelected ? 'var(--blue)' : 'var(--border2)'}`,
-                        background: isSelected ? 'var(--blue)' : '#fff',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'all .1s',
-                      }}>
-                        {isSelected && <span style={{ color: '#fff', fontSize: 13, lineHeight: 1 }}>✓</span>}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
-                          v{p.version} · {p.indicator_count} indicatoren
+                      <div
+                        onClick={() => setSelectedProfile(isSelected ? null : p)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, cursor: 'pointer' }}
+                      >
+                        <div style={{
+                          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                          border: `2px solid ${isSelected ? 'var(--blue)' : 'var(--border2)'}`,
+                          background: isSelected ? 'var(--blue)' : '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'all .1s',
+                        }}>
+                          {isSelected && <span style={{ color: '#fff', fontSize: 13, lineHeight: 1 }}>✓</span>}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                            v{p.version} · {p.indicator_count} indicatoren
+                          </div>
                         </div>
                       </div>
+                      <button
+                        onClick={() => handleDelete(p.filename)}
+                        disabled={deletingFile === p.filename}
+                        title="Verwijder profiel"
+                        style={{
+                          flexShrink: 0, background: 'none',
+                          border: '1px solid #fca5a5', borderRadius: 6,
+                          color: '#ef4444', padding: '3px 8px',
+                          cursor: 'pointer', fontSize: 13, lineHeight: 1,
+                        }}
+                      >✕</button>
                     </div>
                   )
                 })}

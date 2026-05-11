@@ -326,10 +326,10 @@ const PROFILE_CATALOG = [
     sector:      "VWS",
     sectorColor: "#8b5cf6",
     repo:        "kik-v/uitwisselprofielen/uitwisselprofiel-vws-beleidsinformatie",
-    ref:         "R1.0.0-RC4",
+    ref:         "1.1.1",
     folder:      "Gevalideerde_vragen_technisch",
     icon:        "🏛️",
-    comingSoon:  true,
+    published:   true,
   },
 
   // ── ActiZ ─────────────────────────────────────────────────────────────────

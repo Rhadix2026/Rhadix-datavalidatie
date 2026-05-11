@@ -20,14 +20,19 @@ router = APIRouter()
 MAX_ROWS = 2000  # cap per bestand om timeouts te voorkomen
 
 
-def parse_csv_bytes(content: bytes, filename: str) -> tuple[list, list]:
+def parse_csv_bytes(content: bytes, filename: str, max_rows: int = MAX_ROWS) -> tuple[list, list]:
     text = content.decode("utf-8-sig", errors="replace")
     first_line = text.split("\n")[0]
     delim = ";" if first_line.count(";") > first_line.count(",") else ","
     reader = csv.DictReader(io.StringIO(text), delimiter=delim)
     headers = reader.fieldnames or []
-    rows = [{k.strip('"').strip(): v.strip('"').strip() for k, v in row.items()} for row in reader]
-    rows = [r for r in rows if any(v for v in r.values())]
+    rows = []
+    for row in reader:
+        clean = {k.strip('"').strip(): v.strip('"').strip() for k, v in row.items() if k}
+        if any(v for v in clean.values()):
+            rows.append(clean)
+        if len(rows) >= max_rows:
+            break
     return list(headers), rows
 
 

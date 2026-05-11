@@ -79,7 +79,8 @@ export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
       setTimeout(() => onNext(result), 300)
     } catch (e) {
       stepTimers.current.forEach(clearTimeout)
-      setError('Upload mislukt. Controleer of de backend actief is.')
+      const msg = e?.message || String(e)
+      setError(`Upload mislukt: ${msg.length > 200 ? msg.slice(0, 200) + '…' : msg}`)
       setLoading(false)
     }
   }

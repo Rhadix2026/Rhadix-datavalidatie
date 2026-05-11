@@ -9,6 +9,7 @@ import ManagementRapport       from './pages/ManagementRapport'
 import ConceptMappingRapport   from './pages/ConceptMappingRapport'
 import Dashboard               from './pages/Dashboard'
 import ZibDashboard            from './pages/ZibDashboard'
+import AlgemeenDashboard       from './pages/AlgemeenDashboard'
 import ActualityDashboard      from './pages/ActualityDashboard'
 import TraceabilityDrilldown   from './pages/TraceabilityDrilldown'
 import KIKVProfileImport      from './pages/KIKVProfileImport'
@@ -57,6 +58,8 @@ export default function App() {
     ])
     if (standard === 'zib') {
       setStep('zib_dashboard')
+    } else if (standard === 'algemeen') {
+      setStep('algemeen_dashboard')
     } else {
       setStep('beschikbaarheid')
     }
@@ -183,6 +186,7 @@ export default function App() {
           step1Completed={step1Completed}
           step2Completed={step2Completed}
           onNewScan={startNewScan}
+          onBack={() => setStep('beschikbaarheid')}
           onAdvies={(domain) => { setActiveDomain(domain); setStep('advies') }}
           onBeschikbaarheidsRapport={() => openBeschikbaarheidsRapport('dashboard')}
           onKikvRapport={() => setStep('rapport_kikv_readiness')}
@@ -236,6 +240,14 @@ export default function App() {
           results={activeScanResult}
           onDashboard={safeGoToDashboard}
           onBack={() => setStep('advies')}
+        />
+      )}
+
+      {/* ── Algemeen flow ── */}
+      {step === 'algemeen_dashboard' && (
+        <AlgemeenDashboard
+          results={activeScanResult}
+          onNewScan={startNewScan}
         />
       )}
 

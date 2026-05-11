@@ -12,6 +12,7 @@ from app.services.validator import validate_files, detect_schema, auto_map, KIKV
 from app.services.concept_validator import validate_concept_mapping
 from app.services.zib_validator import validate_zib
 from app.services.zib_rules import detect_zib_schema
+from app.services.algemeen_validator import validate_algemeen
 from app.services.actuality_validator import validate_actuality, detect_date_fields, get_kikv_norm_for_schema
 from app.services.traceability import enrich_file_result, collect_all_issues
 from app.services.owl_validator import validate_structural, validate_relational
@@ -138,6 +139,30 @@ async def upload_and_validate(
             for item in ar.get(issue_list, []):
                 item["source_file"] = p["filename"]
         actuality_results.append(ar)
+
+    # ── Algemeen pad ─────────────────────────────────────────────────────────
+    if standard == "algemeen":
+        alg_input = [{"filename": p["filename"], "headers": p["headers"], "rows": p["rows"]} for p in parsed]
+        result = validate_algemeen(alg_input)
+        run_id = None
+        created_at = None
+        try:
+            run = ValidationRun(
+                label=label or f"Algemeen-scan {len(parsed)} bestand{'en' if len(parsed) > 1 else ''}",
+                files=[{"filename": p["filename"], "schema_key": "algemeen", "rows": len(p["rows"])} for p in parsed],
+                results=result,
+                total_rows=sum(len(p["rows"]) for p in parsed),
+                error_count=result["summary"]["error_count"],
+                warn_count=result["summary"]["warn_count"],
+                standard="algemeen",
+            )
+            db.add(run); db.commit(); db.refresh(run)
+            run_id = run.id
+            created_at = str(run.created_at)
+        except Exception:
+            pass
+        return {**result, "run_id": run_id, "created_at": created_at,
+                "label": label or "Algemeen-scan"}
 
     # ── ZIB-pad ───────────────────────────────────────────────────────────────
     if standard == "zib":

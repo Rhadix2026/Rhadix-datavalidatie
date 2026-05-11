@@ -41,6 +41,17 @@ const STANDARDS = [
     border: '#bbf7d0',
     systems: 'EPD/ECD-systemen',
   },
+  {
+    id: 'algemeen',
+    label: 'Algemeen',
+    fullLabel: 'Beschikbaarheid & Pre-scan (AFAS Profit)',
+    icon: '🔍',
+    description: 'Test uw AFAS Profit-export (Employees, Timetable, Illness) zonder KIK-V of ZIB-verplichting. Rhadix controleert veldvolledigheid, BSN-formaat, datums, postcodes en e-mailadressen — ideaal als eerste kwaliteitscheck.',
+    color: '#f59e0b',
+    bg: '#fffbeb',
+    border: '#fde68a',
+    systems: null,
+  },
 ]
 
 // ── Subcomponenten ─────────────────────────────────────────────────────────────
@@ -95,6 +106,11 @@ export default function SelectSystems({ onNext, onBack, onOpenLibrary }) {
   const chooseStandard = (std) => {
     setStandard(std)
     setSelected([])
+    // Algemeen: geen bronsysteem nodig — direct door naar upload
+    if (std === 'algemeen') {
+      onNext([], 'algemeen', null)
+      return
+    }
     setStep('systems')
   }
 

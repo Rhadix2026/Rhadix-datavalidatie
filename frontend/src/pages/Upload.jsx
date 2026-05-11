@@ -107,7 +107,7 @@ export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
             background: dragging ? 'var(--blue-light)' : '#fff', marginBottom: 12,
           }}
         >
-          <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls" multiple
+          <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls,.xml" multiple
             style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 14px', display: 'block' }}>
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
@@ -115,7 +115,7 @@ export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
           <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text2)', marginBottom: 4 }}>
             Sleep bestanden hierheen of klik om te uploaden
           </p>
-          <p style={{ fontSize: 13, color: 'var(--text3)' }}>CSV, XML of JSON bestanden</p>
+          <p style={{ fontSize: 13, color: 'var(--text3)' }}>CSV, XML (AFAS Profit) of Excel bestanden</p>
         </div>
 
         {/* Testdata downloads */}

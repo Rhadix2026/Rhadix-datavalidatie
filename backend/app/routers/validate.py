@@ -1,6 +1,8 @@
 import io
 import csv
 import json
+import xml.etree.ElementTree as ET
+import re
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -36,9 +38,51 @@ def parse_csv_bytes(content: bytes, filename: str, max_rows: int = MAX_ROWS) -> 
     return list(headers), rows
 
 
+def _normalize_xml_value(val: str) -> str:
+    """Strip tijdzone/tijd van datetime-strings en normaliseer YYYYMMDD naar dd-mm-yyyy."""
+    if not val:
+        return val
+    # ISO datetime: 2026-04-19T00:00:00 → 2026-04-19
+    val = re.sub(r'T\d{2}:\d{2}:\d{2}.*$', '', val.strip())
+    # YYYYMMDD zonder streepjes → yyyy-mm-dd zodat datumparser het herkent
+    if re.fullmatch(r'\d{8}', val):
+        val = f"{val[:4]}-{val[4:6]}-{val[6:]}"
+    return val
+
+
+def parse_xml_bytes(content: bytes, max_rows: int = MAX_ROWS) -> tuple[list, list]:
+    """Parseer AFAS Profit XML-exports (Profit_Employees, Profit_Timetable, Profit_Illness)."""
+    try:
+        root = ET.fromstring(content.decode("utf-8", errors="replace"))
+    except ET.ParseError as e:
+        raise ValueError(f"Ongeldig XML-bestand: {e}")
+
+    headers_ordered: list[str] = []
+    headers_seen: set[str] = set()
+    rows: list[dict] = []
+
+    for record in root:
+        row: dict[str, str] = {}
+        for field in record:
+            tag = field.tag
+            val = _normalize_xml_value(field.text or "")
+            row[tag] = val
+            if tag not in headers_seen:
+                headers_seen.add(tag)
+                headers_ordered.append(tag)
+        if any(v for v in row.values()):
+            rows.append(row)
+        if len(rows) >= max_rows:
+            break
+
+    return headers_ordered, rows
+
+
 def parse_upload(content: bytes, filename: str, ext: str) -> tuple[list, list]:
     if ext == "csv":
         return parse_csv_bytes(content, filename)
+    if ext == "xml":
+        return parse_xml_bytes(content)
     try:
         import openpyxl
         wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
@@ -73,7 +117,7 @@ async def upload_and_validate(
     for upload in files:
         content = await upload.read()
         ext = upload.filename.split(".")[-1].lower()
-        if ext not in ("csv", "xlsx", "xls"):
+        if ext not in ("csv", "xlsx", "xls", "xml"):
             raise HTTPException(400, f"Unsupported file type: {ext}")
         headers, rows = parse_upload(content, upload.filename, ext)
         rows = rows[:MAX_ROWS]   # cap

@@ -29,6 +29,7 @@ KIKV_REFERENCE = {
             ],
             "geboortedatum": [
                 "geboortedatum","datebirth","dateofbirth","geboorte","dob",    # ONS: dateOfBirth
+                "dateofbirth",                                                 # AFAS Profit_Employees
             ],
         },
     },
@@ -53,18 +54,21 @@ KIKV_REFERENCE = {
             "startdatum": [
                 "startdatum","employmentstart","begindatum","indienst",
                 "begindate",                                                   # Nedap ONS: Contracts.beginDate
+                "startdate",                                                   # AFAS Profit_Timetable
             ],
             "einddatum": [
                 "einddatum","employmentend","uitdienst","einde",
-                "enddate",                                                     # Nedap ONS: Contracts.endDate
+                "enddate",                                                     # Nedap ONS: Contracts.endDate / AFAS Timetable
             ],
             "overeenkomstoe": [
                 "overeenkomstoe","orgunit","organisatieeenheid","afdeling","locatie","vestiging",
                 "teamsname","teamname",                                        # Nedap ONS: Teams.name
+                "orgunit","orgunitdesc",                                       # AFAS Profit_Employees
             ],
             "urenperweek": [
                 "urenperweek","hoursperweek","contractomvang",
                 "fixedhoursperweek",                                           # Nedap ONS: Contracts.fixedHoursPerWeek
+                "hoursperweek","hourperweek",                                  # AFAS Profit_Timetable / Profit_Employees
             ],
         },
         "allowed_types": CONTRACTTYPE_VALUES,
@@ -124,14 +128,15 @@ KIKV_REFERENCE = {
             "soortverzuim": [
                 "soortverzuim","type","soort","verzuimtype",
                 "description","activitydescription",                           # Nedap ONS: activities.description
+                "absencetypedesc","absencetypeid","reasondesc","reasonid",     # AFAS Profit_Illness
             ],
             "startmoment": [
                 "startmoment","startdatum","illnessstart","begindatum",
-                "startdate",                                                   # Nedap ONS: presence_logs.startDate
+                "startdate",                                                   # Nedap ONS / AFAS Profit_Illness
             ],
             "eindmoment": [
                 "eindmoment","einddatum","illnessend",
-                "enddate",                                                     # Nedap ONS: presence_logs.endDate
+                "enddate",                                                     # Nedap ONS / AFAS Profit_Illness
             ],
             "verzuimpercentage": [
                 "verzuimpercentage","percentage","presence","arbeidsongeschiktheid",
@@ -406,8 +411,8 @@ def auto_map(headers: list, aliases: dict) -> dict:
 
 def detect_schema(filename: str, headers: list) -> str | None:
     fn = normalize(filename)
-    if "medewerker" in fn: return "medewerker"
-    if "werkovereenkomst" in fn or "contract" in fn: return "werkovereenkomst"
+    if "medewerker" in fn or "employees" in fn or "employee" in fn: return "medewerker"
+    if "werkovereenkomst" in fn or "contract" in fn or "timetable" in fn: return "werkovereenkomst"
     if "functie" in fn and "niveau" not in fn: return "functie"
     if "kwalificatieniveau" in fn or "kwn" in fn: return "kwalificatieniveau"
     if "kwaliteitsgr" in fn or "graden" in fn: return "kwaliteitsgraden"

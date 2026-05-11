@@ -325,7 +325,7 @@ const PROFILE_CATALOG = [
     description: "Beleidsontwikkeling en -monitoring voor macro-economische vraagstukken en arbeidsmarkt in de zorg.",
     sector:      "VWS",
     sectorColor: "#8b5cf6",
-    repo:        "kik-v/uitwisselprofielen/uitwisselprofiel-vws-beleidsinformatie",
+    repo:        "kik-v/uitwisselprofielen/uitwisselprofiel-ministerie-van-vws-meva",
     ref:         "1.1.1",
     folder:      "Gevalideerde_vragen_technisch",
     icon:        "🏛️",

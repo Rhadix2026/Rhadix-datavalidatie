@@ -121,7 +121,7 @@ def import_profile(
     folder: str = DEFAULT_FOLDER,
     *,
     token: Optional[str] = None,
-    timeout: int = 20,
+    timeout: int = 60,
     profile_name: Optional[str] = None,
 ) -> dict[str, Any]:
     """

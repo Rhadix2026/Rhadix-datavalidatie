@@ -91,7 +91,11 @@ export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
       <Page>
         <PageTitle
           title="Upload databestanden"
-          sub={standard === 'zib' ? 'Upload uw EPD/ECD-export (Patient, Probleem, Medicatie, Allergie)' : 'Upload uw HRM data-export of koppel via API'}
+          sub={
+            standard === 'zib'      ? 'Upload uw EPD/ECD-export (Patient, Probleem, Medicatie, Allergie)' :
+            standard === 'algemeen' ? 'Upload uw AFAS Profit XML-export of Nedap ONS CSV-export' :
+                                      'Upload uw HRM data-export of koppel via API'
+          }
         />
 
         {/* Drop zone */}
@@ -153,6 +157,19 @@ export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
               }}
             >
               ⬇ ZIB testbestanden
+            </a>
+            <a
+              href="/rhadix-testdata-ons.zip"
+              download
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                background: '#fff', border: '1px solid var(--blue-mid)',
+                borderRadius: 'var(--radius)', padding: '8px 16px',
+                fontSize: 13, fontWeight: 600, color: 'var(--blue)',
+                textDecoration: 'none', boxShadow: '0 1px 4px rgba(0,0,0,.05)',
+              }}
+            >
+              ⬇ ONS testbestanden
             </a>
           </div>
         </div>

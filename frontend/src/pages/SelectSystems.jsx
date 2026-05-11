@@ -44,9 +44,9 @@ const STANDARDS = [
   {
     id: 'algemeen',
     label: 'Algemeen',
-    fullLabel: 'Beschikbaarheid & Pre-scan (AFAS Profit)',
+    fullLabel: 'Beschikbaarheid & Pre-scan (AFAS · ONS)',
     icon: '🔍',
-    description: 'Test uw AFAS Profit-export (Employees, Timetable, Illness) zonder KIK-V of ZIB-verplichting. Rhadix controleert veldvolledigheid, BSN-formaat, datums, postcodes en e-mailadressen — ideaal als eerste kwaliteitscheck.',
+    description: 'Test uw AFAS Profit-export (Employees, Timetable, Illness) of Nedap ONS CSV-export (Medewerkers, Contracten, Aanwezigheid, Verzuim) zonder KIK-V of ZIB-verplichting. Rhadix controleert veldvolledigheid, BSN-formaat, datums en e-mailadressen — ideaal als eerste kwaliteitscheck.',
     color: '#f59e0b',
     bg: '#fffbeb',
     border: '#fde68a',

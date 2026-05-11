@@ -158,7 +158,7 @@ export default function AlgemeenDashboard({ results, onNewScan }) {
             fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 20,
             border: '1px solid #fde68a', marginBottom: 12,
           }}>
-            🔍 Beschikbaarheid Algemeen — AFAS Profit pre-scan
+            🔍 Beschikbaarheid Algemeen — AFAS Profit &amp; Nedap ONS pre-scan
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap' }}>
             <div>

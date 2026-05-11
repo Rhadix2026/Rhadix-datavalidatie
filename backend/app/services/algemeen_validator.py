@@ -1,6 +1,6 @@
 """
 algemeen_validator.py
-Pre-scan validatie voor generieke AFAS Profit XML-exports.
+Pre-scan validatie voor generieke AFAS Profit XML-exports en Nedap ONS CSV-exports.
 Geen KIK-V of ZIB kennis vereist — checkt beschikbaarheid en basisformaten.
 """
 from __future__ import annotations
@@ -13,10 +13,13 @@ from typing import Any
 
 AFAS_TEMPLATES: dict[str, dict] = {
     "employees": {
-        "label": "Medewerkers",
+        "label": "AFAS Medewerkers",
         "icon": "👤",
         "color": "#6366f1",
-        "detect": ["profit_employees", "employee"],
+        "source": "afas",
+        "detect": ["profit_employees", "profit_employee"],
+        # Header-signatures die AFAS onderscheiden van ONS
+        "header_signature": {"bsn", "employeeid", "mail"},
         "required": {
             "EmployeeId":       "id",
             "BSN":              "bsn",
@@ -43,10 +46,12 @@ AFAS_TEMPLATES: dict[str, dict] = {
         },
     },
     "timetable": {
-        "label": "Werkroosters",
+        "label": "AFAS Werkroosters",
         "icon": "📅",
         "color": "#0ea5e9",
+        "source": "afas",
         "detect": ["profit_timetable", "timetable"],
+        "header_signature": {"hoursperweek", "startdate", "employeeid"},
         "required": {
             "EmployeeId":   "id",
             "StartDate":    "date",
@@ -61,10 +66,12 @@ AFAS_TEMPLATES: dict[str, dict] = {
         },
     },
     "illness": {
-        "label": "Verzuim",
+        "label": "AFAS Verzuim",
         "icon": "🏥",
         "color": "#ef4444",
+        "source": "afas",
         "detect": ["profit_illness", "illness"],
+        "header_signature": {"absencetypeid", "startdate", "employeeid"},
         "required": {
             "EmployeeId":    "id",
             "StartDate":     "date",
@@ -79,6 +86,115 @@ AFAS_TEMPLATES: dict[str, dict] = {
         },
     },
 }
+
+# ── Nedap ONS veldtemplates ────────────────────────────────────────────────────
+# Op basis van de ONS OpenAPI-spec (https://ons-api.nl):
+#   Person, Employee, PresenceLog, moves.Absence, Team
+
+ONS_TEMPLATES: dict[str, dict] = {
+    "ons_employees": {
+        "label": "ONS Medewerkers",
+        "icon": "👤",
+        "color": "#0ea5e9",
+        "source": "ons",
+        "detect": ["ons_employee", "ons_person", "ons_medewerker", "nedap_employee"],
+        "header_signature": {"identificationno", "dateofbirth", "firstname"},
+        "required": {
+            "uuid":             "id",
+            "firstName":        "text",
+            "name":             "text",
+            "identificationNo": "bsn",
+            "dateOfBirth":      "date",
+            "gender":           "gender",
+        },
+        "optional": {
+            "emailAddress":      "email",
+            "mobilePhone":       "phone",
+            "mobilePhoneNumber": "phone",
+            "homeEmailAddress":  "email",
+            "teamName":          "text",
+        },
+    },
+    "ons_contracts": {
+        "label": "ONS Contracten",
+        "icon": "📋",
+        "color": "#0ea5e9",
+        "source": "ons",
+        "detect": ["ons_contract", "ons_employment", "nedap_contract"],
+        "header_signature": {"contractid", "employeeobjectid", "begindate"},
+        "required": {
+            "contractId":        "id",
+            "employeeObjectId":  "id",
+            "beginDate":         "date",
+            "fixedHoursPerWeek": "number",
+        },
+        "optional": {
+            "endDate":           "date",
+            "varHoursPerWeek":   "number",
+            "contractType":      "text",
+            "teamName":          "text",
+            "teamObjectId":      "id",
+        },
+    },
+    "ons_presence": {
+        "label": "ONS Aanwezigheidsregistratie",
+        "icon": "🕐",
+        "color": "#0ea5e9",
+        "source": "ons",
+        "detect": ["ons_presence", "presencelog", "ons_aanwezigheid"],
+        "header_signature": {"employeeobjectid", "duration", "activityobjectid"},
+        "required": {
+            "employeeObjectId":  "id",
+            "date":              "date",
+            "startDate":         "date",
+            "duration":          "number",
+        },
+        "optional": {
+            "clientObjectId":    "id",
+            "endDate":           "date",
+            "activityObjectId":  "id",
+        },
+    },
+    "ons_absence": {
+        "label": "ONS Verzuim",
+        "icon": "🏥",
+        "color": "#0ea5e9",
+        "source": "ons",
+        "detect": ["ons_absence", "ons_verzuim", "moves_absence"],
+        "header_signature": {"employeenumber", "begindatetime", "absencetype"},
+        "required": {
+            "employeeNumber":  "id",
+            "beginDateTime":   "date",
+            "absenceType":     "text",
+        },
+        "optional": {
+            "remoteId":              "id",
+            "expectedEndDateTime":   "date",
+        },
+    },
+    "ons_teams": {
+        "label": "ONS Teams",
+        "icon": "🏢",
+        "color": "#0ea5e9",
+        "source": "ons",
+        "detect": ["ons_team", "ons_location", "nedap_team"],
+        "header_signature": {"identificationno", "externcode", "begindate"},
+        "required": {
+            "id":               "id",
+            "name":             "text",
+            "identificationNo": "id",
+            "beginDate":        "date",
+        },
+        "optional": {
+            "endDate":    "date",
+            "externCode": "text",
+            "agbCode":    "text",
+        },
+    },
+}
+
+# Gecombineerde template-map (AFAS + ONS)
+ALL_TEMPLATES: dict[str, dict] = {**AFAS_TEMPLATES, **ONS_TEMPLATES}
 
 # ── Formaatvalidatoren ─────────────────────────────────────────────────────────
 
@@ -127,19 +243,50 @@ VALIDATORS = {
 # ── Detectie ───────────────────────────────────────────────────────────────────
 
 def _detect_template(filename: str, headers: list[str]) -> str | None:
+    """
+    Detecteert het template-type op basis van bestandsnaam en headers.
+    Strategie:
+      1. Exacte prefix-match op bestandsnaam (bijv. 'ons_' → ONS, 'profit_' → AFAS)
+      2. Keyword-match op bestandsnaam
+      3. Header-signature: meest specifieke match wint
+    """
     fn = filename.lower().replace('_', '').replace('-', '').replace('.', '')
-    for tkey, tpl in AFAS_TEMPLATES.items():
+    header_low = {h.lower() for h in headers}
+
+    # 1. Naam-gebaseerde detectie — doorzoek alle templates (ONS first voor prioriteit)
+    for tkey, tpl in {**ONS_TEMPLATES, **AFAS_TEMPLATES}.items():
         for kw in tpl["detect"]:
-            if kw.replace('_', '') in fn:
+            kw_norm = kw.replace('_', '')
+            if kw_norm in fn:
                 return tkey
-    # header-gebaseerde fallback
-    header_set = {h.lower() for h in headers}
-    if {"bsn", "dateofbirth", "employeeid"} & header_set:
+
+    # 2. Header-signature: zoek template met meeste overlap
+    best_key   = None
+    best_score = 0
+    for tkey, tpl in ALL_TEMPLATES.items():
+        sig = tpl.get("header_signature", set())
+        score = len(sig & header_low)
+        if score > best_score:
+            best_score = score
+            best_key   = tkey
+
+    if best_score >= 2:
+        return best_key
+
+    # 3. Fallback (legacy)
+    if {"bsn", "employeeid"} & header_low:
         return "employees"
-    if {"hoursperweek", "startdate", "employeeid"} & header_set:
+    if {"hoursperweek", "startdate", "employeeid"} & header_low:
         return "timetable"
-    if {"absencetypeid", "startdate"} & header_set:
+    if {"absencetypeid", "startdate"} & header_low:
         return "illness"
+    if {"identificationno", "dateofbirth"} & header_low:
+        return "ons_employees"
+    if {"contractid", "employeeobjectid"} & header_low:
+        return "ons_contracts"
+    if {"employeeobjectid", "begindatetime"} & header_low:
+        return "ons_absence"
+
     return None
 
 # ── Hoofd-validator ────────────────────────────────────────────────────────────
@@ -174,7 +321,7 @@ def validate_algemeen(files_input: list[dict]) -> dict:
             })
             continue
 
-        tpl         = AFAS_TEMPLATES[tkey]
+        tpl         = ALL_TEMPLATES[tkey]
         req_fields  = tpl["required"]
         opt_fields  = tpl["optional"]
         all_fields  = {**req_fields, **opt_fields}

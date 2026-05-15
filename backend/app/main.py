@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import validate, history, reference, export, reports, profiles
+from app.reconciliation.router import router as recon_router
 from app.database import engine, Base
 
 Base.metadata.create_all(bind=engine)
@@ -21,6 +22,7 @@ app.include_router(reference.router,  prefix="/api/reference",  tags=["Reference
 app.include_router(export.router,     prefix="/api/export",     tags=["Export"])
 app.include_router(reports.router,    prefix="/api/reports",    tags=["Reports"])
 app.include_router(profiles.router,                        tags=["Profiles"])
+app.include_router(recon_router, prefix="/api/reconciliation", tags=["Reconciliation"])
 
 @app.get("/api/health")
 def health():

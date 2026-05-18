@@ -89,9 +89,15 @@ class ReconciliationEngine:
         self.sparql_engine = sparql_engine or SPARQLEngine()
 
     def reconcile(self, rule: IndicatorRule, calc_result: CalcResult,
-                  actual_value: float | None = None) -> ReconciliationResult:
+                  actual_value: float | None = None,
+                  sparql_query_override: str | None = None,
+                  sparql_endpoint_override: str | None = None) -> ReconciliationResult:
         if actual_value is None:
-            actual_value = self._fetch_actual(rule)
+            actual_value = self._fetch_actual(
+                rule,
+                sparql_query_override=sparql_query_override,
+                sparql_endpoint_override=sparql_endpoint_override,
+            )
 
         abs_diff, pct_diff, status, confidence = self._compare(
             calc_result.expected_value, actual_value, rule.tolerance)
@@ -115,10 +121,13 @@ class ReconciliationEngine:
                       **calc_result.metadata},
         )
 
-    def _fetch_actual(self, rule):
-        if not rule.sparql_query:
+    def _fetch_actual(self, rule, sparql_query_override: str | None = None,
+                       sparql_endpoint_override: str | None = None):
+        query = sparql_query_override or rule.sparql_query
+        if not query:
             return None
-        return self.sparql_engine.execute(rule.sparql_query, endpoint=rule.sparql_endpoint)
+        endpoint = sparql_endpoint_override or rule.sparql_endpoint
+        return self.sparql_engine.execute(query, endpoint=endpoint)
 
     @staticmethod
     def _compare(expected, actual, tolerance):

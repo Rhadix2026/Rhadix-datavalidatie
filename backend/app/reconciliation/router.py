@@ -107,17 +107,21 @@ async def reconcile_indicator(
     file: UploadFile = File(...),
     actual_value: float | None = Form(default=None),
     sparql_endpoint: str | None = Form(default=None),
+    sparql_query: str | None = Form(default=None),
 ):
     try:
         rule = _rule_engine.get(indicator_id)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Indicator niet gevonden: {indicator_id}")
-    if sparql_endpoint:
-        rule = rule.copy(update={"sparql_endpoint": sparql_endpoint})
     contents = await file.read()
     try:
         calc = _calc_engine.calculate(rule, source=io.BytesIO(contents))
-        recon = _recon_engine.reconcile(rule, calc, actual_value=actual_value)
+        recon = _recon_engine.reconcile(
+            rule, calc,
+            actual_value=actual_value,
+            sparql_query_override=sparql_query or None,
+            sparql_endpoint_override=sparql_endpoint or None,
+        )
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     return JSONResponse(content=recon.to_dict())

@@ -340,18 +340,251 @@ function DrillDownModal({ result, onClose }) {
 }
 
 // ---------------------------------------------------------------------------
+// SPARQL Indicator Picker (used inside UploadForm)
+// ---------------------------------------------------------------------------
+
+function SparqlPicker({ selectedQuery, onSelect }) {
+  const [domains, setDomains]           = useState([]);
+  const [selectedDomain, setSelectedDomain] = useState("");
+  const [domainIndicators, setDomainIndicators] = useState([]);
+  const [loadingDomain, setLoadingDomain] = useState(false);
+  const [previewQuery, setPreviewQuery]  = useState(null);
+  const [filterText, setFilterText]      = useState("");
+
+  React.useEffect(() => {
+    fetch("/api/profiles/")
+      .then(r => r.json())
+      .then(data => setDomains(Array.isArray(data) ? data : []))
+      .catch(console.error);
+  }, []);
+
+  async function handleDomainChange(filename) {
+    setSelectedDomain(filename);
+    setDomainIndicators([]);
+    setFilterText("");
+    if (!filename) return;
+    setLoadingDomain(true);
+    try {
+      const r = await fetch(`/api/profiles/${filename}`);
+      const data = await r.json();
+      const inds = (data.indicators || []).filter(i => i.sparql_query);
+      setDomainIndicators(inds);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingDomain(false);
+    }
+  }
+
+  const filtered = filterText
+    ? domainIndicators.filter(i =>
+        (i.title || i.id || "").toLowerCase().includes(filterText.toLowerCase()) ||
+        (i.id || "").toLowerCase().includes(filterText.toLowerCase()))
+    : domainIndicators;
+
+  return (
+    <div>
+      {/* Domein dropdown */}
+      <div style={{ marginBottom: 10 }}>
+        <label style={labelStyle}>Domein</label>
+        <select
+          value={selectedDomain}
+          onChange={e => handleDomainChange(e.target.value)}
+          style={inputStyle}
+        >
+          <option value="">-- Kies domein --</option>
+          {domains.map(d => (
+            <option key={d.filename} value={d.filename}>
+              {d.name || d.filename} ({d.indicator_count} indicatoren)
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Huidige selectie badge */}
+      {selectedQuery && (
+        <div style={{
+          marginBottom: 10, padding: "8px 12px", borderRadius: 6,
+          background: "#eff6ff", border: "1px solid #bfdbfe",
+          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8,
+        }}>
+          <div style={{ fontSize: 12, color: "#1d4ed8", fontWeight: 600 }}>
+            ✓ SPARQL-query geselecteerd ({selectedQuery.id})
+          </div>
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4,
+              border: "1px solid #93c5fd", background: "transparent",
+              color: "#1d4ed8", cursor: "pointer" }}
+          >
+            Verwijder
+          </button>
+        </div>
+      )}
+
+      {/* Indicator tabel */}
+      {selectedDomain && (
+        <div style={{
+          border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden",
+          marginTop: 4,
+        }}>
+          {/* Tabel header */}
+          <div style={{
+            background: "#f1f5f9", padding: "8px 12px",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            borderBottom: "1px solid #e2e8f0",
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>
+              {loadingDomain ? "Laden…" : `${domainIndicators.length} SPARQL-indicatoren`}
+            </span>
+            {domainIndicators.length > 5 && (
+              <input
+                type="text"
+                placeholder="Zoek indicator…"
+                value={filterText}
+                onChange={e => setFilterText(e.target.value)}
+                style={{
+                  padding: "4px 10px", borderRadius: 6, border: "1px solid #cbd5e1",
+                  fontSize: 12, width: 180,
+                }}
+              />
+            )}
+          </div>
+
+          {loadingDomain && (
+            <div style={{ padding: "20px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+              Laden…
+            </div>
+          )}
+
+          {!loadingDomain && domainIndicators.length === 0 && selectedDomain && (
+            <div style={{ padding: "20px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+              Geen indicatoren met SPARQL-query gevonden in dit domein.
+            </div>
+          )}
+
+          {!loadingDomain && filtered.length > 0 && (
+            <div style={{ maxHeight: 260, overflowY: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", position: "sticky", top: 0 }}>
+                    <th style={thStyle}>Indicator ID</th>
+                    <th style={thStyle}>Titel</th>
+                    <th style={{ ...thStyle, textAlign: "center" }}>SPARQL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((ind, i) => {
+                    const isSelected = selectedQuery?.id === ind.id;
+                    return (
+                      <tr key={ind.id || i} style={{
+                        borderTop: "1px solid #f1f5f9",
+                        background: isSelected ? "#eff6ff" : (i % 2 === 0 ? "#fff" : "#fafafa"),
+                      }}>
+                        <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "#64748b" }}>
+                          {ind.id || "—"}
+                        </td>
+                        <td style={{ ...tdStyle, fontWeight: isSelected ? 600 : 400, color: isSelected ? "#1d4ed8" : "#1e293b" }}>
+                          {ind.title || ind.id || "—"}
+                        </td>
+                        <td style={{ ...tdStyle, textAlign: "center" }}>
+                          <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewQuery(previewQuery?.id === ind.id ? null : ind)}
+                              style={{
+                                padding: "3px 8px", borderRadius: 4, fontSize: 11,
+                                border: "1px solid #cbd5e1", cursor: "pointer",
+                                background: previewQuery?.id === ind.id ? "#1e293b" : "#f8fafc",
+                                color: previewQuery?.id === ind.id ? "#e2e8f0" : "#475569",
+                              }}
+                            >
+                              👁 Bekijk
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { onSelect(ind); setPreviewQuery(null); }}
+                              style={{
+                                padding: "3px 10px", borderRadius: 4, fontSize: 11,
+                                border: isSelected ? "1px solid #3b82f6" : "1px solid #cbd5e1",
+                                cursor: "pointer",
+                                background: isSelected ? "#3b82f6" : "#fff",
+                                color: isSelected ? "#fff" : "#374151",
+                                fontWeight: isSelected ? 600 : 400,
+                              }}
+                            >
+                              {isSelected ? "✓ Geselecteerd" : "Gebruik"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* SPARQL preview inline */}
+          {previewQuery && (
+            <div style={{ borderTop: "1px solid #e2e8f0" }}>
+              <div style={{
+                background: "#1e293b", padding: "8px 14px",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8" }}>
+                  📋 {previewQuery.title || previewQuery.id}
+                </span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button type="button"
+                    onClick={() => navigator.clipboard?.writeText(previewQuery.sparql_query)}
+                    style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                      border: "1px solid #475569", background: "transparent",
+                      color: "#94a3b8", cursor: "pointer" }}>
+                    Kopieer
+                  </button>
+                  <button type="button" onClick={() => setPreviewQuery(null)}
+                    style={{ fontSize: 14, border: "none", background: "none",
+                      color: "#64748b", cursor: "pointer", lineHeight: 1 }}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <pre style={{
+                background: "#0f172a", color: "#e2e8f0", margin: 0,
+                padding: "12px 16px", fontSize: 11, lineHeight: 1.6,
+                overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word",
+                maxHeight: 200, overflowY: "auto",
+              }}>
+                {previewQuery.sparql_query}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const thStyle = { padding: "6px 12px", textAlign: "left", fontWeight: 600, fontSize: 12, color: "#64748b", borderBottom: "1px solid #e2e8f0" };
+const tdStyle = { padding: "7px 12px" };
+
+// ---------------------------------------------------------------------------
 // Upload form
 // ---------------------------------------------------------------------------
 
 function UploadForm({ indicators, onResult, onCalcPreview, loading, setLoading }) {
   const [selectedIndicator, setSelectedIndicator] = useState("");
+  const [selectedSparqlInd, setSelectedSparqlInd] = useState(null);
   const [actualValue, setActualValue]             = useState("");
-  const [sparqlEndpoint, setSparqlEndpoint]       = useState("");
   const [fileName, setFileName]                   = useState("");
   const fileRef = useRef();
 
+  const canPreview    = selectedIndicator && fileName;
+  const canReconcile  = selectedIndicator && fileName;
+
   const selectedInd = indicators.find(i => i.indicator_id === selectedIndicator);
-  const hasSparqlQuery = selectedInd?.sparql_query;
 
   async function handlePreview(e) {
     e.preventDefault();
@@ -378,8 +611,8 @@ function UploadForm({ indicators, onResult, onCalcPreview, loading, setLoading }
     try {
       const fd = new FormData();
       fd.append("file", fileRef.current.files[0]);
-      if (actualValue)    fd.append("actual_value", actualValue);
-      if (sparqlEndpoint) fd.append("sparql_endpoint", sparqlEndpoint);
+      if (actualValue)                  fd.append("actual_value", actualValue);
+      if (selectedSparqlInd?.sparql_query) fd.append("sparql_query", selectedSparqlInd.sparql_query);
       const resp = await fetch(`${API_BASE}/reconcile/${selectedIndicator}`, { method: "POST", body: fd });
       if (!resp.ok) throw new Error(await resp.text());
       onResult(await resp.json());
@@ -395,64 +628,54 @@ function UploadForm({ indicators, onResult, onCalcPreview, loading, setLoading }
       background: "#f8fafc", border: "1px solid #e2e8f0",
       borderRadius: 10, padding: 20, marginBottom: 24,
     }}>
-      <h3 style={{ margin: "0 0 16px" }}>Nieuwe reconciliatie starten</h3>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+      <h3 style={{ margin: "0 0 18px" }}>Nieuwe reconciliatie starten</h3>
 
-        {/* Indicator */}
-        <div style={{ gridColumn: "1 / -1" }}>
-          <label style={labelStyle}>Indicator</label>
-          <select value={selectedIndicator} onChange={e => setSelectedIndicator(e.target.value)}
-            style={inputStyle} required>
-            <option value="">-- Kies indicator --</option>
-            {indicators.map(ind => (
-              <option key={ind.indicator_id} value={ind.indicator_id}>
-                {ind.name}{ind.sparql_query ? "  ·  📋 SPARQL" : ""}
-              </option>
-            ))}
-          </select>
+      {/* ── Sectie 1: Domein + SPARQL-query ─────────────────────────── */}
+      <div style={{
+        background: "#fff", border: "1px solid #e2e8f0",
+        borderRadius: 8, padding: 16, marginBottom: 16,
+      }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 }}>
+          📡 Referentie (SPARQL uit uitwisselprofiel)
+        </div>
+        <SparqlPicker selectedQuery={selectedSparqlInd} onSelect={setSelectedSparqlInd} />
+        {!selectedSparqlInd && (
+          <div style={{ marginTop: 10 }}>
+            <label style={labelStyle}>Of voer werkelijke waarde handmatig in</label>
+            <input type="number" step="any" value={actualValue} onChange={e => setActualValue(e.target.value)}
+              placeholder="bijv. 142" style={{ ...inputStyle, maxWidth: 200 }} />
+          </div>
+        )}
+        {selectedSparqlInd && (
+          <div style={{ marginTop: 10 }}>
+            <label style={labelStyle}>Werkelijke waarde (optioneel — overschrijft SPARQL-uitkomst)</label>
+            <input type="number" step="any" value={actualValue} onChange={e => setActualValue(e.target.value)}
+              placeholder="bijv. 142" style={{ ...inputStyle, maxWidth: 200 }} />
+          </div>
+        )}
+      </div>
 
-          {/* SPARQL query inline tonen zodra indicator geselecteerd */}
-          {hasSparqlQuery && (
-            <div style={{ marginTop: 10, borderRadius: 8, border: "1px solid #e2e8f0", overflow: "hidden" }}>
-              <div style={{
-                background: "#1e293b", padding: "8px 14px",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8" }}>
-                  📋 SPARQL query — {selectedInd?.name}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => navigator.clipboard?.writeText(selectedInd.sparql_query)}
-                  style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4,
-                    border: "1px solid #475569", background: "transparent",
-                    color: "#94a3b8", cursor: "pointer" }}>
-                  Kopieer
-                </button>
-              </div>
-              <pre style={{
-                background: "#0f172a", color: "#e2e8f0", margin: 0,
-                padding: "12px 16px", fontSize: 12, lineHeight: 1.6,
-                overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word",
-                maxHeight: 160, overflowY: "auto",
-              }}>
-                {selectedInd.sparql_query}
-              </pre>
-            </div>
-          )}
+      {/* ── Sectie 2: Bronbestand + berekeningsregel ─────────────────── */}
+      <div style={{
+        background: "#fff", border: "1px solid #e2e8f0",
+        borderRadius: 8, padding: 16, marginBottom: 16,
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start",
+      }}>
+        <div style={{ gridColumn: "1 / -1", fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          📄 Brondata (CSV/Excel)
         </div>
 
         {/* Bestand */}
         <div>
-          <label style={labelStyle}>Bronbestand (CSV/Excel)</label>
+          <label style={labelStyle}>Kies bestand</label>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <label style={{
               padding: "8px 14px", borderRadius: 6, border: "1px solid #cbd5e1",
-              background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 500, whiteSpace: "nowrap",
+              background: "#f8fafc", cursor: "pointer", fontSize: 13, fontWeight: 500, whiteSpace: "nowrap",
             }}>
-              Kies bestand
+              Bladeren…
               <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" style={{ display: "none" }}
-                onChange={e => setFileName(e.target.files[0]?.name || "")} required />
+                onChange={e => setFileName(e.target.files[0]?.name || "")} />
             </label>
             <span style={{ fontSize: 12, color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {fileName || "Geen bestand gekozen"}
@@ -460,46 +683,43 @@ function UploadForm({ indicators, onResult, onCalcPreview, loading, setLoading }
           </div>
         </div>
 
-        {/* Werkelijke waarde */}
+        {/* Berekeningsregel */}
         <div>
-          <label style={labelStyle}>Werkelijke waarde (optioneel, overschrijft SPARQL)</label>
-          <input type="number" step="any" value={actualValue} onChange={e => setActualValue(e.target.value)}
-            placeholder="bijv. 142" style={inputStyle} />
-        </div>
-
-        {/* SPARQL Endpoint */}
-        <div>
-          <label style={labelStyle}>SPARQL Endpoint (optioneel)</label>
-          <input type="url" value={sparqlEndpoint} onChange={e => setSparqlEndpoint(e.target.value)}
-            placeholder="https://sparql.example.com/query" style={inputStyle} />
-          {selectedInd?.sparql_endpoint && !sparqlEndpoint && (
-            <button type="button" onClick={() => setSparqlEndpoint(selectedInd.sparql_endpoint)}
-              style={{ marginTop: 4, fontSize: 11, padding: "2px 8px", borderRadius: 10,
-                border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", color: "#475569" }}>
-              ↩ Gebruik endpoint uit indicator
-            </button>
-          )}
+          <label style={labelStyle}>Berekeningsregel</label>
+          <select value={selectedIndicator} onChange={e => setSelectedIndicator(e.target.value)}
+            style={inputStyle}>
+            <option value="">-- Kies regel --</option>
+            {indicators.map(ind => (
+              <option key={ind.indicator_id} value={ind.indicator_id}>
+                {ind.name}
+              </option>
+            ))}
+          </select>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>
+            Bepaalt hoe de brondata berekend wordt (aggregatie + filters)
+          </div>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+      {/* ── Actieknoppen ─────────────────────────────────────────────── */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button type="button" onClick={handlePreview}
-          disabled={loading || !selectedIndicator || !fileName}
+          disabled={loading || !canPreview}
           style={{
             padding: "10px 20px", borderRadius: 8, background: "#fff", color: "#15803d",
             border: "1.5px solid #86efac", fontWeight: 600, fontSize: 14,
-            cursor: (loading || !selectedIndicator || !fileName) ? "not-allowed" : "pointer",
-            opacity: (!selectedIndicator || !fileName) ? 0.5 : 1,
+            cursor: (!canPreview || loading) ? "not-allowed" : "pointer",
+            opacity: !canPreview ? 0.5 : 1,
           }}>
           {loading ? "Bezig…" : "📄 Bekijk brondata"}
         </button>
         <button type="button" onClick={handleReconcile}
-          disabled={loading || !selectedIndicator || !fileName}
+          disabled={loading || !canReconcile}
           style={{
             padding: "10px 24px", borderRadius: 8, background: "#3b82f6", color: "#fff",
             border: "none", fontWeight: 600, fontSize: 14,
-            cursor: (loading || !selectedIndicator || !fileName) ? "not-allowed" : "pointer",
-            opacity: (!selectedIndicator || !fileName) ? 0.5 : 1,
+            cursor: (!canReconcile || loading) ? "not-allowed" : "pointer",
+            opacity: !canReconcile ? 0.5 : 1,
           }}>
           {loading ? "Bezig…" : "▶ Reconcilieer"}
         </button>

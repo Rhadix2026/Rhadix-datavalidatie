@@ -127,6 +127,8 @@ class ReconciliationEngine:
         if not query:
             return None
         endpoint = sparql_endpoint_override or rule.sparql_endpoint
+        if not endpoint:
+            return None  # geen endpoint → geen fout, status wordt Unknown
         return self.sparql_engine.execute(query, endpoint=endpoint)
 
     @staticmethod

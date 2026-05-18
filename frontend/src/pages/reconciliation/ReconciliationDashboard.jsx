@@ -367,7 +367,29 @@ function SparqlPicker({ selectedQuery, onSelect }) {
     try {
       const r = await fetch(`/api/profiles/${filename}`);
       const data = await r.json();
-      const inds = (data.indicators || []).filter(i => i.sparql_query);
+      // indicators kan een dict zijn {"1.1.1": {id, files, metadata}} of een lijst
+      const raw = data.indicators || {};
+      let inds;
+      if (Array.isArray(raw)) {
+        // Lijst-formaat: normaliseer sparql_query veld
+        inds = raw
+          .map(i => ({
+            id: i.id || i.indicator_id,
+            title: i.title || i.metadata?.title || i.id,
+            sparql_query: i.sparql_query || i.files?.sparql?.raw || null,
+          }))
+          .filter(i => i.sparql_query);
+      } else {
+        // Dict-formaat: {"1.1.1": {id, files, metadata}}
+        inds = Object.entries(raw)
+          .filter(([k]) => k !== '-INDEX')
+          .map(([k, v]) => ({
+            id: k,
+            title: v.metadata?.title || k,
+            sparql_query: v.files?.sparql?.raw || null,
+          }))
+          .filter(i => i.sparql_query);
+      }
       setDomainIndicators(inds);
     } catch (e) {
       console.error(e);

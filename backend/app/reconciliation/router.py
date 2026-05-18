@@ -37,6 +37,25 @@ _calc_engine = CalculationEngine()
 _recon_engine = ReconciliationEngine(sparql_engine=_sparql_engine)
 
 
+@router.get("/sparql-endpoints")
+def list_sparql_endpoints():
+    """Bekende SPARQL-endpoints en de queries uit de indicatoren."""
+    known = [
+        {"label": "Nedap ONS — lokaal (standaard)", "url": "http://localhost:7200/repositories/ons"},
+        {"label": "Nedap ONS — productie",          "url": "http://ons.intern/sparql"},
+        {"label": "GraphDB — lokaal",               "url": "http://localhost:7200/repositories/rhadix"},
+        {"label": "Apache Jena Fuseki — lokaal",    "url": "http://localhost:3030/rhadix/sparql"},
+        {"label": "Blazegraph — lokaal",            "url": "http://localhost:9999/blazegraph/sparql"},
+    ]
+    # Voeg endpoints toe die in de indicatorrules zijn geconfigureerd
+    for rule in _rule_engine.list_rules():
+        if rule.sparql_endpoint:
+            entry = {"label": f"{rule.name} (uit regel)", "url": rule.sparql_endpoint}
+            if entry not in known:
+                known.append(entry)
+    return known
+
+
 @router.get("/indicators")
 def list_indicators():
     return _rule_engine.to_dict()

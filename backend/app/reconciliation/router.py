@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import math
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -24,6 +25,17 @@ from .reconciliation_engine import (
 )
 from .rule_engine import RuleEngine
 
+
+def _sanitize(obj):
+    """Vervang NaN/Inf door None zodat JSON-serialisatie werkt."""
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    return obj
+
 router = APIRouter()
 
 RULES_DIR = Path(__file__).parent / "rules"
@@ -37,23 +49,21 @@ _calc_engine = CalculationEngine()
 _recon_engine = ReconciliationEngine(sparql_engine=_sparql_engine)
 
 
-@router.get("/sparql-endpoints")
-def list_sparql_endpoints():
-    """Bekende SPARQL-endpoints en de queries uit de indicatoren."""
-    known = [
-        {"label": "Nedap ONS — lokaal (standaard)", "url": "http://localhost:7200/repositories/ons"},
-        {"label": "Nedap ONS — productie",          "url": "http://ons.intern/sparql"},
-        {"label": "GraphDB — lokaal",               "url": "http://localhost:7200/repositories/rhadix"},
-        {"label": "Apache Jena Fuseki — lokaal",    "url": "http://localhost:3030/rhadix/sparql"},
-        {"label": "Blazegraph — lokaal",            "url": "http://localhost:9999/blazegraph/sparql"},
-    ]
-    # Voeg endpoints toe die in de indicatorrules zijn geconfigureerd
-    for rule in _rule_engine.list_rules():
-        if rule.sparql_endpoint:
-            entry = {"label": f"{rule.name} (uit regel)", "url": rule.sparql_endpoint}
-            if entry not in known:
-                known.append(entry)
-    return known
+@router.get("/indicators/{indicator_id}/sparql-query")
+def get_sparql_query(indicator_id: str):
+    """Geeft de SPARQL-query terug die bij deze indicator hoort."""
+    try:
+        rule = _rule_engine.get(indicator_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Indicator niet gevonden: {indicator_id}")
+    if not rule.sparql_query:
+        raise HTTPException(status_code=404, detail="Deze indicator heeft geen SPARQL-query geconfigureerd.")
+    return {
+        "indicator_id": rule.indicator_id,
+        "name": rule.name,
+        "sparql_query": rule.sparql_query,
+        "sparql_endpoint": rule.sparql_endpoint,
+    }
 
 
 @router.get("/indicators")
@@ -80,7 +90,7 @@ async def calculate_indicator(indicator_id: str, file: UploadFile = File(...)):
         result = _calc_engine.calculate(rule, source=io.BytesIO(contents))
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    return {
+    return JSONResponse(content=_sanitize({
         "indicator_id": result.indicator_id,
         "expected_value": result.expected_value,
         "record_count": result.record_count,
@@ -88,7 +98,7 @@ async def calculate_indicator(indicator_id: str, file: UploadFile = File(...)):
         "metadata": result.metadata,
         "included_sample": result.included_records[:100],
         "excluded_sample": result.excluded_records[:100],
-    }
+    }))
 
 
 @router.post("/reconcile/{indicator_id}")

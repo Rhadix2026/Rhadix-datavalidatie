@@ -34,6 +34,73 @@ function scoreColor(score) {
 }
 
 // ---------------------------------------------------------------------------
+// SPARQL Query Modal
+// ---------------------------------------------------------------------------
+
+function SparqlQueryModal({ indicatorId, indicatorName, onClose }) {
+  const [query, setQuery] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  React.useEffect(() => {
+    if (!indicatorId) return;
+    fetch(`${API_BASE}/indicators/${indicatorId}/sparql-query`)
+      .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail)))
+      .then(data => { setQuery(data); setLoading(false); })
+      .catch(err => { setError(String(err)); setLoading(false); });
+  }, [indicatorId]);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,.5)",
+      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+    }} onClick={onClose}>
+      <div style={{
+        background: "#fff", borderRadius: 12, padding: 28,
+        maxWidth: 700, width: "90%", maxHeight: "80vh", overflowY: "auto",
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>📋 SPARQL Query</div>
+            <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{indicatorName}</div>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#94a3b8" }}>✕</button>
+        </div>
+
+        {loading && <div style={{ color: "#94a3b8", padding: "20px 0" }}>Laden…</div>}
+        {error && <div style={{ color: "#ef4444", padding: "12px", background: "#fee2e2", borderRadius: 6 }}>{error}</div>}
+        {query && (
+          <>
+            {query.sparql_endpoint && (
+              <div style={{ marginBottom: 12, padding: "8px 12px", background: "#f0f9ff", borderRadius: 6, fontSize: 13 }}>
+                <strong>Endpoint:</strong> <code style={{ color: "#1d4ed8" }}>{query.sparql_endpoint}</code>
+              </div>
+            )}
+            <pre style={{
+              background: "#1e293b", color: "#e2e8f0", borderRadius: 8,
+              padding: "16px 18px", fontSize: 12, lineHeight: 1.6,
+              overflowX: "auto", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word",
+            }}>
+              {query.sparql_query}
+            </pre>
+            <button
+              onClick={() => navigator.clipboard?.writeText(query.sparql_query)}
+              style={{
+                marginTop: 10, padding: "6px 14px", borderRadius: 6,
+                border: "1px solid #cbd5e1", background: "#f8fafc",
+                cursor: "pointer", fontSize: 12, color: "#475569",
+              }}
+            >
+              📋 Kopieer query
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
@@ -94,7 +161,7 @@ function CalcPreviewCard({ calc, indicatorName, onClose }) {
             📄 Brondata-analyse: {indicatorName}
           </div>
           <div style={{ fontSize: 12, color: "#166534", marginTop: 3 }}>
-            Berekend uit het geüploade bestand — zonder SPARQL-vergelijking
+            Berekend uit het geüploade bestand — nog zonder SPARQL-vergelijking
           </div>
         </div>
         <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 18, color: "#94a3b8" }}>✕</button>
@@ -103,9 +170,7 @@ function CalcPreviewCard({ calc, indicatorName, onClose }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
         <div style={{ background: "#fff", borderRadius: 8, padding: "12px 16px", textAlign: "center", border: "1px solid #bbf7d0" }}>
           <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 }}>Uitkomst (CSV)</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: "#15803d", marginTop: 4 }}>
-            {calc.expected_value ?? "—"}
-          </div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#15803d", marginTop: 4 }}>{calc.expected_value ?? "—"}</div>
         </div>
         <div style={{ background: "#fff", borderRadius: 8, padding: "12px 16px", textAlign: "center", border: "1px solid #bbf7d0" }}>
           <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 }}>Meegeteld</div>
@@ -147,9 +212,7 @@ function CalcPreviewCard({ calc, indicatorName, onClose }) {
             </table>
           </div>
           {rows.length > 10 && (
-            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-              Toont 10 van {rows.length} meegetelde rijen
-            </div>
+            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Toont 10 van {rows.length} meegetelde rijen</div>
           )}
         </div>
       )}
@@ -165,8 +228,7 @@ function IndicatorCard({ result, onDrillDown }) {
   return (
     <div style={{
       border: `2px solid ${cfg.color}`, borderRadius: 10,
-      padding: 16, background: "#fff",
-      boxShadow: "0 1px 4px rgba(0,0,0,.07)",
+      padding: 16, background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,.07)",
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
@@ -182,20 +244,10 @@ function IndicatorCard({ result, onDrillDown }) {
         gap: 8, marginTop: 14,
         background: "#f8fafc", borderRadius: 8, padding: 12,
       }}>
-        <Metric
-          label="Brondata (CSV)"
-          value={fmt(result.expected_value)}
-          color="#15803d"
-          sub="berekend uit bestand"
-        />
+        <Metric label="Brondata (CSV)" value={fmt(result.expected_value)} color="#15803d" sub="berekend uit bestand" />
         {hasSparql ? (
           <>
-            <Metric
-              label="SPARQL-uitkomst"
-              value={fmt(result.actual_value)}
-              color="#1d4ed8"
-              sub="live query"
-            />
+            <Metric label="SPARQL-uitkomst" value={fmt(result.actual_value)} color="#1d4ed8" sub="live query" />
             <Metric
               label="Afwijking"
               value={result.percentage_difference !== null ? `${fmt(result.percentage_difference)}%` : "—"}
@@ -215,17 +267,13 @@ function IndicatorCard({ result, onDrillDown }) {
         <div style={{ fontSize: 12, color: "#475569" }}>
           {hasSparql
             ? <>Confidence: <strong>{fmt(result.confidence_score, 1)}%</strong> &bull; {result.reconciliation_score_label}</>
-            : <span style={{ color: "#94a3b8" }}>Voeg een SPARQL-endpoint toe voor vergelijking</span>
-          }
+            : <span style={{ color: "#94a3b8" }}>Voeg een SPARQL-endpoint toe voor vergelijking</span>}
         </div>
         {result.drill_down?.length > 0 && (
-          <button
-            onClick={() => onDrillDown(result)}
-            style={{
-              padding: "4px 12px", borderRadius: 6, border: "1px solid #cbd5e1",
-              background: "#f8fafc", cursor: "pointer", fontSize: 12,
-            }}
-          >
+          <button onClick={() => onDrillDown(result)} style={{
+            padding: "4px 12px", borderRadius: 6, border: "1px solid #cbd5e1",
+            background: "#f8fafc", cursor: "pointer", fontSize: 12,
+          }}>
             🔍 Drill-down ({result.drill_down.length})
           </button>
         )}
@@ -282,9 +330,7 @@ function DrillDownModal({ result, onClose }) {
                   ))}
                 </tbody>
               </table>
-              {items.length > 50 && (
-                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Toont 50 van {items.length} records</div>
-              )}
+              {items.length > 50 && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Toont 50 van {items.length} records</div>}
             </div>
           </div>
         ))}
@@ -294,15 +340,18 @@ function DrillDownModal({ result, onClose }) {
 }
 
 // ---------------------------------------------------------------------------
-// Upload form met SPARQL-bibliotheek
+// Upload form
 // ---------------------------------------------------------------------------
 
-function UploadForm({ indicators, sparqlEndpoints, onResult, onCalcPreview, loading, setLoading }) {
+function UploadForm({ indicators, onResult, onCalcPreview, onShowSparql, loading, setLoading }) {
   const [selectedIndicator, setSelectedIndicator] = useState("");
   const [actualValue, setActualValue]             = useState("");
   const [sparqlEndpoint, setSparqlEndpoint]       = useState("");
   const [fileName, setFileName]                   = useState("");
   const fileRef = useRef();
+
+  const selectedInd = indicators.find(i => i.indicator_id === selectedIndicator);
+  const hasSparqlQuery = selectedInd?.sparql_query;
 
   async function handlePreview(e) {
     e.preventDefault();
@@ -314,8 +363,7 @@ function UploadForm({ indicators, sparqlEndpoints, onResult, onCalcPreview, load
       const resp = await fetch(`${API_BASE}/calculate/${selectedIndicator}`, { method: "POST", body: fd });
       if (!resp.ok) throw new Error(await resp.text());
       const data = await resp.json();
-      const indName = indicators.find(i => i.indicator_id === selectedIndicator)?.name || selectedIndicator;
-      onCalcPreview(data, indName);
+      onCalcPreview(data, selectedInd?.name || selectedIndicator);
     } catch (err) {
       alert("Fout bij brondata-analyse: " + err.message);
     } finally {
@@ -334,8 +382,7 @@ function UploadForm({ indicators, sparqlEndpoints, onResult, onCalcPreview, load
       if (sparqlEndpoint) fd.append("sparql_endpoint", sparqlEndpoint);
       const resp = await fetch(`${API_BASE}/reconcile/${selectedIndicator}`, { method: "POST", body: fd });
       if (!resp.ok) throw new Error(await resp.text());
-      const data = await resp.json();
-      onResult(data);
+      onResult(await resp.json());
     } catch (err) {
       alert("Fout: " + err.message);
     } finally {
@@ -351,16 +398,32 @@ function UploadForm({ indicators, sparqlEndpoints, onResult, onCalcPreview, load
       <h3 style={{ margin: "0 0 16px" }}>Nieuwe reconciliatie starten</h3>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
 
+        {/* Indicator + SPARQL query knop */}
         <div>
           <label style={labelStyle}>Indicator</label>
-          <select value={selectedIndicator} onChange={e => setSelectedIndicator(e.target.value)} style={inputStyle} required>
-            <option value="">-- Kies indicator --</option>
-            {indicators.map(ind => (
-              <option key={ind.indicator_id} value={ind.indicator_id}>{ind.name}</option>
-            ))}
-          </select>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <select value={selectedIndicator} onChange={e => setSelectedIndicator(e.target.value)}
+              style={{ ...inputStyle, flex: 1 }} required>
+              <option value="">-- Kies indicator --</option>
+              {indicators.map(ind => (
+                <option key={ind.indicator_id} value={ind.indicator_id}>{ind.name}</option>
+              ))}
+            </select>
+            {hasSparqlQuery && (
+              <button type="button"
+                onClick={() => onShowSparql(selectedIndicator, selectedInd?.name)}
+                title="Bekijk de SPARQL query van deze indicator"
+                style={{
+                  padding: "8px 10px", borderRadius: 6, border: "1px solid #cbd5e1",
+                  background: "#fff", cursor: "pointer", fontSize: 14, whiteSpace: "nowrap",
+                }}>
+                📋
+              </button>
+            )}
+          </div>
         </div>
 
+        {/* Bestand */}
         <div>
           <label style={labelStyle}>Bronbestand (CSV/Excel)</label>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -378,36 +441,24 @@ function UploadForm({ indicators, sparqlEndpoints, onResult, onCalcPreview, load
           </div>
         </div>
 
+        {/* Werkelijke waarde */}
         <div>
           <label style={labelStyle}>Werkelijke waarde (optioneel, overschrijft SPARQL)</label>
           <input type="number" step="any" value={actualValue} onChange={e => setActualValue(e.target.value)}
             placeholder="bijv. 142" style={inputStyle} />
         </div>
 
+        {/* SPARQL Endpoint */}
         <div>
-          <label style={labelStyle}>
-            SPARQL Endpoint (optioneel)
-            {sparqlEndpoints.length > 0 && <span style={{ fontWeight: 400, color: "#94a3b8", marginLeft: 6 }}>— kies uit bibliotheek</span>}
-          </label>
+          <label style={labelStyle}>SPARQL Endpoint (optioneel)</label>
           <input type="url" value={sparqlEndpoint} onChange={e => setSparqlEndpoint(e.target.value)}
-            placeholder="Kies uit bibliotheek of typ een URL"
-            list="sparql-endpoints-list" style={inputStyle} />
-          <datalist id="sparql-endpoints-list">
-            {sparqlEndpoints.map((ep, i) => <option key={i} value={ep.url} label={ep.label} />)}
-          </datalist>
-          {sparqlEndpoints.length > 0 && (
-            <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
-              {sparqlEndpoints.slice(0, 5).map((ep, i) => (
-                <button key={i} type="button" onClick={() => setSparqlEndpoint(ep.url)} style={{
-                  fontSize: 11, padding: "3px 10px", borderRadius: 10,
-                  border: "1px solid #cbd5e1",
-                  background: sparqlEndpoint === ep.url ? "#dbeafe" : "#fff",
-                  cursor: "pointer", color: "#475569",
-                }}>
-                  {ep.label.split(" — ")[0]}
-                </button>
-              ))}
-            </div>
+            placeholder="https://sparql.example.com/query" style={inputStyle} />
+          {selectedInd?.sparql_endpoint && !sparqlEndpoint && (
+            <button type="button" onClick={() => setSparqlEndpoint(selectedInd.sparql_endpoint)}
+              style={{ marginTop: 4, fontSize: 11, padding: "2px 8px", borderRadius: 10,
+                border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", color: "#475569" }}>
+              ↩ Gebruik endpoint uit indicator
+            </button>
           )}
         </div>
       </div>
@@ -417,8 +468,8 @@ function UploadForm({ indicators, sparqlEndpoints, onResult, onCalcPreview, load
           disabled={loading || !selectedIndicator || !fileName}
           style={{
             padding: "10px 20px", borderRadius: 8, background: "#fff", color: "#15803d",
-            border: "1.5px solid #86efac", fontWeight: 600,
-            cursor: (loading || !selectedIndicator || !fileName) ? "not-allowed" : "pointer", fontSize: 14,
+            border: "1.5px solid #86efac", fontWeight: 600, fontSize: 14,
+            cursor: (loading || !selectedIndicator || !fileName) ? "not-allowed" : "pointer",
             opacity: (!selectedIndicator || !fileName) ? 0.5 : 1,
           }}>
           {loading ? "Bezig…" : "📄 Bekijk brondata"}
@@ -427,8 +478,8 @@ function UploadForm({ indicators, sparqlEndpoints, onResult, onCalcPreview, load
           disabled={loading || !selectedIndicator || !fileName}
           style={{
             padding: "10px 24px", borderRadius: 8, background: "#3b82f6", color: "#fff",
-            border: "none", fontWeight: 600,
-            cursor: (loading || !selectedIndicator || !fileName) ? "not-allowed" : "pointer", fontSize: 14,
+            border: "none", fontWeight: 600, fontSize: 14,
+            cursor: (loading || !selectedIndicator || !fileName) ? "not-allowed" : "pointer",
             opacity: (!selectedIndicator || !fileName) ? 0.5 : 1,
           }}>
           {loading ? "Bezig…" : "▶ Reconcilieer"}
@@ -472,26 +523,21 @@ function exportJSON(results) {
 
 export default function ReconciliationDashboard({ onBack }) {
   const [indicators, setIndicators]           = useState([]);
-  const [sparqlEndpoints, setSparqlEndpoints] = useState([]);
   const [results, setResults]                 = useState([]);
   const [calcPreview, setCalcPreview]         = useState(null);
   const [calcPreviewName, setCalcPreviewName] = useState("");
   const [loading, setLoading]                 = useState(false);
   const [drillTarget, setDrillTarget]         = useState(null);
+  const [sparqlModal, setSparqlModal]         = useState(null); // {id, name}
 
   React.useEffect(() => {
     fetch(`${API_BASE}/indicators`).then(r => r.json()).then(setIndicators).catch(console.error);
-    fetch(`${API_BASE}/sparql-endpoints`).then(r => r.json()).then(setSparqlEndpoints).catch(console.error);
   }, []);
 
-  const handleResult = useCallback(result => {
+  const handleResult    = useCallback(result => {
     setResults(prev => [result, ...prev.filter(r => r.indicator_id !== result.indicator_id)]);
   }, []);
-
-  const handleCalcPreview = useCallback((calc, name) => {
-    setCalcPreview(calc);
-    setCalcPreviewName(name);
-  }, []);
+  const handleCalcPreview = useCallback((calc, name) => { setCalcPreview(calc); setCalcPreviewName(name); }, []);
 
   const totalOK = results.filter(r => r.status === "OK").length;
   const overallScore = results.length > 0 ? (totalOK / results.length) * 100 : null;
@@ -518,9 +564,9 @@ export default function ReconciliationDashboard({ onBack }) {
 
       <UploadForm
         indicators={indicators}
-        sparqlEndpoints={sparqlEndpoints}
         onResult={handleResult}
         onCalcPreview={handleCalcPreview}
+        onShowSparql={(id, name) => setSparqlModal({ id, name })}
         loading={loading}
         setLoading={setLoading}
       />
@@ -551,12 +597,20 @@ export default function ReconciliationDashboard({ onBack }) {
           Kies een indicator en upload een bronbestand om te beginnen.
           <br />
           <span style={{ fontSize: 12, marginTop: 8, display: "block" }}>
-            Gebruik "📄 Bekijk brondata" voor de CSV-uitkomst, of "▶ Reconcilieer" voor een SPARQL-vergelijking.
+            "📄 Bekijk brondata" toont de CSV-uitkomst &nbsp;·&nbsp; "▶ Reconcilieer" vergelijkt met SPARQL
           </span>
         </div>
       )}
 
       <DrillDownModal result={drillTarget} onClose={() => setDrillTarget(null)} />
+
+      {sparqlModal && (
+        <SparqlQueryModal
+          indicatorId={sparqlModal.id}
+          indicatorName={sparqlModal.name}
+          onClose={() => setSparqlModal(null)}
+        />
+      )}
     </div>
   );
 }

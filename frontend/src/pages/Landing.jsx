@@ -54,7 +54,7 @@ function AnimatedCounter() {
   )
 }
 
-export default function Landing({ onStart }) {
+export default function Landing({ onStart, onProfiles, onReconciliation }) {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Nav />
@@ -115,6 +115,17 @@ export default function Landing({ onStart }) {
             }}>
               Start nieuwe scan →
             </button>
+            {onReconciliation && (
+              <button onClick={onReconciliation} style={{
+                background: 'transparent', color: 'rgba(168,197,224,.9)',
+                border: '1.5px solid rgba(168,197,224,.4)', borderRadius: 'var(--radius)',
+                padding: '13px 28px', fontSize: 15, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'var(--font)',
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                🔁 Reconciliation Engine
+              </button>
+            )}
           </div>
         </div>
 

@@ -16,6 +16,7 @@ import KIKVProfileImport      from './pages/KIKVProfileImport'
 import KIKVReadinessMatrix    from './pages/KIKVReadinessMatrix'
 import { Advies, Actieplan }   from './pages/Advies'
 import Stap2Resultaat          from './pages/Stap2Resultaat'
+import ReconciliationDashboard from './pages/reconciliation/ReconciliationDashboard'
 
 // ── Workflow ──────────────────────────────────────────────────────────────────
 // landing → systems (keuze standaard + bronsysteem)
@@ -136,7 +137,7 @@ export default function App() {
   return (
     <>
       {step === 'landing' && (
-        <Landing onStart={() => setStep('systems')} onProfiles={() => openProfiles('landing')} />
+        <Landing onStart={() => setStep('systems')} onProfiles={() => openProfiles('landing')} onReconciliation={() => setStep('reconciliation')} />
       )}
 
       {step === 'systems' && (
@@ -195,6 +196,7 @@ export default function App() {
           onActuality={() => openActuality('dashboard')}
           onTraceability={() => openTraceability('dashboard')}
           onProfiles={() => openProfiles('dashboard')}
+          onReconciliation={() => setStep('reconciliation')}
         />
       )}
       {step === 'stap2_resultaat' && (
@@ -292,6 +294,13 @@ export default function App() {
           onBack={() => setStep(profilesBackStep)}
           onAnalyze={openReadiness}
           scanResult={activeScanResult}
+        />
+      )}
+
+      {/* ── Reconciliation Engine ── */}
+      {step === 'reconciliation' && (
+        <ReconciliationDashboard
+          onBack={() => setStep('landing')}
         />
       )}
 

@@ -140,7 +140,7 @@ function domainStatus(domain, results) {
 
 const DOT_COLORS = { red: 'var(--red)', amber: 'var(--amber)', green: 'var(--green)' }
 
-export default function Dashboard({ results, scanHistory = [], step1Completed, step2Completed, onNewScan, onAdvies, onBeschikbaarheidsRapport, onKikvRapport, onManagementRapport, onConceptMapping, onActuality, onTraceability, onProfiles }) {
+export default function Dashboard({ results, scanHistory = [], step1Completed, step2Completed, onNewScan, onAdvies, onBeschikbaarheidsRapport, onKikvRapport, onManagementRapport, onConceptMapping, onActuality, onTraceability, onProfiles, onReconciliation }) {
   const [activeDomain, setActiveDomain] = useState('Werkovereenkomst')
 
   // Guard: toon nooit placeholder-data als er geen actief scanresultaat is
@@ -335,6 +335,14 @@ export default function Dashboard({ results, scanHistory = [], step1Completed, s
                   stepLabel: 'Nieuw',
                   enabled: true,
                   onClick: onProfiles,
+                },
+                {
+                  icon: '🔁',
+                  label: 'Reconciliation Engine',
+                  sub: 'Vergelijk brondata met SPARQL-indicatoren — stoplicht per indicator',
+                  stepLabel: 'Nieuw',
+                  enabled: true,
+                  onClick: onReconciliation,
                 },
               ].map(r => (
                 <div key={r.label} style={{

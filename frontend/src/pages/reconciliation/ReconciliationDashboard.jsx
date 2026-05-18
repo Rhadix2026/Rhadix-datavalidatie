@@ -343,7 +343,7 @@ function DrillDownModal({ result, onClose }) {
 // Upload form
 // ---------------------------------------------------------------------------
 
-function UploadForm({ indicators, onResult, onCalcPreview, onShowSparql, loading, setLoading }) {
+function UploadForm({ indicators, onResult, onCalcPreview, loading, setLoading }) {
   const [selectedIndicator, setSelectedIndicator] = useState("");
   const [actualValue, setActualValue]             = useState("");
   const [sparqlEndpoint, setSparqlEndpoint]       = useState("");
@@ -396,31 +396,50 @@ function UploadForm({ indicators, onResult, onCalcPreview, onShowSparql, loading
       borderRadius: 10, padding: 20, marginBottom: 24,
     }}>
       <h3 style={{ margin: "0 0 16px" }}>Nieuwe reconciliatie starten</h3>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
 
-        {/* Indicator + SPARQL query knop */}
-        <div>
+        {/* Indicator */}
+        <div style={{ gridColumn: "1 / -1" }}>
           <label style={labelStyle}>Indicator</label>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <select value={selectedIndicator} onChange={e => setSelectedIndicator(e.target.value)}
-              style={{ ...inputStyle, flex: 1 }} required>
-              <option value="">-- Kies indicator --</option>
-              {indicators.map(ind => (
-                <option key={ind.indicator_id} value={ind.indicator_id}>{ind.name}</option>
-              ))}
-            </select>
-            {hasSparqlQuery && (
-              <button type="button"
-                onClick={() => onShowSparql(selectedIndicator, selectedInd?.name)}
-                title="Bekijk de SPARQL query van deze indicator"
-                style={{
-                  padding: "8px 10px", borderRadius: 6, border: "1px solid #cbd5e1",
-                  background: "#fff", cursor: "pointer", fontSize: 14, whiteSpace: "nowrap",
-                }}>
-                📋
-              </button>
-            )}
-          </div>
+          <select value={selectedIndicator} onChange={e => setSelectedIndicator(e.target.value)}
+            style={inputStyle} required>
+            <option value="">-- Kies indicator --</option>
+            {indicators.map(ind => (
+              <option key={ind.indicator_id} value={ind.indicator_id}>
+                {ind.name}{ind.sparql_query ? "  ·  📋 SPARQL" : ""}
+              </option>
+            ))}
+          </select>
+
+          {/* SPARQL query inline tonen zodra indicator geselecteerd */}
+          {hasSparqlQuery && (
+            <div style={{ marginTop: 10, borderRadius: 8, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+              <div style={{
+                background: "#1e293b", padding: "8px 14px",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8" }}>
+                  📋 SPARQL query — {selectedInd?.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard?.writeText(selectedInd.sparql_query)}
+                  style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                    border: "1px solid #475569", background: "transparent",
+                    color: "#94a3b8", cursor: "pointer" }}>
+                  Kopieer
+                </button>
+              </div>
+              <pre style={{
+                background: "#0f172a", color: "#e2e8f0", margin: 0,
+                padding: "12px 16px", fontSize: 12, lineHeight: 1.6,
+                overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word",
+                maxHeight: 160, overflowY: "auto",
+              }}>
+                {selectedInd.sparql_query}
+              </pre>
+            </div>
+          )}
         </div>
 
         {/* Bestand */}
@@ -528,8 +547,6 @@ export default function ReconciliationDashboard({ onBack }) {
   const [calcPreviewName, setCalcPreviewName] = useState("");
   const [loading, setLoading]                 = useState(false);
   const [drillTarget, setDrillTarget]         = useState(null);
-  const [sparqlModal, setSparqlModal]         = useState(null); // {id, name}
-
   React.useEffect(() => {
     fetch(`${API_BASE}/indicators`).then(r => r.json()).then(setIndicators).catch(console.error);
   }, []);
@@ -566,7 +583,6 @@ export default function ReconciliationDashboard({ onBack }) {
         indicators={indicators}
         onResult={handleResult}
         onCalcPreview={handleCalcPreview}
-        onShowSparql={(id, name) => setSparqlModal({ id, name })}
         loading={loading}
         setLoading={setLoading}
       />
@@ -603,14 +619,6 @@ export default function ReconciliationDashboard({ onBack }) {
       )}
 
       <DrillDownModal result={drillTarget} onClose={() => setDrillTarget(null)} />
-
-      {sparqlModal && (
-        <SparqlQueryModal
-          indicatorId={sparqlModal.id}
-          indicatorName={sparqlModal.name}
-          onClose={() => setSparqlModal(null)}
-        />
-      )}
     </div>
   );
 }

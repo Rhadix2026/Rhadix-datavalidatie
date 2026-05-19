@@ -33,9 +33,15 @@ def _run_migrations() -> None:
         command.upgrade(cfg, "head")
         log.info("Alembic migrations applied successfully.")
     except Exception as exc:
-        # Log but don't crash: the DB may already be up to date or unavailable during
-        # unit tests where there is no real Postgres instance.
-        log.warning("Alembic migration skipped or failed: %s", exc)
+        # Log at ERROR level so it is visible in `docker logs rhadix-staging-backend`.
+        # We do NOT crash the process: if the DB is already up to date (e.g. the
+        # migration was applied manually) the app can still serve requests.
+        import traceback
+        log.error(
+            "Alembic migration FAILED — dashboard/history endpoints may return 500 "
+            "until the schema is up to date.\n%s",
+            traceback.format_exc(),
+        )
 
 
 _run_migrations()

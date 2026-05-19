@@ -16,22 +16,26 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # ── Subscore kolommen voor directe aggregaties (zonder JSON-parsing) ──────
-    op.add_column("validation_runs", sa.Column("structural_score", sa.Float(), nullable=True))
-    op.add_column("validation_runs", sa.Column("relational_score", sa.Float(), nullable=True))
-    op.add_column("validation_runs", sa.Column("use_case_score",   sa.Float(), nullable=True))
-    op.add_column("validation_runs", sa.Column("source_system",    sa.String(255), nullable=True))
+    # ── Subscore kolommen — gebruik IF NOT EXISTS zodat de migratie idempotent
+    #    is als staging al (deels) via create_all() was opgezet.
+    op.execute("""
+        ALTER TABLE validation_runs
+            ADD COLUMN IF NOT EXISTS structural_score FLOAT,
+            ADD COLUMN IF NOT EXISTS relational_score FLOAT,
+            ADD COLUMN IF NOT EXISTS use_case_score   FLOAT,
+            ADD COLUMN IF NOT EXISTS source_system    VARCHAR(255)
+    """)
 
-    # ── Indexen voor dashboard queries ────────────────────────────────────────
-    op.create_index("ix_validation_runs_score",      "validation_runs", ["score"])
-    op.create_index("ix_validation_runs_created_at", "validation_runs", ["created_at"])
-    op.create_index("ix_validation_runs_standard",   "validation_runs", ["standard"])
+    # ── Indexen — CREATE INDEX IF NOT EXISTS zodat bestaande indexen geen fout geven
+    op.execute("CREATE INDEX IF NOT EXISTS ix_validation_runs_score      ON validation_runs (score)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_validation_runs_created_at ON validation_runs (created_at)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_validation_runs_standard   ON validation_runs (standard)")
 
 
 def downgrade() -> None:
-    op.drop_index("ix_validation_runs_standard",   "validation_runs")
-    op.drop_index("ix_validation_runs_created_at", "validation_runs")
-    op.drop_index("ix_validation_runs_score",      "validation_runs")
+    op.execute("DROP INDEX IF EXISTS ix_validation_runs_standard")
+    op.execute("DROP INDEX IF EXISTS ix_validation_runs_created_at")
+    op.execute("DROP INDEX IF EXISTS ix_validation_runs_score")
 
     op.drop_column("validation_runs", "source_system")
     op.drop_column("validation_runs", "use_case_score")

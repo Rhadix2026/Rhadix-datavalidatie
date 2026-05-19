@@ -54,10 +54,21 @@ function AnimatedCounter() {
   )
 }
 
-export default function Landing({ onStart, onProfiles, onReconciliation, onAdmin, onOrgAdmin, authUser, onLogout }) {
+export default function Landing({ onStart, onProfiles, onReconciliation,
+                                  onAdmin, onOrgAdmin,
+                                  onDashboard, onOrgDashboard, onPlatformDashboard,
+                                  authUser, onLogout }) {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Nav authUser={authUser} onLogout={onLogout} onAdmin={onAdmin} onOrgAdmin={onOrgAdmin} />
+      <Nav
+        authUser={authUser}
+        onLogout={onLogout}
+        onAdmin={onAdmin}
+        onOrgAdmin={onOrgAdmin}
+        onDashboard={onDashboard}
+        onOrgDashboard={onOrgDashboard}
+        onPlatformDashboard={onPlatformDashboard}
+      />
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
         {/* Left hero */}

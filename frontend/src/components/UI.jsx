@@ -1,5 +1,6 @@
 // ─── Nav ──────────────────────────────────────────────────────────────────────
-export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin }) {
+export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
+                      onDashboard, onOrgDashboard, onPlatformDashboard }) {
   return (
     <header style={{
       background: 'var(--blue-hero)', borderBottom: '1px solid rgba(255,255,255,.08)',
@@ -27,6 +28,17 @@ export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin }) {
         {right}
         {authUser && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Dashboard links — visible based on role */}
+            {onDashboard && (
+              <button onClick={onDashboard} style={_navBtn}>📊 Dashboard</button>
+            )}
+            {(authUser.role === 'ORG_ADMIN' || authUser.role === 'RHADIX_ADMIN') && onOrgDashboard && (
+              <button onClick={onOrgDashboard} style={_navBtn}>🏢 Organisatie</button>
+            )}
+            {authUser.role === 'RHADIX_ADMIN' && onPlatformDashboard && (
+              <button onClick={onPlatformDashboard} style={_navBtn}>🌐 Platform</button>
+            )}
+            {/* Admin / beheer links */}
             {authUser.role === 'RHADIX_ADMIN' && onAdmin && (
               <button onClick={onAdmin} style={{
                 background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
@@ -68,6 +80,13 @@ export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin }) {
       </div>
     </header>
   )
+}
+
+const _navBtn = {
+  background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.15)',
+  borderRadius: 'var(--radius)', padding: '5px 11px',
+  color: 'rgba(255,255,255,.85)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+  fontFamily: 'var(--font)', letterSpacing: '.02em',
 }
 
 export function NavLink({ children, onClick }) {

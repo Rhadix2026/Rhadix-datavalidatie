@@ -47,16 +47,16 @@ jobs:
         run: |
           TAG="${{ inputs.image_tag }}"
           echo "Controleer ghcr.io/rhadix2026/rhadix-backend:$TAG ..."
-          TOKEN=$(echo "${{ secrets.GITHUB_TOKEN }}" | base64)
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://ghcr.io/v2/rhadix2026/rhadix-backend/manifests/$TAG")
-          if [ "$STATUS" != "200" ]; then
-            echo "✗ Image tag '$TAG' niet gevonden op GHCR (HTTP $STATUS)"
-            echo "  Beschikbare recente tags: zie https://github.com/orgs/rhadix2026/packages"
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          if docker manifest inspect ghcr.io/rhadix2026/rhadix-backend:$TAG > /dev/null 2>&1; then
+            echo "✓ Image tag '$TAG' gevonden op GHCR"
+          else
+            echo "✗ Image tag '$TAG' NIET gevonden op GHCR"
+            echo "  Controleer beschikbare tags op:"
+            echo "  https://github.com/orgs/rhadix2026/packages/container/rhadix-backend/versions"
             exit 1
           fi
-          echo "✓ Image tag '$TAG' gevonden"
 
       - name: Kopieer docker-compose naar server
         uses: appleboy/scp-action@v0.1.7

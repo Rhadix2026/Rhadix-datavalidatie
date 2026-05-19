@@ -108,7 +108,7 @@ def create_tenant(
     if len(body.admin_password) < 12:
         raise HTTPException(422, "Password must be at least 12 characters")
 
-    tenant = Tenant(id=uuid.uuid4(), slug=body.slug, name=body.name)
+    tenant = Tenant(id=uuid.uuid4(), slug=body.slug, name=body.name, is_active=True)
     db.add(tenant)
     db.flush()   # get tenant.id before creating user
 
@@ -119,6 +119,7 @@ def create_tenant(
         password_hash = hash_password(body.admin_password),
         full_name     = body.admin_full_name,
         role          = UserRole.ORG_ADMIN,
+        is_active     = True,
     )
     db.add(user)
     db.commit()

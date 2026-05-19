@@ -97,6 +97,8 @@ jobs:
           context: ./backend
           push: false
           tags: rhadix-backend:ci-check
+          cache-from: type=gha,scope=backend
+          cache-to:   type=gha,scope=backend,mode=max
 
       - name: Build frontend image (geen push)
         uses: docker/build-push-action@v5
@@ -105,3 +107,5 @@ jobs:
           push: false
           build-args: VITE_API_URL=
           tags: rhadix-frontend:ci-check
+          cache-from: type=gha,scope=frontend
+          cache-to:   type=gha,scope=frontend,mode=max

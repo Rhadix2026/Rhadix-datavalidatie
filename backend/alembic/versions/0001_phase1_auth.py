@@ -31,12 +31,15 @@ def upgrade() -> None:
     op.create_index("ix_tenants_slug", "tenants", ["slug"], unique=True)
 
     # ── Create users table ────────────────────────────────────────────────────
-    # Enum must be created before the column that uses it.
-    userrole_enum = postgresql.ENUM(
-        "RHADIX_ADMIN", "ORG_ADMIN", "ORG_USER",
-        name="userrole", create_type=True,
-    )
-    userrole_enum.create(op.get_bind(), checkfirst=True)
+    # Use a DO block so the enum creation is idempotent even if a previous
+    # migration attempt left it behind without completing.
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE userrole AS ENUM ('RHADIX_ADMIN', 'ORG_ADMIN', 'ORG_USER');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
 
     op.create_table(
         "users",
@@ -46,8 +49,9 @@ def upgrade() -> None:
         sa.Column("email",         sa.String(255), nullable=False),
         sa.Column("password_hash", sa.String(255), nullable=True),
         sa.Column("full_name",     sa.String(255), nullable=True),
-        sa.Column("role",          sa.Enum("RHADIX_ADMIN", "ORG_ADMIN", "ORG_USER",
-                                           name="userrole", create_type=False),
+        sa.Column("role",          postgresql.ENUM(
+                                       "RHADIX_ADMIN", "ORG_ADMIN", "ORG_USER",
+                                       name="userrole", create_type=False),
                   nullable=False, server_default="ORG_USER"),
         sa.Column("is_active",     sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("last_login_at", sa.DateTime(timezone=True), nullable=True),

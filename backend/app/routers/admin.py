@@ -18,6 +18,11 @@ Phase 2:
   GET    /api/admin/tenants/{id}/applications          — list apps assigned to tenant
   POST   /api/admin/tenants/{id}/applications          — assign app to tenant
   DELETE /api/admin/tenants/{id}/applications/{app_id} — revoke app from tenant
+
+User management (Phase 3+):
+  PATCH  /api/admin/users/{user_id}/deactivate       — toggle is_active
+  DELETE /api/admin/users/{user_id}                  — delete user
+  POST   /api/admin/users/{user_id}/reset-password   — admin resets user password
 """
 import uuid
 from typing import Optional
@@ -436,4 +441,68 @@ def revoke_app_from_tenant(
     if not ta:
         raise HTTPException(404, "Assignment not found")
     db.delete(ta)
+    db.commit()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# User management  (RHADIX_ADMIN — cross-tenant)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AdminResetPasswordRequest(BaseModel):
+    new_password: str
+
+
+@router.patch("/users/{user_id}/deactivate")
+def admin_toggle_user_active(
+    user_id: str,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    """Toggle is_active for any user on the platform."""
+    uid  = _parse_uuid(user_id, "user_id")
+    user = db.query(User).filter(User.id == uid).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    if user.id == current_user.id:
+        raise HTTPException(400, "You cannot deactivate your own account")
+
+    user.is_active = not user.is_active
+    db.commit()
+    return {"id": str(user.id), "email": user.email, "is_active": user.is_active}
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def admin_delete_user(
+    user_id: str,
+    db:      Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    """Delete any user from the platform."""
+    uid  = _parse_uuid(user_id, "user_id")
+    user = db.query(User).filter(User.id == uid).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    if user.id == current_user.id:
+        raise HTTPException(400, "You cannot delete your own account")
+
+    db.delete(user)
+    db.commit()
+
+
+@router.post("/users/{user_id}/reset-password", status_code=204)
+def admin_reset_user_password(
+    user_id: str,
+    body:    AdminResetPasswordRequest,
+    db:      Session = Depends(get_db),
+    _:       User    = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    """Admin sets a new password for any user."""
+    uid  = _parse_uuid(user_id, "user_id")
+    user = db.query(User).filter(User.id == uid).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    if len(body.new_password) < 12:
+        raise HTTPException(422, "Password must be at least 12 characters")
+
+    user.password_hash = hash_password(body.new_password)
     db.commit()

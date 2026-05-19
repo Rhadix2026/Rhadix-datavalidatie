@@ -5,7 +5,8 @@ import {
   getAdminApplications, updateAdminApplication,
   getAdminLicenses, createAdminLicense,
   getAdminTenantApps, assignAppToTenant, revokeAppFromTenant,
-  getAdminTenantLicenses,
+  getAdminTenantLicenses, getAdminTenantUsers,
+  adminToggleUserActive, adminDeleteUser, adminResetUserPassword,
 } from '../services/api'
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -187,21 +188,87 @@ function CreateLicenseModal({ tenants, onClose, onCreated }) {
 // Tab: Organisations
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ── Admin Reset Password Modal ────────────────────────────────────────────────
+function AdminResetPasswordModal({ user, onClose }) {
+  const [password, setPassword] = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState('')
+  const [done,     setDone]     = useState(false)
+  const overlayStyle2 = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }
+  const inputStyle2 = { padding: '9px 13px', borderRadius: 'var(--radius)', border: '1.5px solid var(--border)', fontSize: 13, fontFamily: 'var(--font)', width: '100%', boxSizing: 'border-box' }
+
+  async function handleSubmit(e) {
+    e.preventDefault(); setError(''); setLoading(true)
+    try { await adminResetUserPassword(user.id, password); setDone(true) }
+    catch (err) { let m = 'Reset mislukt'; try { m = JSON.parse(err.message)?.detail || m } catch {} setError(m) }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div style={overlayStyle2}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '32px 36px', width: 420, maxWidth: '90vw' }}>
+        {done ? (
+          <>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>Wachtwoord ingesteld</h3>
+            <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 20 }}>Het wachtwoord voor <strong>{user.email}</strong> is bijgewerkt.</p>
+            <button onClick={onClose} style={{ ...btnGhost, width: '100%' }}>Sluiten</button>
+          </>
+        ) : (
+          <>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Wachtwoord resetten</h3>
+            <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 20 }}>Nieuw wachtwoord voor <strong>{user.email}</strong>.</p>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <input type="password" required placeholder="Min. 12 tekens" value={password}
+                onChange={e => setPassword(e.target.value)} style={inputStyle2} autoFocus />
+              <ErrBox msg={error} />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button type="button" onClick={onClose} style={{ flex: 1, ...btnGhost }}>Annuleren</button>
+                <button type="submit" disabled={loading} style={{ flex: 2, ...btnPrimary }}>{loading ? 'Resetten…' : 'Wachtwoord instellen'}</button>
+              </div>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function TabOrganisations({ stats, tenants, applications, onReload }) {
   const [showCreate,     setShowCreate]     = useState(false)
   const [assignTenant,   setAssignTenant]   = useState(null)
   const [expandedTid,    setExpandedTid]    = useState(null)
   const [tenantApps,     setTenantApps]     = useState({})
   const [tenantLicenses, setTenantLicenses] = useState({})
+  const [tenantUsers,    setTenantUsers]    = useState({})
+  const [resetUser,      setResetUser]      = useState(null)
 
   async function loadTenantDetails(tid) {
     if (expandedTid === tid) { setExpandedTid(null); return }
     setExpandedTid(tid)
     try {
-      const [apps, lics] = await Promise.all([getAdminTenantApps(tid), getAdminTenantLicenses(tid)])
+      const [apps, lics, users] = await Promise.all([
+        getAdminTenantApps(tid), getAdminTenantLicenses(tid), getAdminTenantUsers(tid),
+      ])
       setTenantApps(p => ({ ...p, [tid]: apps }))
       setTenantLicenses(p => ({ ...p, [tid]: lics }))
+      setTenantUsers(p => ({ ...p, [tid]: users }))
     } catch {}
+  }
+
+  async function handleToggleUser(tid, userId) {
+    try {
+      const updated = await adminToggleUserActive(userId)
+      setTenantUsers(p => ({ ...p, [tid]: p[tid].map(u => u.id === userId ? { ...u, is_active: updated.is_active } : u) }))
+    } catch (err) { alert('Fout: ' + err.message) }
+  }
+
+  async function handleDeleteUser(tid, userId) {
+    if (!window.confirm('Gebruiker definitief verwijderen?')) return
+    try {
+      await adminDeleteUser(userId)
+      setTenantUsers(p => ({ ...p, [tid]: p[tid].filter(u => u.id !== userId) }))
+    } catch (err) { alert('Verwijderen mislukt: ' + err.message) }
   }
 
   async function handleRevoke(tenantId, appId) {
@@ -261,12 +328,14 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                 if (expandedTid === t.id) {
                   rows.push(
                     <tr key={`${t.id}-detail`}>
-                      <td colSpan={7} style={{ padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid var(--border)' }}>
+                      <td colSpan={7} style={{ padding: '20px 24px', background: '#f8fafc', borderBottom: '1px solid var(--border)' }}>
+
+                        {/* Apps */}
                         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>Toegewezen applicaties</div>
                         {(tenantApps[t.id] || []).length === 0 ? (
-                          <p style={{ fontSize: 13, color: 'var(--text3)', margin: 0 }}>Geen applicaties toegewezen.</p>
+                          <p style={{ fontSize: 13, color: 'var(--text3)', margin: '0 0 16px' }}>Geen applicaties toegewezen.</p>
                         ) : (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                             {(tenantApps[t.id] || []).map(ta => (
                               <div key={ta.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#e0f2fe', borderRadius: 20, padding: '4px 12px 4px 14px', fontSize: 13, fontWeight: 600, color: '#0369a1' }}>
                                 {ta.application_name}
@@ -275,10 +344,12 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                             ))}
                           </div>
                         )}
+
+                        {/* Licenses */}
                         {(tenantLicenses[t.id] || []).length > 0 && (
                           <>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', margin: '14px 0 8px' }}>Licenties</div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', margin: '4px 0 8px' }}>Licenties</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                               {(tenantLicenses[t.id] || []).map(l => (
                                 <span key={l.id} style={{ fontSize: 12, fontWeight: 600, background: l.is_active ? '#dcfce7' : '#fee2e2', color: l.is_active ? '#166534' : '#991b1b', borderRadius: 20, padding: '3px 12px' }}>
                                   {l.name}{l.valid_until ? ` · t/m ${new Date(l.valid_until).toLocaleDateString('nl-NL')}` : ' · onbeperkt'}
@@ -286,6 +357,41 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                               ))}
                             </div>
                           </>
+                        )}
+
+                        {/* Users */}
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', margin: '4px 0 10px' }}>Gebruikers</div>
+                        {(tenantUsers[t.id] || []).length === 0 ? (
+                          <p style={{ fontSize: 13, color: 'var(--text3)', margin: 0 }}>Geen gebruikers.</p>
+                        ) : (
+                          <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                            <thead>
+                              <tr>{['Naam', 'E-mail', 'Rol', 'Status', 'Acties'].map(h => <th key={h} style={{ ...thStyle, fontSize: 10, padding: '7px 12px' }}>{h}</th>)}</tr>
+                            </thead>
+                            <tbody>
+                              {(tenantUsers[t.id] || []).map((u, ui) => (
+                                <tr key={u.id} style={{ background: ui % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                  <td style={{ padding: '9px 12px', fontSize: 13, fontWeight: 600, borderBottom: '1px solid var(--border)' }}>{u.full_name || '—'}</td>
+                                  <td style={{ padding: '9px 12px', fontSize: 12, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>{u.email}</td>
+                                  <td style={{ padding: '9px 12px', fontSize: 12, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>{u.role}</td>
+                                  <td style={{ padding: '9px 12px', borderBottom: '1px solid var(--border)' }}>
+                                    <span style={{ display: 'inline-flex', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: u.is_active ? '#dcfce7' : '#fee2e2', color: u.is_active ? '#166534' : '#991b1b' }}>
+                                      {u.is_active ? 'Actief' : 'Inactief'}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '9px 12px', borderBottom: '1px solid var(--border)' }}>
+                                    <div style={{ display: 'flex', gap: 5 }}>
+                                      <button onClick={() => setResetUser(u)} style={{ ...btnGhost, padding: '4px 10px', fontSize: 11 }}>🔑 Reset</button>
+                                      <button onClick={() => handleToggleUser(t.id, u.id)} style={{ ...(u.is_active ? { padding: '4px 10px', background: 'none', color: '#dc2626', border: '1.5px solid #fecaca', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font)' } : { ...btnGhost, padding: '4px 10px', fontSize: 11 }) }}>
+                                        {u.is_active ? 'Deactiveer' : 'Activeer'}
+                                      </button>
+                                      <button onClick={() => handleDeleteUser(t.id, u.id)} style={{ padding: '4px 8px', background: 'none', color: '#dc2626', border: '1.5px solid #fecaca', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font)' }}>🗑️</button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         )}
                       </td>
                     </tr>
@@ -298,6 +404,7 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
         )}
       </div>
 
+      {resetUser && <AdminResetPasswordModal user={resetUser} onClose={() => setResetUser(null)} />}
       {showCreate && <CreateTenantModal onClose={() => setShowCreate(false)} onCreated={onReload} />}
       {assignTenant && (
         <AssignAppModal

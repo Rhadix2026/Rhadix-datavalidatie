@@ -1,10 +1,11 @@
 import { useState } from 'react'
 
 export default function LoginScreen({ onLogin }) {
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState('')
+  const [email,      setEmail]      = useState('')
+  const [password,   setPassword]   = useState('')
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState('')
+  const [showForgot, setShowForgot] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -22,6 +23,13 @@ export default function LoginScreen({ onLogin }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const inputStyle = {
+    padding: '10px 14px', borderRadius: 'var(--radius)',
+    border: '1.5px solid var(--border)', fontSize: 14,
+    fontFamily: 'var(--font)', outline: 'none',
+    transition: 'border-color .15s',
   }
 
   return (
@@ -77,35 +85,50 @@ export default function LoginScreen({ onLogin }) {
               required
               autoFocus
               placeholder="naam@organisatie.nl"
-              style={{
-                padding: '10px 14px', borderRadius: 'var(--radius)',
-                border: '1.5px solid var(--border)', fontSize: 14,
-                fontFamily: 'var(--font)', outline: 'none',
-                transition: 'border-color .15s',
-              }}
+              style={inputStyle}
               onFocus={e => e.target.style.borderColor = 'var(--blue)'}
               onBlur={e  => e.target.style.borderColor = 'var(--border)'}
             />
           </label>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)' }}>Wachtwoord</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)' }}>Wachtwoord</span>
+              <button
+                type="button"
+                onClick={() => setShowForgot(v => !v)}
+                style={{
+                  fontSize: 12, color: 'var(--blue)', background: 'none',
+                  border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font)',
+                  textDecoration: showForgot ? 'none' : 'underline',
+                }}
+              >
+                Wachtwoord vergeten?
+              </button>
+            </div>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
               placeholder="••••••••••••"
-              style={{
-                padding: '10px 14px', borderRadius: 'var(--radius)',
-                border: '1.5px solid var(--border)', fontSize: 14,
-                fontFamily: 'var(--font)', outline: 'none',
-                transition: 'border-color .15s',
-              }}
+              style={inputStyle}
               onFocus={e => e.target.style.borderColor = 'var(--blue)'}
               onBlur={e  => e.target.style.borderColor = 'var(--border)'}
             />
           </label>
+
+          {/* Wachtwoord vergeten — melding */}
+          {showForgot && (
+            <div style={{
+              padding: '12px 14px', background: '#eff6ff',
+              border: '1px solid #bfdbfe', borderRadius: 'var(--radius)',
+              fontSize: 13, color: '#1d4ed8', lineHeight: 1.55,
+            }}>
+              <strong>Wachtwoord vergeten?</strong><br />
+              Neem contact op met de beheerder van uw organisatie. Uw beheerder kan via het beheerpaneel een nieuw wachtwoord voor u instellen.
+            </div>
+          )}
 
           {error && (
             <div style={{

@@ -1,19 +1,26 @@
 """
 org.py — ORG_ADMIN endpoints for managing users and app assignments within their own tenant.
 
-GET    /api/org/me/apps                       — list apps available to the caller's tenant
-GET    /api/org/users                         — list users in the caller's tenant
-GET    /api/org/users/{user_id}/apps          — list app assignments for a user
-POST   /api/org/users/{user_id}/apps          — assign an app to a user
-DELETE /api/org/users/{user_id}/apps/{app_id} — revoke an app from a user
+GET    /api/org/me/apps                          — list apps available to the caller's tenant
+GET    /api/org/users                            — list users in the caller's tenant
+POST   /api/org/users                            — create a new user in the tenant
+PATCH  /api/org/users/{user_id}/deactivate       — toggle is_active
+DELETE /api/org/users/{user_id}                  — delete a user
+POST   /api/org/users/{user_id}/reset-password   — admin sets new password for user
+GET    /api/org/users/{user_id}/apps             — list app assignments for a user
+POST   /api/org/users/{user_id}/apps             — assign an app to a user
+DELETE /api/org/users/{user_id}/apps/{app_id}    — revoke an app from a user
 """
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
 from app.auth.schemas import AssignUserAppRequest
+from app.auth.security import hash_password
 from app.database import get_db
 from app.models.auth_models import (
     Application,
@@ -90,6 +97,118 @@ def list_org_users(
         }
         for u in users
     ]
+
+
+# ─── request bodies ───────────────────────────────────────────────────────────
+
+class CreateOrgUserRequest(BaseModel):
+    email:     str
+    full_name: Optional[str] = None
+    password:  str
+    role:      str = "ORG_USER"   # ORG_USER or ORG_ADMIN
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# User CRUD within the org
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/users", status_code=201)
+def create_org_user(
+    body:         CreateOrgUserRequest,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(_org_roles),
+):
+    """Create a new user in the current admin's tenant."""
+    email = body.email.lower().strip()
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(400, f"E-mailadres '{body.email}' is al in gebruik")
+    if len(body.password) < 12:
+        raise HTTPException(422, "Wachtwoord moet minimaal 12 tekens bevatten")
+    try:
+        role = UserRole(body.role)
+    except ValueError:
+        raise HTTPException(422, f"Ongeldig rol: {body.role!r}")
+    if role == UserRole.RHADIX_ADMIN:
+        raise HTTPException(403, "Rhadix-beheerdersrol kan niet worden toegewezen")
+
+    user = User(
+        id            = uuid.uuid4(),
+        tenant_id     = current_user.tenant_id,
+        email         = email,
+        full_name     = body.full_name,
+        password_hash = hash_password(body.password),
+        role          = role,
+        is_active     = True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {
+        "id":        str(user.id),
+        "email":     user.email,
+        "full_name": user.full_name,
+        "role":      user.role.value,
+        "is_active": user.is_active,
+    }
+
+
+@router.patch("/users/{user_id}/deactivate")
+def toggle_user_active(
+    user_id: str,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(_org_roles),
+):
+    """Toggle is_active for a user in the current admin's tenant."""
+    uid  = _parse_uuid(user_id, "user_id")
+    user = db.query(User).filter(User.id == uid, User.tenant_id == current_user.tenant_id).first()
+    if not user:
+        raise HTTPException(404, "Gebruiker niet gevonden in uw organisatie")
+    if user.id == current_user.id:
+        raise HTTPException(400, "U kunt uw eigen account niet deactiveren")
+
+    user.is_active = not user.is_active
+    db.commit()
+    return {"id": str(user.id), "is_active": user.is_active}
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_org_user(
+    user_id: str,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(_org_roles),
+):
+    """Delete a user from the current admin's tenant."""
+    uid  = _parse_uuid(user_id, "user_id")
+    user = db.query(User).filter(User.id == uid, User.tenant_id == current_user.tenant_id).first()
+    if not user:
+        raise HTTPException(404, "Gebruiker niet gevonden in uw organisatie")
+    if user.id == current_user.id:
+        raise HTTPException(400, "U kunt uw eigen account niet verwijderen")
+
+    db.delete(user)
+    db.commit()
+
+
+@router.post("/users/{user_id}/reset-password", status_code=204)
+def reset_user_password(
+    user_id: str,
+    body:         ResetPasswordRequest,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(_org_roles),
+):
+    """Admin sets a new password for a user in their tenant."""
+    uid  = _parse_uuid(user_id, "user_id")
+    user = db.query(User).filter(User.id == uid, User.tenant_id == current_user.tenant_id).first()
+    if not user:
+        raise HTTPException(404, "Gebruiker niet gevonden in uw organisatie")
+    if len(body.new_password) < 12:
+        raise HTTPException(422, "Wachtwoord moet minimaal 12 tekens bevatten")
+
+    user.password_hash = hash_password(body.new_password)
+    db.commit()
 
 
 @router.get("/users/{user_id}/apps")

@@ -366,3 +366,61 @@ export async function revokeAppFromUser(userId, appId) {
   })
   if (!res.ok) throw new Error(await res.text())
 }
+
+// ---------------------------------------------------------------------------
+// Org user management (ORG_ADMIN)
+// ---------------------------------------------------------------------------
+
+export async function createOrgUser(data) {
+  const res = await apiFetch(`${BASE}/org/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function toggleUserActive(userId) {
+  const res = await apiFetch(`${BASE}/org/users/${userId}/deactivate`, { method: 'PATCH' })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function deleteOrgUser(userId) {
+  const res = await apiFetch(`${BASE}/org/users/${userId}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+export async function resetOrgUserPassword(userId, newPassword) {
+  const res = await apiFetch(`${BASE}/org/users/${userId}/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_password: newPassword }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+// ---------------------------------------------------------------------------
+// Admin user management (RHADIX_ADMIN)
+// ---------------------------------------------------------------------------
+
+export async function adminToggleUserActive(userId) {
+  const res = await apiFetch(`${BASE}/admin/users/${userId}/deactivate`, { method: 'PATCH' })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function adminDeleteUser(userId) {
+  const res = await apiFetch(`${BASE}/admin/users/${userId}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+export async function adminResetUserPassword(userId, newPassword) {
+  const res = await apiFetch(`${BASE}/admin/users/${userId}/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_password: newPassword }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+}

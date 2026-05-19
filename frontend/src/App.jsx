@@ -19,9 +19,12 @@ import KIKVReadinessMatrix    from './pages/KIKVReadinessMatrix'
 import { Advies, Actieplan }   from './pages/Advies'
 import Stap2Resultaat          from './pages/Stap2Resultaat'
 import ReconciliationDashboard from './pages/reconciliation/ReconciliationDashboard'
-import LoginScreen      from './pages/LoginScreen'
-import AdminDashboard   from './pages/AdminDashboard'
-import OrgAdminDashboard from './pages/OrgAdminDashboard'
+import LoginScreen        from './pages/LoginScreen'
+import AdminDashboard     from './pages/AdminDashboard'
+import OrgAdminDashboard  from './pages/OrgAdminDashboard'
+import UserDashboard      from './pages/UserDashboard'
+import OrgDashboard       from './pages/OrgDashboard'
+import PlatformDashboard  from './pages/PlatformDashboard'
 
 // ── Workflow ──────────────────────────────────────────────────────────────────
 // landing → systems (keuze standaard + bronsysteem)
@@ -53,6 +56,10 @@ export default function App() {
   const [profilesBackStep, setProfilesBackStep]   = useState('landing')
   const [readinessMatrix, setReadinessMatrix]       = useState(null)
   const [readinessProfile, setReadinessProfile]     = useState(null)
+
+  // ── Phase 3 dashboard ─────────────────────────────────────────────────────
+  const [dashboardTenantId,   setDashboardTenantId]   = useState(null)
+  const [dashboardTenantName, setDashboardTenantName] = useState(null)
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   const handleLogin = async (email, password) => {
@@ -203,6 +210,17 @@ export default function App() {
           onReconciliation={() => setStep('reconciliation')}
           onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
           onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
+          onDashboard={() => setStep('user_dashboard')}
+          onOrgDashboard={
+            (authUser?.role === 'ORG_ADMIN' || authUser?.role === 'RHADIX_ADMIN')
+              ? () => setStep('org_dashboard')
+              : null
+          }
+          onPlatformDashboard={
+            authUser?.role === 'RHADIX_ADMIN'
+              ? () => setStep('platform_dashboard')
+              : null
+          }
           authUser={authUser}
           onLogout={handleLogout}
         />
@@ -371,6 +389,33 @@ export default function App() {
           onBack={() => setStep(profilesBackStep)}
           onAnalyze={openReadiness}
           scanResult={activeScanResult}
+        />
+      )}
+
+      {/* ── Phase 3 Dashboards ── */}
+      {step === 'user_dashboard' && (
+        <UserDashboard
+          onBack={() => setStep('landing')}
+          authUser={authUser}
+        />
+      )}
+
+      {step === 'org_dashboard' && (
+        <OrgDashboard
+          onBack={() => setStep('landing')}
+          authUser={authUser}
+          tenantId={dashboardTenantId || undefined}
+        />
+      )}
+
+      {step === 'platform_dashboard' && (
+        <PlatformDashboard
+          onBack={() => setStep('landing')}
+          onOrgDrilldown={(tenantId, tenantName) => {
+            setDashboardTenantId(tenantId)
+            setDashboardTenantName(tenantName)
+            setStep('org_dashboard')
+          }}
         />
       )}
 

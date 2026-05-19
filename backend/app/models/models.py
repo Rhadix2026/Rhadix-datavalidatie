@@ -26,3 +26,9 @@ class ValidationRun(Base):
     # Phase 2 — application + license linkage (nullable for backwards compat + demo runs)
     application_id = Column(UUID(as_uuid=True), ForeignKey("applications.id", ondelete="SET NULL"), nullable=True, index=True)
     license_id     = Column(UUID(as_uuid=True), ForeignKey("licenses.id",     ondelete="SET NULL"), nullable=True)
+
+    # Phase 3 — dashboard subscores (stored flat for efficient aggregation)
+    structural_score = Column(Float, nullable=True)   # data availability score (0-100)
+    relational_score = Column(Float, nullable=True)   # data quality / FK integrity score (0-100)
+    use_case_score   = Column(Float, nullable=True)   # readiness score KIK-V or ZIB (0-100)
+    source_system    = Column(String(255), nullable=True)  # first uploaded filename / system name

@@ -263,6 +263,9 @@ async def upload_and_validate(
                 created_by=current_user.id if current_user else None,
                 application_id=_app_id,
                 license_id=_lic_id,
+                # Phase 3: ZIB has a single composite score; map to use_case_score
+                use_case_score=result.get("score"),
+                source_system=parsed[0]["filename"] if parsed else None,
             )
             db.add(run)
             db.commit()
@@ -330,6 +333,11 @@ async def upload_and_validate(
             created_by=current_user.id if current_user else None,
             application_id=_app_id,
             license_id=_lic_id,
+            # Phase 3 subscores — filled after OWL/SPARQL validators run below
+            structural_score=None,
+            relational_score=None,
+            use_case_score=None,
+            source_system=parsed[0]["filename"] if parsed else None,
         )
         db.add(run)
         db.commit()
@@ -406,6 +414,22 @@ async def upload_and_validate(
     structural_result  = validate_structural(owl_files_data)
     relational_result  = validate_relational(owl_files_data)
     use_case_result    = validate_use_cases(owl_files_data)
+
+    # ── Phase 3: backfill subscores on the saved run ──────────────────────────
+    if run_id is not None:
+        try:
+            _saved_run = db.query(ValidationRun).filter(ValidationRun.id == run_id).first()
+            if _saved_run:
+                _saved_run.structural_score = structural_result.get("structural_score")
+                _saved_run.relational_score = relational_result.get("relational_score")
+                _saved_run.use_case_score   = use_case_result.get("use_case_score")
+                db.commit()
+        except Exception as _e:
+            print(f"[WARN] subscore backfill failed: {_e}")
+            try:
+                db.rollback()
+            except Exception:
+                pass
 
     # Verrijk KIK-V issues met traceervelden
     for fsum in result.get("files_summary", []):

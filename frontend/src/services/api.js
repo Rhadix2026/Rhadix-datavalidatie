@@ -1,46 +1,106 @@
 const BASE = '/api'
 
+// ---------------------------------------------------------------------------
+// Auth token store — set by useAuth hook after login
+// ---------------------------------------------------------------------------
+let _token = null
+
+export function setAuthToken(token) { _token = token }
+export function getAuthToken()      { return _token   }
+export function clearAuthToken()    { _token = null   }
+
+function authHeaders(extra = {}) {
+  return _token
+    ? { Authorization: `Bearer ${_token}`, ...extra }
+    : { ...extra }
+}
+
+async function apiFetch(url, options = {}) {
+  const { headers = {}, ...rest } = options
+  const res = await fetch(url, {
+    ...rest,
+    headers: { ...authHeaders(), ...headers },
+  })
+  if (res.status === 401) {
+    // Token expired or invalid — clear it so the auth guard redirects to login
+    clearAuthToken()
+    window.dispatchEvent(new CustomEvent('rhadix:unauthorized'))
+  }
+  return res
+}
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export async function login(email, password) {
+  const res = await fetch(`${BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()   // { access_token, token_type }
+}
+
+export async function getMe() {
+  const res = await apiFetch(`${BASE}/auth/me`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
+
 export async function uploadFiles(files, label = '', standard = 'kikv', maxAgeDays = 30) {
   const form = new FormData()
   files.forEach(f => form.append('files', f))
   if (label) form.append('label', label)
   form.append('standard', standard)
   form.append('max_age_days', String(maxAgeDays))
-  const res = await fetch(`${BASE}/validate/upload`, { method: 'POST', body: form })
+  const res = await apiFetch(`${BASE}/validate/upload`, { method: 'POST', body: form })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
+// ---------------------------------------------------------------------------
+// History
+// ---------------------------------------------------------------------------
+
 export async function getHistory(skip = 0, limit = 50) {
-  const res = await fetch(`${BASE}/history/?skip=${skip}&limit=${limit}`)
+  const res = await apiFetch(`${BASE}/history/?skip=${skip}&limit=${limit}`)
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
 export async function getRun(id) {
-  const res = await fetch(`${BASE}/history/${id}`)
+  const res = await apiFetch(`${BASE}/history/${id}`)
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
 export async function getStats() {
-  const res = await fetch(`${BASE}/history/stats/summary`)
+  const res = await apiFetch(`${BASE}/history/stats/summary`)
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
+// ---------------------------------------------------------------------------
+// Export
+// ---------------------------------------------------------------------------
+
 export function exportUrl(runId, format) {
-  return `${BASE}/export/${runId}/${format}`
+  // Append token as query param for direct browser download links
+  const base = `${BASE}/export/${runId}/${format}`
+  return _token ? `${base}?token=${_token}` : base
 }
 
 /**
  * Genereert een Rhadix Actieplan PDF en triggert een browser-download.
- * @param {Array}       items        — actieplan items (title, color, desc, acties, estimate)
- * @param {number|null} runId        — optioneel: run_id voor scandatum + Rhadix Index
- * @param {string|null} organisation — optionele organisatienaam voor de header
  */
 export async function exportActieplan(items, runId = null, organisation = null) {
-  const res = await fetch(`${BASE}/export/actieplan`, {
+  const res = await apiFetch(`${BASE}/export/actieplan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items, run_id: runId, organisation }),
@@ -57,40 +117,32 @@ export async function exportActieplan(items, runId = null, organisation = null) 
   URL.revokeObjectURL(url)
 }
 
-/**
- * Haalt de volledige validatieregels op vanuit de backend (rules.py).
- * Bevat allowedValues per veld — gebruik dit i.p.v. hardcoded lijsten in de UI.
- */
+// ---------------------------------------------------------------------------
+// Reference
+// ---------------------------------------------------------------------------
+
 export async function getRules() {
-  const res = await fetch(`${BASE}/reference/rules`)
+  const res = await apiFetch(`${BASE}/reference/rules`)
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
-/**
- * Haalt het Beschikbaarheidsrapport (JSON) op voor een scan.
- * @param {number} runId            — scan run_id
- * @param {string} organizationName — optionele organisatienaam
- * @param {string} systems          — komma-gescheiden bronsystemen
- */
+// ---------------------------------------------------------------------------
+// Reports (JSON)
+// ---------------------------------------------------------------------------
+
 export async function getBeschikbaarheidsRapport(runId, organizationName = 'Zorginstelling', systems = '') {
   const params = new URLSearchParams({ organization_name: organizationName })
   if (systems) params.set('systems', systems)
-  const res = await fetch(`${BASE}/reports/${runId}/beschikbaarheid?${params}`)
+  const res = await apiFetch(`${BASE}/reports/${runId}/beschikbaarheid?${params}`)
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
-/**
- * Genereert het Beschikbaarheidsrapport als PDF en triggert een browser-download.
- * @param {number} runId            — scan run_id
- * @param {string} organizationName — optionele organisatienaam
- * @param {string} systems          — komma-gescheiden bronsystemen
- */
 export async function exportBeschikbaarheidsRapportPdf(runId, organizationName = 'Zorginstelling', systems = '') {
   const params = new URLSearchParams({ organization_name: organizationName })
   if (systems) params.set('systems', systems)
-  const res = await fetch(`${BASE}/reports/${runId}/beschikbaarheid/pdf?${params}`)
+  const res = await apiFetch(`${BASE}/reports/${runId}/beschikbaarheid/pdf?${params}`)
   if (!res.ok) throw new Error(await res.text())
   const blob = await res.blob()
   const url  = URL.createObjectURL(blob)
@@ -103,44 +155,26 @@ export async function exportBeschikbaarheidsRapportPdf(runId, organizationName =
   URL.revokeObjectURL(url)
 }
 
-/**
- * Haalt het KIK-V Readiness rapport (JSON) op voor een scan.
- * @param {number} runId            — scan run_id
- * @param {string} organizationName — optionele organisatienaam
- * @param {string} systems          — komma-gescheiden bronsystemen
- */
 export async function getKikvReadinessRapport(runId, organizationName = 'Zorginstelling', systems = '') {
   const params = new URLSearchParams({ organization_name: organizationName })
   if (systems) params.set('systems', systems)
-  const res = await fetch(`${BASE}/reports/${runId}/kikv_readiness?${params}`)
+  const res = await apiFetch(`${BASE}/reports/${runId}/kikv_readiness?${params}`)
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
-/**
- * Haalt het Gecombineerd Managementrapport (JSON) op voor een scan.
- * @param {number} runId            — scan run_id
- * @param {string} organizationName — optionele organisatienaam
- * @param {string} systems          — komma-gescheiden bronsystemen
- */
 export async function getManagementRapport(runId, organizationName = 'Zorginstelling', systems = '') {
   const params = new URLSearchParams({ organization_name: organizationName })
   if (systems) params.set('systems', systems)
-  const res = await fetch(`${BASE}/reports/${runId}/management?${params}`)
+  const res = await apiFetch(`${BASE}/reports/${runId}/management?${params}`)
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
-/**
- * Genereert het Gecombineerd Managementrapport als PDF en triggert een browser-download.
- * @param {number} runId            — scan run_id
- * @param {string} organizationName — optionele organisatienaam
- * @param {string} systems          — komma-gescheiden bronsystemen
- */
 export async function exportManagementRapportPdf(runId, organizationName = 'Zorginstelling', systems = '') {
   const params = new URLSearchParams({ organization_name: organizationName })
   if (systems) params.set('systems', systems)
-  const res = await fetch(`${BASE}/reports/${runId}/management/pdf?${params}`)
+  const res = await apiFetch(`${BASE}/reports/${runId}/management/pdf?${params}`)
   if (!res.ok) throw new Error(await res.text())
   const blob = await res.blob()
   const url  = URL.createObjectURL(blob)
@@ -153,16 +187,10 @@ export async function exportManagementRapportPdf(runId, organizationName = 'Zorg
   URL.revokeObjectURL(url)
 }
 
-/**
- * Genereert het KIK-V Readiness rapport als PDF en triggert een browser-download.
- * @param {number} runId            — scan run_id
- * @param {string} organizationName — optionele organisatienaam
- * @param {string} systems          — komma-gescheiden bronsystemen
- */
 export async function exportKikvReadinessRapportPdf(runId, organizationName = 'Zorginstelling', systems = '') {
   const params = new URLSearchParams({ organization_name: organizationName })
   if (systems) params.set('systems', systems)
-  const res = await fetch(`${BASE}/reports/${runId}/kikv_readiness/pdf?${params}`)
+  const res = await apiFetch(`${BASE}/reports/${runId}/kikv_readiness/pdf?${params}`)
   if (!res.ok) throw new Error(await res.text())
   const blob = await res.blob()
   const url  = URL.createObjectURL(blob)
@@ -173,4 +201,168 @@ export async function exportKikvReadinessRapportPdf(runId, organizationName = 'Z
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+// ---------------------------------------------------------------------------
+// Admin (RHADIX_ADMIN only)
+// ---------------------------------------------------------------------------
+
+export async function getAdminStats() {
+  const res = await apiFetch(`${BASE}/admin/stats`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function getAdminTenants() {
+  const res = await apiFetch(`${BASE}/admin/tenants/`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function createAdminTenant(data) {
+  const res = await apiFetch(`${BASE}/admin/tenants/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function getAdminTenantUsers(tenantId) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/users`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+// ---------------------------------------------------------------------------
+// Applications (RHADIX_ADMIN)
+// ---------------------------------------------------------------------------
+
+export async function getAdminApplications() {
+  const res = await apiFetch(`${BASE}/admin/applications/`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function createAdminApplication(data) {
+  const res = await apiFetch(`${BASE}/admin/applications/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function updateAdminApplication(appId, data) {
+  const res = await apiFetch(`${BASE}/admin/applications/${appId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+// ---------------------------------------------------------------------------
+// Licenses (RHADIX_ADMIN)
+// ---------------------------------------------------------------------------
+
+export async function getAdminLicenses() {
+  const res = await apiFetch(`${BASE}/admin/licenses/`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function getAdminTenantLicenses(tenantId) {
+  const res = await apiFetch(`${BASE}/admin/licenses/tenant/${tenantId}`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function createAdminLicense(data) {
+  const res = await apiFetch(`${BASE}/admin/licenses/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function updateAdminLicense(licenseId, data) {
+  const res = await apiFetch(`${BASE}/admin/licenses/${licenseId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+// ---------------------------------------------------------------------------
+// Tenant ↔ Application assignments (RHADIX_ADMIN)
+// ---------------------------------------------------------------------------
+
+export async function getAdminTenantApps(tenantId) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/applications`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function assignAppToTenant(tenantId, data) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/applications`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function revokeAppFromTenant(tenantId, appId) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/applications/${appId}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+// ---------------------------------------------------------------------------
+// Org admin — user-app assignments (ORG_ADMIN)
+// ---------------------------------------------------------------------------
+
+export async function getMyTenantApps() {
+  const res = await apiFetch(`${BASE}/org/me/apps`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function getOrgUsers() {
+  const res = await apiFetch(`${BASE}/org/users`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function getUserApps(userId) {
+  const res = await apiFetch(`${BASE}/org/users/${userId}/apps`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function assignAppToUser(userId, applicationId) {
+  const res = await apiFetch(`${BASE}/org/users/${userId}/apps`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: userId, application_id: applicationId }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function revokeAppFromUser(userId, appId) {
+  const res = await apiFetch(`${BASE}/org/users/${userId}/apps/${appId}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error(await res.text())
 }

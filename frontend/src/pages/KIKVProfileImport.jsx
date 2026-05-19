@@ -1,11 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
+import { getAuthToken } from "../services/api";
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
+function authHeaders(extra = {}) {
+  const token = getAuthToken()
+  return token ? { Authorization: `Bearer ${token}`, ...extra } : extra
+}
+
 async function apiGet(path) {
-  const r = await fetch(`${API}${path}`);
+  const r = await fetch(`${API}${path}`, { headers: authHeaders() });
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
   return r.json();
 }
@@ -13,7 +19,7 @@ async function apiGet(path) {
 async function apiPost(path, body) {
   const r = await fetch(`${API}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
@@ -21,7 +27,7 @@ async function apiPost(path, body) {
 }
 
 async function apiDelete(path) {
-  const r = await fetch(`${API}${path}`, { method: "DELETE" });
+  const r = await fetch(`${API}${path}`, { method: "DELETE", headers: authHeaders() });
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
   return r.json();
 }

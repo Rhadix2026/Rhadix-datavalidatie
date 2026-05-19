@@ -33,7 +33,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import get_current_user
 from app.database import get_db
+from app.models.auth_models import User, UserRole
 from app.models.models import ValidationRun
 from app.models.report_models import (
     AvailabilityStatus,
@@ -62,8 +64,12 @@ router = APIRouter()
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
-def _get_run(run_id: int, db: Session) -> ValidationRun:
-    run = db.query(ValidationRun).filter(ValidationRun.id == run_id).first()
+def _get_run(run_id: int, db: Session, user: User) -> ValidationRun:
+    """Fetch a run, applying tenant isolation unless the caller is RHADIX_ADMIN."""
+    q = db.query(ValidationRun).filter(ValidationRun.id == run_id)
+    if user.role != UserRole.RHADIX_ADMIN:
+        q = q.filter(ValidationRun.tenant_id == user.tenant_id)
+    run = q.first()
     if not run:
         raise HTTPException(status_code=404, detail=f"Scan {run_id} niet gevonden.")
     if run.status != "completed":
@@ -105,8 +111,12 @@ def _streaming_pdf(pdf_bytes: bytes, filename: str) -> StreamingResponse:
 # ─── Types endpoint ───────────────────────────────────────────────────────────
 
 @router.get("/{run_id}/types")
-def get_available_report_types(run_id: int, db: Session = Depends(get_db)) -> dict:
-    run     = _get_run(run_id, db)
+def get_available_report_types(
+    run_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    run     = _get_run(run_id, db, current_user)
     results = run.results or {}
     has_data = any(fr.get("issues") for fr in results.get("file_results", []))
     return {
@@ -934,8 +944,9 @@ def get_beschikbaarheidsrapport(
     organization_name: str = Query(default="Zorginstelling"),
     systems:           str | None = Query(default=None),
     db:                Session = Depends(get_db),
+    current_user:      User = Depends(get_current_user),
 ) -> BeschikbaarheidsReport:
-    run = _get_run(run_id, db)
+    run = _get_run(run_id, db, current_user)
     return build_report(run, "beschikbaarheid", organization_name, _parse_systems(systems))
 
 
@@ -945,8 +956,9 @@ def get_kikv_readiness_rapport(
     organization_name: str = Query(default="Zorginstelling"),
     systems:           str | None = Query(default=None),
     db:                Session = Depends(get_db),
+    current_user:      User = Depends(get_current_user),
 ) -> KikvReadinessReport:
-    run = _get_run(run_id, db)
+    run = _get_run(run_id, db, current_user)
     _require_stap2_data(run)
     return build_report(run, "kikv_readiness", organization_name, _parse_systems(systems))
 
@@ -957,8 +969,9 @@ def get_management_rapport(
     organization_name: str = Query(default="Zorginstelling"),
     systems:           str | None = Query(default=None),
     db:                Session = Depends(get_db),
+    current_user:      User = Depends(get_current_user),
 ) -> ManagementReport:
-    run = _get_run(run_id, db)
+    run = _get_run(run_id, db, current_user)
     _require_stap2_data(run)
     return build_report(run, "management", organization_name, _parse_systems(systems))
 
@@ -973,12 +986,13 @@ def export_beschikbaarheidsrapport_pdf(
     organization_name: str = Query(default="Zorginstelling"),
     systems:           str | None = Query(default=None),
     db:                Session = Depends(get_db),
+    current_user:      User = Depends(get_current_user),
 ):
     """
     Rhadix Beschikbaarheidsrapport als PDF (Stap 1).
     Bevat: scoretabel, per-veld tabel per schema, conclusie en vervolgstappen.
     """
-    run = _get_run(run_id, db)
+    run = _get_run(run_id, db, current_user)
     if not _RL_AVAILABLE():
         raise HTTPException(500, "reportlab niet geïnstalleerd")
 
@@ -999,12 +1013,13 @@ def export_kikv_readiness_pdf(
     organization_name: str = Query(default="Zorginstelling"),
     systems:           str | None = Query(default=None),
     db:                Session = Depends(get_db),
+    current_user:      User = Depends(get_current_user),
 ):
     """
     Rhadix KIK-V Readiness rapport als PDF (Stap 2).
     Bevat transparante scoreverantwoording: elke score is herleidbaar.
     """
-    run = _get_run(run_id, db)
+    run = _get_run(run_id, db, current_user)
     _require_stap2_data(run)
     if not _RL_AVAILABLE():
         raise HTTPException(500, "reportlab niet geïnstalleerd")
@@ -1026,12 +1041,13 @@ def export_management_pdf(
     organization_name: str = Query(default="Zorginstelling"),
     systems:           str | None = Query(default=None),
     db:                Session = Depends(get_db),
+    current_user:      User = Depends(get_current_user),
 ):
     """
     Rhadix Gecombineerd Managementrapport als PDF (Stap 1 + 2).
     Geschikt voor bestuur, management en projectleiding.
     """
-    run = _get_run(run_id, db)
+    run = _get_run(run_id, db, current_user)
     _require_stap2_data(run)
     if not _RL_AVAILABLE():
         raise HTTPException(500, "reportlab niet geïnstalleerd")

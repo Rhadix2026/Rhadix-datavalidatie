@@ -1,0 +1,130 @@
+name: Rollback — Staging
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Handmatig terug te draaien naar een eerdere image-tag op staging.
+# Triggert NOOIT automatisch. Altijd handmatig via GitHub Actions UI.
+# Raakt productie NOOIT aan.
+#
+# Gebruik:
+#   GitHub → Actions → Rollback — Staging → Run workflow
+#   Voer de gewenste image-tag in (bijv. v1.4.21 of staging-backup)
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image-tag om naar terug te rollen (bijv. v1.4.21)"
+        required: true
+        type: string
+      reason:
+        description: "Reden voor rollback (wordt gelogd)"
+        required: false
+        type: string
+        default: "Handmatige rollback"
+
+jobs:
+  rollback:
+    name: Rollback staging naar ${{ inputs.image_tag }}
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout (voor docker-compose.staging.yml)
+        uses: actions/checkout@v4
+
+      - name: Log rollback-actie
+        run: |
+          echo "════════════════════════════════════════"
+          echo "  ROLLBACK STAGING"
+          echo "  Tag:    ${{ inputs.image_tag }}"
+          echo "  Reden:  ${{ inputs.reason }}"
+          echo "  Door:   ${{ github.actor }}"
+          echo "  Tijd:   $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "════════════════════════════════════════"
+
+      - name: Controleer of image bestaat op GHCR
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          echo "Controleer ghcr.io/rhadix2026/rhadix-backend:$TAG ..."
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          if docker manifest inspect ghcr.io/rhadix2026/rhadix-backend:$TAG > /dev/null 2>&1; then
+            echo "✓ Image tag '$TAG' gevonden op GHCR"
+          else
+            echo "✗ Image tag '$TAG' NIET gevonden op GHCR"
+            echo "  Controleer beschikbare tags op:"
+            echo "  https://github.com/orgs/rhadix2026/packages/container/rhadix-backend/versions"
+            exit 1
+          fi
+
+      - name: Kopieer docker-compose naar server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host:     ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key:      ${{ secrets.STAGING_SSH_KEY }}
+          source:   docker-compose.staging.yml
+          target:   /opt/rhadix-app/
+
+      - name: Voer rollback uit op server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key:      ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -e
+            TAG="${{ inputs.image_tag }}"
+
+            echo "Rollback staging naar tag: $TAG"
+
+            # Voeg STAGING_IMAGE_TAG toe aan de env-file
+            # (verwijder eventuele vorige waarde en schrijf nieuwe)
+            sed -i '/^STAGING_IMAGE_TAG=/d' /opt/rhadix-app/.env.staging
+            echo "STAGING_IMAGE_TAG=$TAG" >> /opt/rhadix-app/.env.staging
+
+            # Login bij GHCR
+            echo "${{ secrets.GITHUB_TOKEN }}" | \
+              docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull de specifieke tag
+            docker compose \
+              -f /opt/rhadix-app/docker-compose.staging.yml \
+              --env-file /opt/rhadix-app/.env.staging \
+              pull
+
+            # Herstart met de gerollbakte versie
+            docker compose \
+              -f /opt/rhadix-app/docker-compose.staging.yml \
+              --env-file /opt/rhadix-app/.env.staging \
+              up -d --remove-orphans
+
+            echo "✓ Rollback uitgevoerd naar $TAG"
+            docker compose \
+              -f /opt/rhadix-app/docker-compose.staging.yml \
+              --env-file /opt/rhadix-app/.env.staging \
+              ps
+
+      - name: Health check na rollback
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key:      ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -e
+            echo "Health check na rollback..."
+            for i in $(seq 1 18); do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+                http://localhost:8011/api/health || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "✓ Staging bereikbaar na rollback (HTTP $STATUS)"
+                exit 0
+              fi
+              echo "  Poging $i/18 — HTTP $STATUS — wacht 5s..."
+              sleep 5
+            done
+            echo "✗ Health check mislukt na rollback — container logs:"
+            docker logs rhadix-staging-backend --tail 30 || true
+            exit 1

@@ -6,7 +6,9 @@ import re
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from app.auth.dependencies import get_optional_user, require_app_access
 from app.database import get_db
+from app.models.auth_models import Application, TenantApplication, User, UserApplication
 from app.models.models import ValidationRun
 from app.services.validator import validate_files, detect_schema, auto_map, KIKV_REFERENCE
 from app.services.concept_validator import validate_concept_mapping
@@ -21,6 +23,38 @@ from app.services.sparql_validator import validate_use_cases
 router = APIRouter()
 
 MAX_ROWS = 2000  # cap per bestand om timeouts te voorkomen
+
+# Mapping from 'standard' form-param to Application slug
+_STANDARD_TO_APP_SLUG = {
+    "kikv":     "kikv-validator",
+    "zib":      "zib-validator",
+    "algemeen": "algemeen-validator",
+}
+
+
+def _resolve_app_and_license(standard: str, user, db):
+    """
+    Return (application_id, license_id) for the given standard and user.
+    Both are None for anonymous (demo) users.
+    """
+    if not user:
+        return None, None
+    slug = _STANDARD_TO_APP_SLUG.get(standard)
+    if not slug:
+        return None, None
+    from sqlalchemy.orm import Session
+    app = db.query(Application).filter(Application.slug == slug, Application.is_active == True).first()
+    if not app:
+        return None, None
+    # Find the UserApplication → TenantApplication → License chain
+    ua = db.query(UserApplication).filter(
+        UserApplication.user_id == user.id,
+        UserApplication.application_id == app.id,
+    ).first()
+    if not ua:
+        return app.id, None
+    ta = ua.tenant_application
+    return app.id, (ta.license_id if ta else None)
 
 
 def parse_csv_bytes(content: bytes, filename: str, max_rows: int = MAX_ROWS) -> tuple[list, list]:
@@ -104,15 +138,38 @@ def parse_upload(content: bytes, filename: str, ext: str) -> tuple[list, list]:
 async def upload_and_validate(
     files: List[UploadFile] = File(...),
     label: Optional[str] = Form(None),
-    standard: Optional[str] = Form("kikv"),   # "kikv" | "zib"
+    standard: Optional[str] = Form("kikv"),   # "kikv" | "zib" | "algemeen"
     max_age_days: Optional[int] = Form(30),   # drempel voor actualiteitscheck
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     """
     Upload bestanden en valideer tegen KIK-V (standard='kikv') of ZIB's (standard='zib').
     Voegt altijd 'actuality' toe aan de response.
     """
     standard = (standard or "kikv").lower().strip()
+
+    # ── Phase 2 app-level access check ──────────────────────────────────────
+    # Authenticated users must have the relevant application assigned.
+    # Anonymous (demo) users bypass this check.
+    if current_user is not None:
+        from app.auth.dependencies import require_app_access as _rac
+        from app.models.auth_models import UserApplication, Application as _App
+        from fastapi import HTTPException as _HTTPEx
+        slug = _STANDARD_TO_APP_SLUG.get(standard)
+        if slug:
+            _app = db.query(_App).filter(_App.slug == slug, _App.is_active == True).first()
+            from app.models.auth_models import UserRole
+            if _app and current_user.role != UserRole.RHADIX_ADMIN:
+                _ua = db.query(UserApplication).filter(
+                    UserApplication.user_id == current_user.id,
+                    UserApplication.application_id == _app.id,
+                ).first()
+                if not _ua:
+                    raise _HTTPEx(
+                        status_code=403,
+                        detail=f"U heeft geen toegang tot '{_app.name}'. Neem contact op met uw organisatiebeheerder.",
+                    )
 
     parsed = []
     for upload in files:
@@ -147,6 +204,7 @@ async def upload_and_validate(
         run_id = None
         created_at = None
         try:
+            _app_id, _lic_id = _resolve_app_and_license("algemeen", current_user, db)
             run = ValidationRun(
                 label=label or f"Algemeen-scan {len(parsed)} bestand{'en' if len(parsed) > 1 else ''}",
                 files=[{"filename": p["filename"], "schema_key": "algemeen", "rows": len(p["rows"])} for p in parsed],
@@ -155,6 +213,10 @@ async def upload_and_validate(
                 error_count=result["summary"]["error_count"],
                 warn_count=result["summary"]["warn_count"],
                 standard="algemeen",
+                tenant_id=current_user.tenant_id if current_user else None,
+                created_by=current_user.id if current_user else None,
+                application_id=_app_id,
+                license_id=_lic_id,
             )
             db.add(run); db.commit(); db.refresh(run)
             run_id = run.id
@@ -180,6 +242,7 @@ async def upload_and_validate(
         run_id = None
         created_at = None
         try:
+            _app_id, _lic_id = _resolve_app_and_license("zib", current_user, db)
             run = ValidationRun(
                 label=label or f"ZIB-scan {len(parsed)} bestand{'en' if len(parsed) > 1 else ''}",
                 files=files_summary,
@@ -195,6 +258,11 @@ async def upload_and_validate(
                 ),
                 score=result["score"],
                 status="completed",
+                standard="zib",
+                tenant_id=current_user.tenant_id if current_user else None,
+                created_by=current_user.id if current_user else None,
+                application_id=_app_id,
+                license_id=_lic_id,
             )
             db.add(run)
             db.commit()
@@ -247,6 +315,7 @@ async def upload_and_validate(
     run_id = None
     created_at = None
     try:
+        _app_id, _lic_id = _resolve_app_and_license("kikv", current_user, db)
         run = ValidationRun(
             label=label or f"Validatie {len(files)} bestand{'en' if len(files) > 1 else ''}",
             files=result["files_summary"],
@@ -256,6 +325,11 @@ async def upload_and_validate(
             warn_count=result["total_warns"],
             score=result["score"],
             status="completed",
+            standard="kikv",
+            tenant_id=current_user.tenant_id if current_user else None,
+            created_by=current_user.id if current_user else None,
+            application_id=_app_id,
+            license_id=_lic_id,
         )
         db.add(run)
         db.commit()

@@ -1,5 +1,5 @@
 // ─── Nav ──────────────────────────────────────────────────────────────────────
-export function Nav({ right }) {
+export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin }) {
   return (
     <header style={{
       background: 'var(--blue-hero)', borderBottom: '1px solid rgba(255,255,255,.08)',
@@ -23,8 +23,48 @@ export function Nav({ right }) {
           fontWeight: 800, fontSize: 20, color: '#fff', letterSpacing: '3px',
         }}>RHADIX</span>
       </a>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         {right}
+        {authUser && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {authUser.role === 'RHADIX_ADMIN' && onAdmin && (
+              <button onClick={onAdmin} style={{
+                background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
+                borderRadius: 'var(--radius)', padding: '5px 12px',
+                color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'var(--font)', letterSpacing: '.03em',
+              }}>Admin</button>
+            )}
+            {authUser.role === 'ORG_ADMIN' && onOrgAdmin && (
+              <button onClick={onOrgAdmin} style={{
+                background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
+                borderRadius: 'var(--radius)', padding: '5px 12px',
+                color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'var(--font)', letterSpacing: '.03em',
+              }}>Beheer</button>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: '50%',
+                background: 'rgba(255,255,255,.15)', border: '1.5px solid rgba(255,255,255,.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, fontWeight: 700, color: '#fff',
+              }}>
+                {(authUser.full_name || authUser.email || '?')[0].toUpperCase()}
+              </div>
+              <span style={{ fontSize: 13, color: 'rgba(255,255,255,.8)', fontWeight: 500, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {authUser.full_name || authUser.email}
+              </span>
+            </div>
+            {onLogout && (
+              <button onClick={onLogout} style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'rgba(255,255,255,.6)', fontSize: 13, fontFamily: 'var(--font)',
+                padding: '4px 0',
+              }}>Uitloggen</button>
+            )}
+          </div>
+        )}
       </div>
     </header>
   )

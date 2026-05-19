@@ -11,3 +11,7 @@ requests>=2.31.0
 httpx>=0.27.0
 pandas>=2.2.0
 pyyaml>=6.0
+# Auth & migrations
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+alembic==1.13.1

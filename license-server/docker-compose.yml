@@ -1,0 +1,16 @@
+services:
+  license-server:
+    build: .
+    container_name: rhadix-license
+    restart: unless-stopped
+    environment:
+      LICENSE_DB: /data/licenses.db
+      ADMIN_KEY:  ${ADMIN_KEY:?Stel ADMIN_KEY in in .env}
+    volumes:
+      - license_data:/data
+    ports:
+      - "127.0.0.1:8100:8000"   # alleen bereikbaar via Nginx, niet direct
+
+volumes:
+  license_data:
+    name: rhadix_license_data

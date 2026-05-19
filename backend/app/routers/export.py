@@ -5,18 +5,32 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from app.auth.dependencies import get_current_user
 from app.database import get_db
+from app.models.auth_models import User, UserRole
 from app.models.models import ValidationRun
+
+
+def _get_run_for_user(run_id: int, db: Session, user: User) -> ValidationRun:
+    q = db.query(ValidationRun).filter(ValidationRun.id == run_id)
+    if user.role != UserRole.RHADIX_ADMIN:
+        q = q.filter(ValidationRun.tenant_id == user.tenant_id)
+    run = q.first()
+    if not run:
+        raise HTTPException(404, "Run not found")
+    return run
 
 router = APIRouter()
 
 SEV_LABEL = {"error": "Fout", "warning": "Waarschuwing", "info": "Info"}
 
 @router.get("/{run_id}/excel")
-def export_excel(run_id: int, db: Session = Depends(get_db)):
-    run = db.query(ValidationRun).filter(ValidationRun.id == run_id).first()
-    if not run:
-        raise HTTPException(404, "Run not found")
+def export_excel(
+    run_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    run = _get_run_for_user(run_id, db, current_user)
 
     try:
         import openpyxl
@@ -147,10 +161,12 @@ def export_excel(run_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{run_id}/pdf")
-def export_pdf(run_id: int, db: Session = Depends(get_db)):
-    run = db.query(ValidationRun).filter(ValidationRun.id == run_id).first()
-    if not run:
-        raise HTTPException(404, "Run not found")
+def export_pdf(
+    run_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    run = _get_run_for_user(run_id, db, current_user)
 
     try:
         from reportlab.lib import colors
@@ -306,7 +322,11 @@ def _format_time(minutes: int) -> str:
 
 
 @router.post("/actieplan")
-def export_actieplan(req: ActieplanExportRequest, db: Session = Depends(get_db)):
+def export_actieplan(
+    req: ActieplanExportRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4

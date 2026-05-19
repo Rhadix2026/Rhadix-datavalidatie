@@ -100,8 +100,10 @@ class CalculationEngine:
         if df.empty:
             return 0
         fn, col = agg.function, agg.field
-        if fn == "count":   return int(len(df) if col is None else df[col].count())
+        if fn == "count":   return int(len(df) if col is None else df[col].count() if col in df.columns else 0)
         if col is None:     raise ValueError(f"Aggregatiefunctie '{fn}' vereist een 'field'.")
+        if col not in df.columns:
+            return None  # kolom ontbreekt in bronbestand — geen fout, wel Unknown status
         if fn == "sum":     return float(df[col].sum())
         if fn == "mean":    v = df[col].mean();    return round(float(v), 4) if not pd.isna(v) else None
         if fn == "median":  v = df[col].median();  return round(float(v), 4) if not pd.isna(v) else None

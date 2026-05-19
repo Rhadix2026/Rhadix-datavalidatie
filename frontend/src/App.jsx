@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import EnvironmentBanner, { BANNER_HEIGHT } from './components/EnvironmentBanner'
+import { setAuthToken, clearAuthToken, login as apiLogin, getMe } from './services/api'
 import Landing                 from './pages/Landing'
 import SelectSystems           from './pages/SelectSystems'
 import Upload                  from './pages/Upload'
@@ -17,6 +19,9 @@ import KIKVReadinessMatrix    from './pages/KIKVReadinessMatrix'
 import { Advies, Actieplan }   from './pages/Advies'
 import Stap2Resultaat          from './pages/Stap2Resultaat'
 import ReconciliationDashboard from './pages/reconciliation/ReconciliationDashboard'
+import LoginScreen      from './pages/LoginScreen'
+import AdminDashboard   from './pages/AdminDashboard'
+import OrgAdminDashboard from './pages/OrgAdminDashboard'
 
 // ── Workflow ──────────────────────────────────────────────────────────────────
 // landing → systems (keuze standaard + bronsysteem)
@@ -26,7 +31,8 @@ import ReconciliationDashboard from './pages/reconciliation/ReconciliationDashbo
 // standard: 'kikv' | 'zib'  — gekozen in SelectSystems, bewaard tot nieuwe scan
 
 export default function App() {
-  const [step, setStep]                 = useState('landing')
+  const [step, setStep]                 = useState('login')
+  const [authUser, setAuthUser]         = useState(null)   // { id, email, role, tenant_id, tenant_name }
   const [systems, setSystems]           = useState([])
   const [standard, setStandard]         = useState('kikv')
   const [scanKey, setScanKey]           = useState(0)
@@ -47,6 +53,33 @@ export default function App() {
   const [profilesBackStep, setProfilesBackStep]   = useState('landing')
   const [readinessMatrix, setReadinessMatrix]       = useState(null)
   const [readinessProfile, setReadinessProfile]     = useState(null)
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const handleLogin = async (email, password) => {
+    const { access_token } = await apiLogin(email, password)
+    setAuthToken(access_token)
+    const user = await getMe()
+    setAuthUser(user)
+    setStep('landing')
+  }
+
+  const handleLogout = () => {
+    clearAuthToken()
+    setAuthUser(null)
+    setStep('login')
+  }
+
+  // Re-login when token expires mid-session
+  useEffect(() => {
+    const handler = () => handleLogout()
+    window.addEventListener('rhadix:unauthorized', handler)
+    return () => window.removeEventListener('rhadix:unauthorized', handler)
+  }, [])
+
+  // ── Guard: not authenticated ──────────────────────────────────────────────
+  if (!authUser) {
+    return <LoginScreen onLogin={handleLogin} />
+  }
 
   const completeUpload = (result) => {
     setActiveScanResult(result)
@@ -118,26 +151,69 @@ export default function App() {
   const openReadiness = async (filename, profile) => {
     if (!activeScanResult) { alert('Upload eerst een bronbestand om de gereedheidsmatrix te berekenen.'); return }
     try {
-      const API = import.meta.env.VITE_API_URL ?? ''
-      const resp = await fetch(`${API}/api/profiles/${encodeURIComponent(filename)}/readiness`, {
+      const API   = import.meta.env.VITE_API_URL ?? ''
+      const token = (await import('./services/api')).getAuthToken()
+
+      // Stuur alleen de velden die de readiness-analyzer nodig heeft (niet de volledige scan).
+      // Dit voorkomt grote POST-bodies (concept_mapping, all_issues, etc. zijn niet nodig).
+      const payload = {
+        score:             activeScanResult.score,
+        structural_score:  activeScanResult.structural_score,
+        relational_score:  activeScanResult.relational_score,
+        use_case_score:    activeScanResult.use_case_score,
+        files_summary:     (activeScanResult.files_summary || []).map(f => ({
+          schema_key: f.schema_key,
+          field_map:  f.field_map,
+          mapping:    f.mapping,
+          issues:     f.issues,
+        })),
+        relational_fk:     activeScanResult.relational_fk     || [],
+        indicator_results: activeScanResult.indicator_results || [],
+      }
+
+      const resp  = await fetch(`${API}/api/profiles/${encodeURIComponent(filename)}/readiness`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(activeScanResult),
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(payload),
       })
-      if (!resp.ok) throw new Error(await resp.text())
+      if (!resp.ok) {
+        const detail = await resp.text().catch(() => `HTTP ${resp.status}`)
+        throw new Error(`HTTP ${resp.status}: ${detail}`)
+      }
       const matrix = await resp.json()
       setReadinessMatrix(matrix)
       setReadinessProfile(profile?.name || filename)
       setStep('readiness')
     } catch (err) {
+      console.error('[openReadiness]', err)
       alert('Gereedheidsanalyse mislukt: ' + err.message)
     }
   }
 
   return (
     <>
+      <EnvironmentBanner />
+      {/* Verschuif content naar beneden als de banner zichtbaar is */}
+      {BANNER_HEIGHT > 0 && <div style={{ height: BANNER_HEIGHT }} />}
+
       {step === 'landing' && (
-        <Landing onStart={() => setStep('systems')} onProfiles={() => openProfiles('landing')} onReconciliation={() => setStep('reconciliation')} />
+        <Landing
+          onStart={() => setStep('systems')}
+          onProfiles={() => openProfiles('landing')}
+          onReconciliation={() => setStep('reconciliation')}
+          onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
+          onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
+          authUser={authUser}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {step === 'admin' && (
+        <AdminDashboard onBack={() => setStep('landing')} />
+      )}
+
+      {step === 'org_admin' && (
+        <OrgAdminDashboard onBack={() => setStep('landing')} authUser={authUser} />
       )}
 
       {step === 'systems' && (
@@ -149,6 +225,7 @@ export default function App() {
             setStep('upload')
           }}
           onBack={() => setStep('landing')}
+          authUser={authUser}
         />
       )}
 

@@ -1,0 +1,64 @@
+# Rhadix — Staging docker-compose
+# ─────────────────────────────────────────────────────────────────────────────
+# VOLLEDIG GESCHEIDEN van productie:
+#   - Aparte container-namen   (rhadix-staging-*)
+#   - Aparte poorten           (5175 / 8011)
+#   - Aparte database          (kikv_staging op volume rhadix_staging_pgdata)
+#   - Aparte Docker volumes    (rhadix_staging_pgdata)
+#   - Aparte image-tag         (:staging)
+#   - Aparte env-file          (.env.staging op de server)
+#
+# Gebruik op de server:
+#   docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: rhadix-staging-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${STAGING_DB_USER:-kikv_staging}
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:?Stel STAGING_DB_PASSWORD in in .env.staging}
+      POSTGRES_DB:       ${STAGING_DB_NAME:-kikv_staging}
+    volumes:
+      - pgdata_staging:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${STAGING_DB_USER:-kikv_staging} -d ${STAGING_DB_NAME:-kikv_staging}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Geen externe poort — bereikbaar alleen via intern Docker-netwerk
+
+  backend:
+    image: ghcr.io/${GHCR_ORG:-rhadix2026}/rhadix-backend:${STAGING_IMAGE_TAG:-staging}
+    container_name: rhadix-staging-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL:       postgresql://${STAGING_DB_USER:-kikv_staging}:${STAGING_DB_PASSWORD}@rhadix-staging-db:5432/${STAGING_DB_NAME:-kikv_staging}
+      RHADIX_LICENSE_KEY: ${STAGING_LICENSE_KEY:?Licentiesleutel verplicht — zie .env.staging}
+      RHADIX_ENV:         staging
+    volumes:
+      - rhadix_staging_profiles:/app/data/profiles
+    ports:
+      - "${STAGING_BACKEND_PORT:-8011}:8000"
+
+  frontend:
+    image: ghcr.io/${GHCR_ORG:-rhadix2026}/rhadix-frontend:${STAGING_IMAGE_TAG:-staging}
+    container_name: rhadix-staging-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${STAGING_FRONTEND_PORT:-5175}:80"
+
+volumes:
+  pgdata_staging:
+    name: rhadix_staging_pgdata
+    # Let op: ANDERE naam dan productie (rhadix_pgdata) — data is strikt gescheiden
+  rhadix_staging_profiles:
+    name: rhadix_staging_profiles

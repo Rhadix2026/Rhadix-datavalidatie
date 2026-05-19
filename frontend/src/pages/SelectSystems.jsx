@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Nav, NavBack, Page, PageTitle, BtnPrimary } from '../components/UI'
+import { getAuthToken } from '../services/api'
+
+function authFetch(url, opts = {}) {
+  const token = getAuthToken()
+  return fetch(url, { ...opts, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(opts.headers || {}) } })
+}
 
 // ── HRM-systemen (KIK-V) ──────────────────────────────────────────────────────
 const KIKV_SYSTEMS = [
@@ -91,8 +97,15 @@ function SystemRow({ s, selected, onToggle, last }) {
   )
 }
 
+// Slug per standard — must match the slugs seeded in the DB
+const STANDARD_SLUGS = {
+  kikv:     'kikv-validator',
+  zib:      'zib-validator',
+  algemeen: 'algemeen-validator',
+}
+
 // ── Hoofdcomponent ─────────────────────────────────────────────────────────────
-export default function SelectSystems({ onNext, onBack, onOpenLibrary }) {
+export default function SelectSystems({ onNext, onBack, onOpenLibrary, authUser }) {
   const [step, setStep]                   = useState('standard')   // 'standard' | 'systems' | 'profile'
   const [standard, setStandard]           = useState(null)
   const [selected, setSelected]           = useState([])
@@ -103,7 +116,20 @@ export default function SelectSystems({ onNext, onBack, onOpenLibrary }) {
 
   const toggle = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
+  // Check app access — returns true when user has the app or is unauthenticated (demo)
+  const hasAppAccess = (standardId) => {
+    if (!authUser) return true   // demo / public flow
+    const slug = STANDARD_SLUGS[standardId]
+    if (!slug) return true
+    // RHADIX_ADMIN always has access (their assigned_app_slugs contains all apps)
+    return (authUser.assigned_app_slugs || []).includes(slug)
+  }
+
   const chooseStandard = (std) => {
+    if (!hasAppAccess(std)) {
+      alert(`U heeft geen toegang tot deze module. Neem contact op met uw organisatiebeheerder.`)
+      return
+    }
     setStandard(std)
     setSelected([])
     // Algemeen: geen bronsysteem nodig — direct door naar upload
@@ -122,7 +148,7 @@ export default function SelectSystems({ onNext, onBack, onOpenLibrary }) {
 
   function loadProfiles() {
     setProfilesLoading(true)
-    fetch('/api/profiles/')
+    authFetch('/api/profiles/')
       .then(r => r.ok ? r.json() : [])
       .then(data => { setSavedProfiles(data); setProfilesLoading(false) })
       .catch(() => setProfilesLoading(false))
@@ -131,7 +157,7 @@ export default function SelectSystems({ onNext, onBack, onOpenLibrary }) {
   function handleDelete(filename) {
     if (!window.confirm(`Profiel "${filename}" verwijderen?`)) return
     setDeletingFile(filename)
-    fetch(`/api/profiles/${encodeURIComponent(filename)}`, { method: 'DELETE' })
+    authFetch(`/api/profiles/${encodeURIComponent(filename)}`, { method: 'DELETE' })
       .then(() => {
         if (selectedProfile?.filename === filename) setSelectedProfile(null)
         loadProfiles()
@@ -154,27 +180,29 @@ export default function SelectSystems({ onNext, onBack, onOpenLibrary }) {
           />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32 }}>
-            {STANDARDS.map(std => (
+            {STANDARDS.map(std => {
+              const locked = !hasAppAccess(std.id)
+              return (
               <div
                 key={std.id}
                 onClick={() => chooseStandard(std.id)}
                 style={{
-                  background: '#fff', borderRadius: 'var(--radius-xl)',
-                  border: `2px solid var(--border)`, padding: '28px 24px',
-                  cursor: 'pointer', transition: 'all .15s',
+                  background: locked ? '#f8fafc' : '#fff', borderRadius: 'var(--radius-xl)',
+                  border: `2px solid ${locked ? '#e2e8f0' : 'var(--border)'}`, padding: '28px 24px',
+                  cursor: locked ? 'not-allowed' : 'pointer', transition: 'all .15s',
+                  opacity: locked ? 0.7 : 1,
+                  position: 'relative',
                 }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = std.color
-                  e.currentTarget.style.background = std.bg
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'var(--border)'
-                  e.currentTarget.style.background = '#fff'
-                }}
+                onMouseEnter={e => { if (!locked) { e.currentTarget.style.borderColor = std.color; e.currentTarget.style.background = std.bg } }}
+                onMouseLeave={e => { if (!locked) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = '#fff' } }}
               >
+                {locked && (
+                  <div style={{ position: 'absolute', top: 14, right: 16, fontSize: 16, opacity: 0.5 }} title="Geen toegang">🔒</div>
+                )}
                 <div style={{ fontSize: 36, marginBottom: 12 }}>{std.icon}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 22, fontWeight: 800, color: std.color, letterSpacing: '-0.02em' }}>{std.label}</span>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: locked ? 'var(--text3)' : std.color, letterSpacing: '-0.02em' }}>{std.label}</span>
+                  {locked && <span style={{ fontSize: 11, background: '#fee2e2', color: '#dc2626', borderRadius: 10, padding: '2px 8px', fontWeight: 700 }}>Geen toegang</span>}
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text3)', marginBottom: 10 }}>{std.fullLabel}</div>
                 <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 14 }}>{std.description}</div>
@@ -187,7 +215,7 @@ export default function SelectSystems({ onNext, onBack, onOpenLibrary }) {
                   {std.systems} →
                 </div>
               </div>
-            ))}
+            )})}
           </div>
 
         </Page>

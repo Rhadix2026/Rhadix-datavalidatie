@@ -170,6 +170,27 @@ export default function LoginScreen({ onLogin }) {
           <p style={{ fontSize: 14, color: 'var(--text3)' }}>Voer uw e-mailadres en wachtwoord in.</p>
         </div>
 
+        {/* ── Demo-inloggegevens ── */}
+        <div style={{
+          background: '#f0fdf4', border: '1px solid #bbf7d0',
+          borderRadius: 'var(--radius)', padding: '12px 14px',
+          marginBottom: 20, fontSize: 13,
+        }}>
+          <div style={{ fontWeight: 700, color: '#15803d', marginBottom: 6 }}>
+            🎯 Demo toegang
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#166534' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>E-mail: <code style={{ fontFamily: 'monospace', fontWeight: 600 }}>demo1@rhadix.nl</code></span>
+              <button type="button" onClick={() => { setEmail('demo1@rhadix.nl'); setPassword('Demogebruiker1!') }} style={{
+                fontSize: 11, background: '#15803d', color: '#fff', border: 'none',
+                borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 600,
+              }}>Invullen</button>
+            </div>
+            <div>Wachtwoord: <code style={{ fontFamily: 'monospace', fontWeight: 600 }}>Demogebruiker1!</code></div>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)' }}>E-mailadres</span>

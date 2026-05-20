@@ -120,6 +120,7 @@ jobs:
         with:
           context: ./backend
           push: true
+          no-cache: true
           tags: |
             ${{ env.BACKEND_IMAGE }}:${{ steps.version.outputs.tag }}
             ${{ env.BACKEND_IMAGE }}:latest
@@ -129,6 +130,7 @@ jobs:
         with:
           context: ./frontend
           push: true
+          no-cache: true
           build-args: |
             VITE_API_URL=
             VITE_RHADIX_ENV=production

@@ -197,6 +197,11 @@ export default function App() {
     }
   }
 
+  // Reconciliation Engine is alleen zichtbaar als de gebruiker de app-slug heeft
+  const canReconciliation = !authUser
+    || authUser.role === 'RHADIX_ADMIN'
+    || (authUser.assigned_app_slugs || []).includes('reconciliation-engine')
+
   return (
     <>
       <EnvironmentBanner />
@@ -207,7 +212,7 @@ export default function App() {
         <Landing
           onStart={() => setStep('systems')}
           onProfiles={() => openProfiles('landing')}
-          onReconciliation={() => setStep('reconciliation')}
+          onReconciliation={canReconciliation ? () => setStep('reconciliation') : null}
           onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
           onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
           onDashboard={() => setStep('user_dashboard')}
@@ -291,7 +296,7 @@ export default function App() {
           onActuality={() => openActuality('dashboard')}
           onTraceability={() => openTraceability('dashboard')}
           onProfiles={() => openProfiles('dashboard')}
-          onReconciliation={() => setStep('reconciliation')}
+          onReconciliation={canReconciliation ? () => setStep('reconciliation') : null}
         />
       )}
       {step === 'stap2_resultaat' && (

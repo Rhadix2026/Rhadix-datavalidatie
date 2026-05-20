@@ -7,6 +7,7 @@ import {
   getAdminTenantApps, assignAppToTenant, revokeAppFromTenant,
   getAdminTenantLicenses, getAdminTenantUsers,
   adminToggleUserActive, adminDeleteUser, adminResetUserPassword,
+  adminCreateUser, adminUpdateUser,
 } from '../services/api'
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -234,6 +235,102 @@ function AdminResetPasswordModal({ user, onClose }) {
   )
 }
 
+// ── Admin Create User Modal ───────────────────────────────────────────────────
+function AdminCreateUserModal({ tenant, onClose, onCreated }) {
+  const [form,    setForm]    = useState({ email: '', password: '', full_name: '', role: 'ORG_USER' })
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }
+  const inp     = { padding: '9px 13px', borderRadius: 'var(--radius)', border: '1.5px solid var(--border)', fontSize: 13, fontFamily: 'var(--font)', width: '100%', boxSizing: 'border-box' }
+
+  async function handleSubmit(e) {
+    e.preventDefault(); setError(''); setLoading(true)
+    try {
+      await adminCreateUser(tenant.id, form)
+      onCreated(); onClose()
+    } catch (err) { let m = 'Aanmaken mislukt'; try { m = JSON.parse(err.message)?.detail || m } catch {} setError(m) }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div style={overlay}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '32px 36px', width: 440, maxWidth: '90vw' }}>
+        <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Gebruiker toevoegen</h3>
+        <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 22 }}>Nieuwe gebruiker voor <strong>{tenant.name}</strong></p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {[
+            { k: 'email',     label: 'E-mailadres', type: 'email',    ph: 'gebruiker@org.nl', req: true },
+            { k: 'full_name', label: 'Naam',        type: 'text',     ph: 'Volledige naam',   req: false },
+            { k: 'password',  label: 'Wachtwoord',  type: 'password', ph: 'Min. 8 tekens',    req: true },
+          ].map(f => (
+            <label key={f.k} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>{f.label}</span>
+              <input type={f.type} required={f.req} placeholder={f.ph} value={form[f.k]}
+                onChange={e => setForm(p => ({ ...p, [f.k]: e.target.value }))} style={inp} />
+            </label>
+          ))}
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Rol</span>
+            <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} style={inp}>
+              <option value="ORG_USER">ORG_USER — gebruiker</option>
+              <option value="ORG_ADMIN">ORG_ADMIN — beheerder</option>
+            </select>
+          </label>
+          <ErrBox msg={error} />
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, ...btnGhost }}>Annuleren</button>
+            <button type="submit" disabled={loading} style={{ flex: 2, ...btnPrimary }}>{loading ? 'Aanmaken…' : 'Gebruiker aanmaken'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Admin Edit User Modal ─────────────────────────────────────────────────────
+function AdminEditUserModal({ user, onClose, onSaved }) {
+  const [form,    setForm]    = useState({ full_name: user.full_name || '', role: user.role })
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+  const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }
+  const inp     = { padding: '9px 13px', borderRadius: 'var(--radius)', border: '1.5px solid var(--border)', fontSize: 13, fontFamily: 'var(--font)', width: '100%', boxSizing: 'border-box' }
+
+  async function handleSubmit(e) {
+    e.preventDefault(); setError(''); setLoading(true)
+    try { await adminUpdateUser(user.id, form); onSaved(); onClose() }
+    catch (err) { let m = 'Opslaan mislukt'; try { m = JSON.parse(err.message)?.detail || m } catch {} setError(m) }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div style={overlay}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '32px 36px', width: 420, maxWidth: '90vw' }}>
+        <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Gebruiker bewerken</h3>
+        <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 22 }}>{user.email}</p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Naam</span>
+            <input type="text" placeholder="Volledige naam" value={form.full_name}
+              onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} style={inp} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Rol</span>
+            <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} style={inp}>
+              <option value="ORG_USER">ORG_USER — gebruiker</option>
+              <option value="ORG_ADMIN">ORG_ADMIN — beheerder</option>
+            </select>
+          </label>
+          <ErrBox msg={error} />
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, ...btnGhost }}>Annuleren</button>
+            <button type="submit" disabled={loading} style={{ flex: 2, ...btnPrimary }}>{loading ? 'Opslaan…' : 'Opslaan'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function TabOrganisations({ stats, tenants, applications, onReload }) {
   const [showCreate,     setShowCreate]     = useState(false)
   const [assignTenant,   setAssignTenant]   = useState(null)
@@ -242,6 +339,8 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
   const [tenantLicenses, setTenantLicenses] = useState({})
   const [tenantUsers,    setTenantUsers]    = useState({})
   const [resetUser,      setResetUser]      = useState(null)
+  const [createUserTenant, setCreateUserTenant] = useState(null)
+  const [editUser,         setEditUser]         = useState(null)
 
   async function loadTenantDetails(tid) {
     if (expandedTid === tid) { setExpandedTid(null); return }
@@ -360,7 +459,10 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                         )}
 
                         {/* Users */}
-                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', margin: '4px 0 10px' }}>Gebruikers</div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 0 10px' }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Gebruikers</div>
+                          <button onClick={() => setCreateUserTenant(t)} style={{ ...btnPrimary, padding: '5px 12px', fontSize: 11 }}>+ Gebruiker</button>
+                        </div>
                         {(tenantUsers[t.id] || []).length === 0 ? (
                           <p style={{ fontSize: 13, color: 'var(--text3)', margin: 0 }}>Geen gebruikers.</p>
                         ) : (
@@ -381,9 +483,10 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                                   </td>
                                   <td style={{ padding: '9px 12px', borderBottom: '1px solid var(--border)' }}>
                                     <div style={{ display: 'flex', gap: 5 }}>
-                                      <button onClick={() => setResetUser(u)} style={{ ...btnGhost, padding: '4px 10px', fontSize: 11 }}>🔑 Reset</button>
+                                      <button onClick={() => setEditUser(u)} style={{ ...btnGhost, padding: '4px 10px', fontSize: 11 }}>✏️</button>
+                                      <button onClick={() => setResetUser(u)} style={{ ...btnGhost, padding: '4px 10px', fontSize: 11 }}>🔑</button>
                                       <button onClick={() => handleToggleUser(t.id, u.id)} style={{ ...(u.is_active ? { padding: '4px 10px', background: 'none', color: '#dc2626', border: '1.5px solid #fecaca', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font)' } : { ...btnGhost, padding: '4px 10px', fontSize: 11 }) }}>
-                                        {u.is_active ? 'Deactiveer' : 'Activeer'}
+                                        {u.is_active ? 'Deact.' : 'Activ.'}
                                       </button>
                                       <button onClick={() => handleDeleteUser(t.id, u.id)} style={{ padding: '4px 8px', background: 'none', color: '#dc2626', border: '1.5px solid #fecaca', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font)' }}>🗑️</button>
                                     </div>
@@ -406,6 +509,30 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
 
       {resetUser && <AdminResetPasswordModal user={resetUser} onClose={() => setResetUser(null)} />}
       {showCreate && <CreateTenantModal onClose={() => setShowCreate(false)} onCreated={onReload} />}
+      {createUserTenant && (
+        <AdminCreateUserModal
+          tenant={createUserTenant}
+          onClose={() => setCreateUserTenant(null)}
+          onCreated={async () => {
+            const users = await getAdminTenantUsers(createUserTenant.id)
+            setTenantUsers(p => ({ ...p, [createUserTenant.id]: users }))
+            onReload()
+          }}
+        />
+      )}
+      {editUser && (
+        <AdminEditUserModal
+          user={editUser}
+          onClose={() => setEditUser(null)}
+          onSaved={async () => {
+            const tid = editUser.tenant_id || expandedTid
+            if (tid) {
+              const users = await getAdminTenantUsers(tid)
+              setTenantUsers(p => ({ ...p, [tid]: users }))
+            }
+          }}
+        />
+      )}
       {assignTenant && (
         <AssignAppModal
           tenant={assignTenant}

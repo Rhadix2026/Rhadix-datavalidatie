@@ -154,6 +154,77 @@ def list_tenant_users(
     ]
 
 
+class AdminCreateUserRequest(BaseModel):
+    email:     str
+    password:  str
+    full_name: Optional[str] = None
+    role:      str = "ORG_USER"
+
+
+@router.post("/tenants/{tenant_id}/users", status_code=201)
+def admin_create_user(
+    tenant_id: str,
+    body:      AdminCreateUserRequest,
+    db:        Session = Depends(get_db),
+    _:         User    = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    """RHADIX_ADMIN maakt een nieuwe gebruiker aan voor willekeurige tenant."""
+    tid = _parse_uuid(tenant_id, "tenant_id")
+    if not db.query(Tenant).filter(Tenant.id == tid).first():
+        raise HTTPException(404, "Tenant not found")
+    if db.query(User).filter(User.email == body.email.lower()).first():
+        raise HTTPException(400, f"Email '{body.email}' is already in use")
+    if len(body.password) < 8:
+        raise HTTPException(422, "Password must be at least 8 characters")
+    try:
+        role = UserRole(body.role)
+    except ValueError:
+        raise HTTPException(422, f"Invalid role: {body.role}")
+
+    user = User(
+        id            = uuid.uuid4(),
+        tenant_id     = tid,
+        email         = body.email.lower().strip(),
+        password_hash = hash_password(body.password),
+        full_name     = body.full_name,
+        role          = role,
+        is_active     = True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"id": str(user.id), "email": user.email, "role": user.role.value}
+
+
+class AdminUpdateUserRequest(BaseModel):
+    full_name: Optional[str] = None
+    role:      Optional[str] = None
+
+
+@router.patch("/users/{user_id}")
+def admin_update_user(
+    user_id: str,
+    body:    AdminUpdateUserRequest,
+    db:      Session = Depends(get_db),
+    _:       User    = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    """RHADIX_ADMIN wijzigt naam en/of rol van een gebruiker."""
+    uid  = _parse_uuid(user_id, "user_id")
+    user = db.query(User).filter(User.id == uid).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    if body.full_name is not None:
+        user.full_name = body.full_name
+    if body.role is not None:
+        try:
+            user.role = UserRole(body.role)
+        except ValueError:
+            raise HTTPException(422, f"Invalid role: {body.role}")
+    db.commit()
+    db.refresh(user)
+    return {"id": str(user.id), "email": user.email, "full_name": user.full_name, "role": user.role.value}
+
+
 @router.get("/stats")
 def platform_stats(
     db: Session = Depends(get_db),

@@ -424,3 +424,23 @@ export async function adminResetUserPassword(userId, newPassword) {
   })
   if (!res.ok) throw new Error(await res.text())
 }
+
+export async function adminCreateUser(tenantId, data) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function adminUpdateUser(userId, data) {
+  const res = await apiFetch(`${BASE}/admin/users/${userId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}

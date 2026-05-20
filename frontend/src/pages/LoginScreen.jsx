@@ -1,5 +1,60 @@
 import { useState } from 'react'
 
+/* ── Grote boom-SVG decoratie — zelfde stijl als rhadix.nl ───────────────── */
+function TreeDecoration() {
+  return (
+    <svg
+      viewBox="0 0 320 380"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{
+        position: 'absolute', bottom: 0, right: -40,
+        width: '72%', maxWidth: 480, opacity: 0.13,
+        pointerEvents: 'none', userSelect: 'none',
+      }}
+    >
+      {/* Roots */}
+      <path d="M160 300 Q120 318 80 348" stroke="#fff" strokeWidth="4" strokeLinecap="round"/>
+      <path d="M160 300 Q140 320 116 360" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/>
+      <path d="M160 300 Q158 330 150 370" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
+      <path d="M168 300 Q170 330 174 370" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
+      <path d="M168 300 Q190 318 212 358" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/>
+      <path d="M168 300 Q206 316 240 342" stroke="#fff" strokeWidth="4" strokeLinecap="round"/>
+      <path d="M152 308 Q128 330 104 368" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity="0.5"/>
+      <path d="M178 308 Q200 332 220 366" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity="0.5"/>
+      {/* Trunks */}
+      <path d="M140 300 Q136 268 124 236" stroke="#fff" strokeWidth="5.5" strokeLinecap="round"/>
+      <path d="M164 300 Q164 260 164 224" stroke="#fff" strokeWidth="7" strokeLinecap="round"/>
+      <path d="M188 300 Q192 268 204 236" stroke="#fff" strokeWidth="5.5" strokeLinecap="round"/>
+      <path d="M140 300 Q164 286 188 300" stroke="#fff" strokeWidth="4.5" strokeLinecap="round"/>
+      {/* Branches — left */}
+      <path d="M124 236 Q102 214 84 204" stroke="#fff" strokeWidth="4" strokeLinecap="round"/>
+      <path d="M124 236 Q116 210 118 188" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/>
+      <path d="M84 204 Q66 192 52 186" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
+      <path d="M118 188 Q112 166 114 150" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
+      {/* Branches — center */}
+      <path d="M164 224 Q164 196 164 172" stroke="#fff" strokeWidth="4.5" strokeLinecap="round"/>
+      <path d="M164 172 Q148 148 136 136" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
+      <path d="M164 172 Q180 148 192 136" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
+      {/* Branches — right */}
+      <path d="M204 236 Q224 214 244 204" stroke="#fff" strokeWidth="4" strokeLinecap="round"/>
+      <path d="M204 236 Q210 210 208 188" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/>
+      <path d="M244 204 Q260 192 276 186" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
+      <path d="M208 188 Q214 166 212 150" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
+      {/* Canopy */}
+      <circle cx="52"  cy="164" r="32" stroke="#fff" strokeWidth="3.5" opacity="0.9"/>
+      <circle cx="114" cy="136" r="36" stroke="#fff" strokeWidth="3.5" opacity="0.9"/>
+      <circle cx="164" cy="116" r="42" stroke="#fff" strokeWidth="4"   opacity="0.95"/>
+      <circle cx="214" cy="136" r="36" stroke="#fff" strokeWidth="3.5" opacity="0.9"/>
+      <circle cx="276" cy="164" r="32" stroke="#fff" strokeWidth="3.5" opacity="0.9"/>
+      <circle cx="136" cy="116" r="26" stroke="#fff" strokeWidth="3"   opacity="0.7"/>
+      <circle cx="192" cy="116" r="26" stroke="#fff" strokeWidth="3"   opacity="0.7"/>
+      <circle cx="88"  cy="148" r="22" stroke="#fff" strokeWidth="2.5" opacity="0.6"/>
+      <circle cx="240" cy="148" r="22" stroke="#fff" strokeWidth="2.5" opacity="0.6"/>
+    </svg>
+  )
+}
+
 export default function LoginScreen({ onLogin }) {
   const [email,      setEmail]      = useState('')
   const [password,   setPassword]   = useState('')
@@ -29,7 +84,7 @@ export default function LoginScreen({ onLogin }) {
     padding: '10px 14px', borderRadius: 'var(--radius)',
     border: '1.5px solid var(--border)', fontSize: 14,
     fontFamily: 'var(--font)', outline: 'none',
-    transition: 'border-color .15s',
+    transition: 'border-color .15s', background: '#fff',
   }
 
   return (
@@ -37,35 +92,73 @@ export default function LoginScreen({ onLogin }) {
       minHeight: '100vh', display: 'flex', alignItems: 'stretch',
       background: 'var(--bg)',
     }}>
-      {/* Left — branding */}
+
+      {/* ── Left — branding ─────────────────────────────────────────────── */}
       <div style={{
         flex: 1, background: 'var(--blue-hero)',
         display: 'flex', flexDirection: 'column',
-        justifyContent: 'center', padding: '64px',
+        position: 'relative', overflow: 'hidden',
       }}>
-        <img
-          src="/rhadix-logo.png"
-          alt="Rhadix"
-          style={{ height: 52, objectFit: 'contain', marginBottom: 40 }}
-          onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
-        />
-        <span style={{ display: 'none', fontFamily: 'var(--font-brand)', fontWeight: 800, fontSize: 32, color: '#fff', letterSpacing: '4px' }}>RHADIX</span>
 
-        <h1 style={{
-          fontFamily: 'var(--font)', fontWeight: 800, fontSize: 36,
-          color: '#fff', lineHeight: 1.2, letterSpacing: '-0.02em',
-          marginBottom: 16, maxWidth: 420,
+        {/* Logo linksboven — klikbaar, terug naar rhadix.nl */}
+        <div style={{ padding: '32px 48px 0', flexShrink: 0 }}>
+          <a
+            href="https://rhadix.nl"
+            style={{ display: 'inline-block', textDecoration: 'none' }}
+            title="Terug naar rhadix.nl"
+          >
+            <img
+              src="/rhadix-logo.png"
+              alt="Rhadix"
+              style={{ height: 44, objectFit: 'contain' }}
+              onError={e => {
+                e.target.style.display = 'none'
+                e.target.nextSibling.style.display = 'block'
+              }}
+            />
+            <span style={{
+              display: 'none', fontFamily: 'var(--font-brand)', fontWeight: 800,
+              fontSize: 28, color: '#fff', letterSpacing: '4px',
+            }}>RHADIX</span>
+          </a>
+        </div>
+
+        {/* Tekst — verticaal gecentreerd in resterende ruimte */}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          justifyContent: 'center', padding: '0 48px 100px',
         }}>
-          De readiness scan voor zorgdata
-        </h1>
-        <p style={{ fontSize: 15, color: 'rgba(168,197,224,.8)', lineHeight: 1.65, maxWidth: 420 }}>
-          Log in om te starten met valideren, analyseren en rapporteren.
-        </p>
+          <span style={{
+            display: 'inline-flex', alignSelf: 'flex-start',
+            background: 'rgba(111,168,208,.25)', color: 'rgba(168,197,224,.95)',
+            fontSize: 11, fontWeight: 700, letterSpacing: '1.5px',
+            padding: '5px 12px', borderRadius: 99, marginBottom: 24,
+            textTransform: 'uppercase',
+          }}>
+            NIEUW — DE RHADIX INDEX
+          </span>
+
+          <h1 style={{
+            fontFamily: 'var(--font)', fontWeight: 800, fontSize: 36,
+            color: '#fff', lineHeight: 1.2, letterSpacing: '-0.02em',
+            marginBottom: 18, maxWidth: 440,
+          }}>
+            Een nieuwe standaard voor{' '}
+            <span style={{ color: '#6fa8d0' }}>databeschikbaarheid</span>{' '}
+            en datakwaliteit
+          </h1>
+          <p style={{ fontSize: 15, color: 'rgba(168,197,224,.8)', lineHeight: 1.65, maxWidth: 400 }}>
+            Analyseer de gereedheid van uw zorgdata voor uitwisseling via moderne standaarden.
+          </p>
+        </div>
+
+        {/* Boom-decoratie rechtonder */}
+        <TreeDecoration />
       </div>
 
-      {/* Right — login form */}
+      {/* ── Right — login form ────────────────────────────────────────────── */}
       <div style={{
-        width: 420, background: '#fff',
+        width: 440, background: '#fff',
         display: 'flex', flexDirection: 'column',
         justifyContent: 'center', padding: '56px 48px',
         borderLeft: '1px solid var(--border)',
@@ -118,7 +211,6 @@ export default function LoginScreen({ onLogin }) {
             />
           </label>
 
-          {/* Wachtwoord vergeten — melding */}
           {showForgot && (
             <div style={{
               padding: '12px 14px', background: '#eff6ff',
@@ -158,6 +250,12 @@ export default function LoginScreen({ onLogin }) {
 
         <p style={{ marginTop: 32, fontSize: 12, color: 'var(--text3)', textAlign: 'center', lineHeight: 1.6 }}>
           Geen account? Neem contact op met uw Rhadix-beheerder.
+        </p>
+
+        <p style={{ marginTop: 12, fontSize: 11, color: 'var(--text3)', textAlign: 'center' }}>
+          <a href="https://rhadix.nl" style={{ color: 'var(--text3)', textDecoration: 'underline' }}>
+            ← Terug naar rhadix.nl
+          </a>
         </p>
       </div>
     </div>

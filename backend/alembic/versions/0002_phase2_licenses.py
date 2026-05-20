@@ -151,18 +151,13 @@ def upgrade() -> None:
         ["user_id", "application_id"],
     )
 
-    # ── Extend validation_runs with Phase 2 columns ───────────────────────────
-    op.add_column(
-        "validation_runs",
-        sa.Column("application_id", postgresql.UUID(as_uuid=True),
-                  sa.ForeignKey("applications.id", ondelete="SET NULL"), nullable=True),
-    )
-    op.add_column(
-        "validation_runs",
-        sa.Column("license_id", postgresql.UUID(as_uuid=True),
-                  sa.ForeignKey("licenses.id", ondelete="SET NULL"), nullable=True),
-    )
-    op.create_index("ix_validation_runs_application_id", "validation_runs", ["application_id"])
+    # ── Extend validation_runs with Phase 2 columns — IF NOT EXISTS voor idempotentie
+    op.execute("""
+        ALTER TABLE validation_runs
+            ADD COLUMN IF NOT EXISTS application_id UUID REFERENCES applications(id) ON DELETE SET NULL,
+            ADD COLUMN IF NOT EXISTS license_id     UUID REFERENCES licenses(id)     ON DELETE SET NULL
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_validation_runs_application_id ON validation_runs (application_id)")
 
 
 def downgrade() -> None:

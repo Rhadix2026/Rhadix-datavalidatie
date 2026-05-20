@@ -60,23 +60,32 @@ def upgrade() -> None:
     op.create_index("ix_users_email",     "users", ["email"],     unique=True)
     op.create_index("ix_users_tenant_id", "users", ["tenant_id"], unique=False)
 
-    # ── Extend validation_runs ────────────────────────────────────────────────
-    # All columns are nullable so existing rows are unaffected.
-    op.add_column(
-        "validation_runs",
-        sa.Column("standard",   sa.String(32), nullable=True),
-    )
-    op.add_column(
-        "validation_runs",
-        sa.Column("tenant_id",  postgresql.UUID(as_uuid=True),
-                  sa.ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True),
-    )
-    op.add_column(
-        "validation_runs",
-        sa.Column("created_by", postgresql.UUID(as_uuid=True),
-                  sa.ForeignKey("users.id",   ondelete="SET NULL"), nullable=True),
-    )
-    op.create_index("ix_validation_runs_tenant_id", "validation_runs", ["tenant_id"])
+    # ── validation_runs — maak de basistabel aan als die nog niet bestaat ────────
+    # Op bestaande servers (opgezet via create_all) bestaat de tabel al.
+    # Op een verse productie-DB moet hij eerst aangemaakt worden.
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS validation_runs (
+            id          SERIAL PRIMARY KEY,
+            created_at  TIMESTAMP WITH TIME ZONE DEFAULT now(),
+            label       VARCHAR(255),
+            files       JSON,
+            results     JSON,
+            total_rows  INTEGER DEFAULT 0,
+            error_count INTEGER DEFAULT 0,
+            warn_count  INTEGER DEFAULT 0,
+            score       FLOAT DEFAULT 100.0,
+            status      VARCHAR(32) DEFAULT 'completed'
+        )
+    """)
+
+    # ── Extend validation_runs — gebruik IF NOT EXISTS voor idempotentie ──────
+    op.execute("""
+        ALTER TABLE validation_runs
+            ADD COLUMN IF NOT EXISTS standard   VARCHAR(32),
+            ADD COLUMN IF NOT EXISTS tenant_id  UUID REFERENCES tenants(id)  ON DELETE SET NULL,
+            ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id)    ON DELETE SET NULL
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_validation_runs_tenant_id ON validation_runs (tenant_id)")
 
 
 def downgrade() -> None:

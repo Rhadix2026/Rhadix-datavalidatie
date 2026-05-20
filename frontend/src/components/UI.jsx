@@ -102,9 +102,14 @@ export function NavLink({ children, onClick }) {
 export function NavBack({ onClick, dark }) {
   return (
     <button onClick={onClick} style={{
-      background: 'none', border: 'none', cursor: 'pointer',
-      fontSize: 14, color: dark ? 'var(--text2)' : 'rgba(255,255,255,.6)', fontFamily: 'var(--font)',
-      display: 'flex', alignItems: 'center', gap: 4, fontWeight: dark ? 600 : 400,
+      background: dark ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.15)',
+      border: dark ? '1px solid rgba(0,0,0,.12)' : '1px solid rgba(255,255,255,.3)',
+      borderRadius: 'var(--radius)', padding: '5px 12px',
+      cursor: 'pointer', fontSize: 13,
+      color: dark ? 'var(--text2)' : '#ffffff',
+      fontFamily: 'var(--font)',
+      display: 'flex', alignItems: 'center', gap: 4,
+      fontWeight: 600, letterSpacing: '.02em',
     }}>← Terug</button>
   )
 }

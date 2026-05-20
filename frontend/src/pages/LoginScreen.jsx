@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
 
 /* ── Grote boom-SVG decoratie — zelfde stijl als rhadix.nl ───────────────── */
 function TreeDecoration() {
@@ -91,6 +92,7 @@ export default function LoginScreen({ onLogin }) {
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'stretch',
       background: 'var(--bg)',
+      paddingTop: BANNER_HEIGHT,   /* ruimte voor staging/dev banner */
     }}>
 
       {/* ── Left — branding ─────────────────────────────────────────────── */}

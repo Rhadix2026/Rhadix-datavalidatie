@@ -2,7 +2,7 @@
 export function RhadixLogo({ height = 44 }) {
   return (
     <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-      <img src="/rhadix-logo.png" alt="Rhadix" style={{ height, width: 'auto', objectFit: 'contain' }} />
+      <img src="/rhadix-logo.svg" alt="Rhadix" style={{ height, width: 'auto', objectFit: 'contain' }} />
     </a>
   )
 }
@@ -11,11 +11,11 @@ export function RhadixLogo({ height = 44 }) {
 export function TreeDecoration({ opacity = 0.18, style: sx = {} }) {
   return (
     <img
-      src="/rhadix-tree.png"
+      src="/rhadix-tree.svg"
       alt=""
       style={{
         position: 'absolute', bottom: 0, right: -40,
-        width: '58%', maxWidth: 420,
+        width: '65%', maxWidth: 500,
         opacity, pointerEvents: 'none', userSelect: 'none',
         objectFit: 'contain',
         ...sx

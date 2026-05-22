@@ -2,6 +2,8 @@
 
 Dit bestand wordt automatisch gelezen bij elke nieuwe sessie. Het bevat alle projectkennis zodat er geen context verloren gaat bij restarts.
 
+**Instructie voor Claude:** Lees dit bestand aan het begin van elke sessie. Werk de sessie-log bij aan het einde van elke sessie met een korte samenvatting van wat er gedaan is, en commit de update naar main + staging.
+
 ---
 
 ## Project
@@ -24,7 +26,7 @@ Token: `<zie .git/config in rhadix-git repo>`
 
 **Let op:** Bij git-operaties vanuit de sandbox altijd klonen naar /tmp/ (niet naar de gemounte map) vanwege lock-file problemen:
 ```bash
-git clone https://<zie .git/config in rhadix-git repo>@github.com/Rhadix2026/Rhadix-datavalidatie.git /tmp/rhadix-work
+git clone https://<token>@github.com/Rhadix2026/Rhadix-datavalidatie.git /tmp/rhadix-work
 cd /tmp/rhadix-work
 git config user.email "rhadix@rhadix2026.nl"
 git config user.name "Rhadix2026"
@@ -75,18 +77,34 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 ## Server-configuratie (stabiel)
 
-- Docker on boot: enabled
-- Restart policy: always op alle containers
-- Swap: 2GB /swapfile
+- Docker on boot: `systemctl is-enabled docker` → enabled ✓
+- Restart policy: `restart: always` op alle containers ✓
+- Swap: 2GB `/swapfile` ✓
+- Geen OOM-history
 
 ---
 
-## Bekende issues
+## Codebase — belangrijke bestanden
 
-- **Git lock-files:** altijd naar /tmp/ klonen, niet naar gemounte Downloads-map
-- **Staging toont oude versie:** main pusht NIET naar staging — altijd handmatig mergen
-- **Browser-cache:** na asset-updates hard refresh (Cmd+Shift+R)
-- **Bad gateway:** controleer .env.production aanwezig + GHCR_ORG erin
+| Bestand | Inhoud |
+|---------|--------|
+| `frontend/src/components/UI.jsx` | Nav, RhadixLogo, TreeDecoration componenten |
+| `frontend/src/pages/Landing.jsx` | Landingspagina |
+| `frontend/src/pages/LoginScreen.jsx` | Loginpagina |
+| `frontend/src/App.jsx` | Routing + state (`step`) |
+| `frontend/src/index.css` | CSS-variabelen (`--blue-hero`, `--blue-dark`, etc.) |
+| `frontend/public/rhadix-logo.jpg` | Brand logo JPG (68KB, donkere achtergrond) |
+| `frontend/public/rhadix-boom.jpg` | Brand boom JPG (84KB, donkere achtergrond) |
+| `landing/index.html` | Marketing website (rhadix.nl) — apart van de Vite app |
+
+---
+
+## Bekende issues & oplossingen
+
+- **Git lock-files in sandbox:** altijd naar `/tmp/` klonen, nooit naar gemounte Downloads-map
+- **Staging toont oude versie:** pushes naar `main` deployen NIET naar staging — altijd handmatig mergen naar `staging` branch na een main-push
+- **Browser-cache (immutable assets):** na logo/asset-updates altijd hard refresh `Cmd+Shift+R`
+- **Bad gateway productie:** controleer of `.env.production` aanwezig is én `GHCR_ORG=rhadix2026` erin staat
 
 ---
 
@@ -94,7 +112,8 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
-| 2026-05-22 | v1.5.15 | SVG vervangen door JPG brand assets |
-| 2026-05-22 | — | Server: swap + Docker-on-boot bevestigd |
-| 2026-05-22 | — | Productie hersteld na bad gateway |
-| 2026-05-21 | v1.5.14 | BIO security hardening (B01-B10) |
+| 2026-05-22 | v1.5.15 | SVG logo vervangen door JPG brand assets (logo + boom) in UI.jsx, Landing.jsx, LoginScreen.jsx |
+| 2026-05-22 | — | Productie hersteld na bad gateway: .env.production ontbrak, GHCR_ORG miste |
+| 2026-05-22 | — | Server gestabiliseerd: 2GB swap toegevoegd, Docker-on-boot bevestigd, restart:always aanwezig |
+| 2026-05-22 | — | CLAUDE.md aangemaakt als persistent projectgeheugen |
+| 2026-05-21 | v1.5.14 | BIO security hardening (B01-B10) voltooid |

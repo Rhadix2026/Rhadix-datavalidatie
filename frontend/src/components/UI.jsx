@@ -2,50 +2,28 @@
 export function RhadixLogo({ height = 44 }) {
   return (
     <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-      <img src="/rhadix-logo.svg" alt="Rhadix" style={{ height, width: 'auto', objectFit: 'contain' }} />
+      <img src="/rhadix-logo.png" alt="Rhadix" style={{ height, width: 'auto', objectFit: 'contain' }} />
     </a>
   )
 }
 
-// ─── Boom SVG decoratie (herbruikbaar op hero-pagina's) ──────────────────────
-export function TreeDecoration({ opacity = 0.13, style: sx = {} }) {
+// ─── Boom decoratie (herbruikbaar op hero-pagina's) ──────────────────────────
+export function TreeDecoration({ opacity = 0.18, style: sx = {} }) {
   return (
-    <svg viewBox="0 0 320 380" fill="none" xmlns="http://www.w3.org/2000/svg"
-      style={{ position: 'absolute', bottom: 0, right: -40, width: '72%', maxWidth: 480,
-        opacity, pointerEvents: 'none', userSelect: 'none', ...sx }}>
-      <path d="M160 300 Q120 318 80 348" stroke="#fff" strokeWidth="4" strokeLinecap="round"/>
-      <path d="M160 300 Q140 320 116 360" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/>
-      <path d="M160 300 Q158 330 150 370" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
-      <path d="M168 300 Q170 330 174 370" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
-      <path d="M168 300 Q190 318 212 358" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/>
-      <path d="M168 300 Q206 316 240 342" stroke="#fff" strokeWidth="4" strokeLinecap="round"/>
-      <path d="M140 300 Q136 268 124 236" stroke="#fff" strokeWidth="5.5" strokeLinecap="round"/>
-      <path d="M164 300 Q164 260 164 224" stroke="#fff" strokeWidth="7" strokeLinecap="round"/>
-      <path d="M188 300 Q192 268 204 236" stroke="#fff" strokeWidth="5.5" strokeLinecap="round"/>
-      <path d="M140 300 Q164 286 188 300" stroke="#fff" strokeWidth="4.5" strokeLinecap="round"/>
-      <path d="M124 236 Q102 214 84 204" stroke="#fff" strokeWidth="4" strokeLinecap="round"/>
-      <path d="M124 236 Q116 210 118 188" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/>
-      <path d="M84 204 Q66 192 52 186" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
-      <path d="M118 188 Q112 166 114 150" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
-      <path d="M164 224 Q164 196 164 172" stroke="#fff" strokeWidth="4.5" strokeLinecap="round"/>
-      <path d="M164 172 Q148 148 136 136" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
-      <path d="M164 172 Q180 148 192 136" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
-      <path d="M204 236 Q224 214 244 204" stroke="#fff" strokeWidth="4" strokeLinecap="round"/>
-      <path d="M204 236 Q210 210 208 188" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/>
-      <path d="M244 204 Q260 192 276 186" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
-      <path d="M208 188 Q214 166 212 150" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
-      <circle cx="52"  cy="164" r="32" stroke="#fff" strokeWidth="3.5" opacity="0.9"/>
-      <circle cx="114" cy="136" r="36" stroke="#fff" strokeWidth="3.5" opacity="0.9"/>
-      <circle cx="164" cy="116" r="42" stroke="#fff" strokeWidth="4"   opacity="0.95"/>
-      <circle cx="214" cy="136" r="36" stroke="#fff" strokeWidth="3.5" opacity="0.9"/>
-      <circle cx="276" cy="164" r="32" stroke="#fff" strokeWidth="3.5" opacity="0.9"/>
-      <circle cx="136" cy="116" r="26" stroke="#fff" strokeWidth="3"   opacity="0.7"/>
-      <circle cx="192" cy="116" r="26" stroke="#fff" strokeWidth="3"   opacity="0.7"/>
-      <circle cx="88"  cy="148" r="22" stroke="#fff" strokeWidth="2.5" opacity="0.6"/>
-      <circle cx="240" cy="148" r="22" stroke="#fff" strokeWidth="2.5" opacity="0.6"/>
-    </svg>
+    <img
+      src="/rhadix-tree.png"
+      alt=""
+      style={{
+        position: 'absolute', bottom: 0, right: -40,
+        width: '58%', maxWidth: 420,
+        opacity, pointerEvents: 'none', userSelect: 'none',
+        objectFit: 'contain',
+        ...sx
+      }}
+    />
   )
 }
+
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,

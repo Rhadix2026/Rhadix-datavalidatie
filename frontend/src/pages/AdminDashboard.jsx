@@ -709,7 +709,7 @@ export default function AdminDashboard({ onBack }) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Nav right={<NavBack onClick={onBack} dark />} />
+      <Nav right={<NavBack onClick={onBack} />} />
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 32px' }}>
         <div style={{ marginBottom: 32 }}>

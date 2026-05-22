@@ -1,12 +1,8 @@
 // ─── Rhadix logo (tree + naam + subtitel) ────────────────────────────────────
-export function RhadixLogo({ size = 38 }) {
+export function RhadixLogo({ height = 44 }) {
   return (
-    <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-      <img src="/rhadix-logo.svg" alt="Rhadix" style={{ height: size, width: 'auto', objectFit: 'contain' }} />
-      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-        <span style={{ fontFamily: 'var(--font-brand)', fontWeight: 900, fontSize: 18, color: '#fff', letterSpacing: '3px' }}>RHADIX</span>
-        <span style={{ fontSize: 9, color: 'rgba(255,255,255,.55)', letterSpacing: '0.08em', fontWeight: 500 }}>by Rhoderlanden Groep</span>
-      </div>
+    <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+      <img src="/rhadix-logo.svg" alt="Rhadix" style={{ height, width: 'auto', objectFit: 'contain' }} />
     </a>
   )
 }

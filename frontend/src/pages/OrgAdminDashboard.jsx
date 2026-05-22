@@ -287,7 +287,7 @@ export default function OrgAdminDashboard({ onBack, authUser }) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Nav right={<NavBack onClick={onBack} dark />} />
+      <Nav right={<NavBack onClick={onBack} />} />
 
       {showCreate && (
         <CreateUserModal

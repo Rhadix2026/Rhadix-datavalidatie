@@ -167,12 +167,12 @@ export default function ManagementRapport({ results, systems, onBack }) {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Nav right={<NavBack onClick={onBack} dark />} /><Spinner />
+      <Nav right={<NavBack onClick={onBack} />} /><Spinner />
     </div>
   )
   if (error) return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Nav right={<NavBack onClick={onBack} dark />} />
+      <Nav right={<NavBack onClick={onBack} />} />
       <div style={{ maxWidth: 740, margin: '40px auto', padding: '0 24px' }}>
         <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-light)', borderRadius: 'var(--radius-xl)', padding: 24, color: 'var(--red)' }}>
           <strong>Fout bij laden rapport:</strong> {error}

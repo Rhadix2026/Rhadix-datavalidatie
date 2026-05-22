@@ -1,27 +1,17 @@
-// ─── Rhadix logo (tree + naam + subtitel) ────────────────────────────────────
+// ─── Rhadix logo placeholder (tijdelijk tekst-only) ─────────────────────────
 export function RhadixLogo({ height = 44 }) {
   return (
     <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-      <img src="/rhadix-logo.svg" alt="Rhadix" style={{ height, width: 'auto', objectFit: 'contain' }} />
+      <span style={{ color: '#fff', fontWeight: 800, fontSize: 20, letterSpacing: '0.08em', fontFamily: 'var(--font)' }}>
+        RHADIX
+      </span>
     </a>
   )
 }
 
-// ─── Boom decoratie (herbruikbaar op hero-pagina's) ──────────────────────────
+// ─── Boom decoratie (tijdelijk leeg) ─────────────────────────────────────────
 export function TreeDecoration({ opacity = 0.18, style: sx = {} }) {
-  return (
-    <img
-      src="/rhadix-tree.svg"
-      alt=""
-      style={{
-        position: 'absolute', bottom: 0, right: -40,
-        width: '65%', maxWidth: 500,
-        opacity, pointerEvents: 'none', userSelect: 'none',
-        objectFit: 'contain',
-        ...sx
-      }}
-    />
-  )
+  return null
 }
 
 

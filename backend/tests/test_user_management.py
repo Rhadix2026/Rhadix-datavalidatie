@@ -30,7 +30,7 @@ def user_to_manage(db, tenant_a):
     u = User(
         id=uuid.uuid4(), tenant_id=tenant_a.id,
         email="target@tenant-a.nl",
-        password_hash=hash_password("target-password-123"),
+        password_hash=hash_password("Target-Password-123!"),
         role=UserRole.ORG_USER, is_active=True,
     )
     db.add(u); db.commit(); db.refresh(u)
@@ -123,7 +123,7 @@ class TestDeactivateOrgUser:
                      headers=auth(token_org_admin))
         resp = client.post("/api/auth/login", json={
             "email": user_to_manage.email,
-            "password": "target-password-123",
+            "password": "Target-Password-123!",
         })
         assert resp.status_code == 401
 
@@ -149,7 +149,7 @@ class TestDeleteOrgUser:
                       headers=auth(token_org_admin))
         resp = client.post("/api/auth/login", json={
             "email": user_to_manage.email,
-            "password": "target-password-123",
+            "password": "Target-Password-123!",
         })
         assert resp.status_code == 401
 
@@ -182,7 +182,7 @@ class TestResetPasswordOrg:
                     headers=auth(token_org_admin))
         resp = client.post("/api/auth/login", json={
             "email": user_to_manage.email,
-            "password": "target-password-123",   # old password
+            "password": "Target-Password-123!",   # old password
         })
         assert resp.status_code == 401
 

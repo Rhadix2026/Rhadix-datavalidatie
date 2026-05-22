@@ -139,7 +139,7 @@ def user_org_user(db, tenant_a):
     u = User(
         id=uuid.uuid4(), tenant_id=tenant_a.id,
         email="user@tenant-a.nl",
-        password_hash=hash_password("correct-password-123"),
+        password_hash=hash_password("Correct-Password-123!"),
         role=UserRole.ORG_USER,
     )
     db.add(u); db.commit(); db.refresh(u)
@@ -151,7 +151,7 @@ def user_org_admin(db, tenant_a):
     u = User(
         id=uuid.uuid4(), tenant_id=tenant_a.id,
         email="admin@tenant-a.nl",
-        password_hash=hash_password("admin-password-123"),
+        password_hash=hash_password("Admin-Password-123!"),
         role=UserRole.ORG_ADMIN,
     )
     db.add(u); db.commit(); db.refresh(u)
@@ -163,7 +163,7 @@ def user_rhadix_admin(db, tenant_a):
     u = User(
         id=uuid.uuid4(), tenant_id=tenant_a.id,
         email="rhadix@rhadix.nl",
-        password_hash=hash_password("rhadix-admin-pass-999"),
+        password_hash=hash_password("Rhadix-Admin-Pass-999!"),
         role=UserRole.RHADIX_ADMIN,
     )
     db.add(u); db.commit(); db.refresh(u)
@@ -175,7 +175,7 @@ def user_tenant_b(db, tenant_b):
     u = User(
         id=uuid.uuid4(), tenant_id=tenant_b.id,
         email="user@tenant-b.nl",
-        password_hash=hash_password("tenant-b-pass-123"),
+        password_hash=hash_password("Tenant-B-Pass-123!"),
         role=UserRole.ORG_USER,
     )
     db.add(u); db.commit(); db.refresh(u)

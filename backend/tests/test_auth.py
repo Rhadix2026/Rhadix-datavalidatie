@@ -23,7 +23,7 @@ class TestLogin:
     def test_login_success(self, client, user_org_user):
         res = client.post("/api/auth/login", json={
             "email":    "user@tenant-a.nl",
-            "password": "correct-password-123",
+            "password": "Correct-Password-123!",
         })
         assert res.status_code == 200
         body = res.json()
@@ -51,7 +51,7 @@ class TestLogin:
         db.commit()
         res = client.post("/api/auth/login", json={
             "email":    "user@tenant-a.nl",
-            "password": "correct-password-123",
+            "password": "Correct-Password-123!",
         })
         assert res.status_code == 401
         # Restore for other tests
@@ -61,7 +61,7 @@ class TestLogin:
     def test_login_email_case_insensitive(self, client, user_org_user):
         res = client.post("/api/auth/login", json={
             "email":    "USER@TENANT-A.NL",
-            "password": "correct-password-123",
+            "password": "Correct-Password-123!",
         })
         assert res.status_code == 200
 
@@ -214,19 +214,19 @@ class TestPasswordChange:
     def test_change_password_success(self, client, db, user_org_user, token_org_user):
         res = client.patch(
             "/api/auth/me/password",
-            json={"current_password": "correct-password-123", "new_password": "new-password-456-ok"},
+            json={"current_password": "Correct-Password-123!", "new_password": "New-Password-456-Ok!"},
             headers={"Authorization": f"Bearer {token_org_user}"},
         )
         assert res.status_code == 204
 
         # Can now login with new password
-        res2 = client.post("/api/auth/login", json={"email": "user@tenant-a.nl", "password": "new-password-456-ok"})
+        res2 = client.post("/api/auth/login", json={"email": "user@tenant-a.nl", "password": "New-Password-456-Ok!"})
         assert res2.status_code == 200
 
         # Restore original password
         res3 = client.patch(
             "/api/auth/me/password",
-            json={"current_password": "new-password-456-ok", "new_password": "correct-password-123"},
+            json={"current_password": "New-Password-456-Ok!", "new_password": "Correct-Password-123!"},
             headers={"Authorization": f"Bearer {token_org_user}"},
         )
         assert res3.status_code == 204
@@ -234,7 +234,7 @@ class TestPasswordChange:
     def test_change_password_wrong_current(self, client, token_org_user):
         res = client.patch(
             "/api/auth/me/password",
-            json={"current_password": "completely-wrong", "new_password": "new-password-456-ok"},
+            json={"current_password": "completely-wrong", "new_password": "New-Password-456-Ok!"},
             headers={"Authorization": f"Bearer {token_org_user}"},
         )
         assert res.status_code == 400
@@ -242,7 +242,7 @@ class TestPasswordChange:
     def test_change_password_too_short(self, client, token_org_user):
         res = client.patch(
             "/api/auth/me/password",
-            json={"current_password": "correct-password-123", "new_password": "short"},
+            json={"current_password": "Correct-Password-123!", "new_password": "short"},
             headers={"Authorization": f"Bearer {token_org_user}"},
         )
         assert res.status_code == 422
@@ -260,7 +260,7 @@ class TestAdminCreateTenant:
                 "name":             "New Hospital",
                 "slug":             "new-hospital",
                 "admin_email":      "admin@newhospital.nl",
-                "admin_password":   "secure-pass-word-99",
+                "admin_password":   "Secure-Pass-Word-99!",
                 "admin_full_name":  "New Admin",
             },
             headers={"Authorization": f"Bearer {token_rhadix_admin}"},
@@ -277,7 +277,7 @@ class TestAdminCreateTenant:
                 "name":           "Another Tenant A",
                 "slug":           "tenant-a",   # already exists
                 "admin_email":    "other@a.nl",
-                "admin_password": "another-pass-word-99",
+                "admin_password": "Another-Pass-Word-99!",
             },
             headers={"Authorization": f"Bearer {token_rhadix_admin}"},
         )

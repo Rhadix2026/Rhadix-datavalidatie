@@ -60,6 +60,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://test_kikv:test_password@localhost:5432/test_kikv_validator
+      JWT_SECRET_KEY: ci-test-secret-key-not-used-in-production-32x
       RHADIX_ENV: test
 
     steps:

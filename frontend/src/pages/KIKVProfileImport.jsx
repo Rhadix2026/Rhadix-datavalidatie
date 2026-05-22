@@ -693,7 +693,7 @@ export default function KIKVProfileImport({ onBack, onAnalyze, scanResult }) {
 
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-        {onBack && <button onClick={onBack} style={backBtn}>← Terug</button>}
+        {onBack && <NavBack onClick={onBack} dark />}
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1e3a5f" }}>
             📚 KIK-V Profielbibliotheek

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Nav } from '../components/UI'
+import { Nav, TreeDecoration } from '../components/UI'
 
 function AnimatedCounter() {
   const [count, setCount] = useState(0)
@@ -76,7 +76,9 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
           flex: 1, background: 'var(--blue-hero)',
           padding: '72px 64px', display: 'flex',
           flexDirection: 'column', justifyContent: 'center',
+          position: 'relative', overflow: 'hidden',
         }}>
+          <TreeDecoration />
           {/* Logo in hero */}
           <div style={{ marginBottom: 36 }}>
             <img

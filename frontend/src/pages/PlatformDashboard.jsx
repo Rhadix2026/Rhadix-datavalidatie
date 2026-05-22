@@ -52,7 +52,7 @@ export default function PlatformDashboard({ onBack, onOrgDrilldown }) {
     <div style={styles.page}>
       {/* Header */}
       <div style={styles.header}>
-        <button onClick={onBack} style={styles.backBtn}>← Terug</button>
+        <NavBack onClick={onBack} dark />
         <div style={{ flex: 1 }}>
           <h1 style={styles.h1}>Platform dashboard</h1>
           <p style={styles.subtitle}>RHADIX_ADMIN — cross-organisatie overzicht</p>

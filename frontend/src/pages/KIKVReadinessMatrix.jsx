@@ -513,7 +513,7 @@ export default function KIKVReadinessMatrix({ matrix, onBack, profileName }) {
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-        <button onClick={onBack} style={backBtn}>← Terug</button>
+        <NavBack onClick={onBack} dark />
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1e3a5f" }}>
             KIK-V Gereedheidsmatrix

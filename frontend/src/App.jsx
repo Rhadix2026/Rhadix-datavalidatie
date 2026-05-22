@@ -350,6 +350,7 @@ export default function App() {
         <AlgemeenDashboard
           results={activeScanResult}
           onNewScan={startNewScan}
+          onBack={() => setStep('landing')}
         />
       )}
 
@@ -361,6 +362,7 @@ export default function App() {
           onActuality={() => openActuality('zib_dashboard')}
           onTraceability={() => openTraceability('zib_dashboard')}
           onProfiles={() => openProfiles('zib_dashboard')}
+          onBack={() => setStep('landing')}
         />
       )}
 

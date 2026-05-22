@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Nav, NavLink, Page, BtnPrimary, ProgressBar, StatusBadge, ExpandableIssueRow, GapRow } from '../components/UI'
+import { Nav, NavLink, Page, BtnPrimary, ProgressBar, StatusBadge, ExpandableIssueRow, GapRow, NavBack } from '../components/UI'
 
 const ZIB_DOMAINS = [
   { key: 'patient',           icon: '🧑',  label: 'Patiënt / Cliënt',  schema: 'patient',           zib: 'nl.zorg.Patient' },
@@ -38,7 +38,7 @@ function ScoreRing({ score, size = 64, label }) {
   )
 }
 
-export default function ZibDashboard({ results, onNewScan, onActuality, onTraceability, onProfiles }) {
+export default function ZibDashboard({ results, onNewScan, onActuality, onTraceability, onProfiles, onBack }) {
   const [activeDomain, setActiveDomain] = useState('patient')
 
   if (!results) {
@@ -100,10 +100,10 @@ export default function ZibDashboard({ results, onNewScan, onActuality, onTracea
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       <Nav right={
-        <>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <NavLink onClick={onNewScan}>Nieuwe scan</NavLink>
-          <NavLink>Profiel</NavLink>
-        </>
+          {onBack && <NavBack onClick={onBack} />}
+        </div>
       } />
 
       <Page>

@@ -148,7 +148,10 @@ export default function AlgemeenDashboard({ results, onNewScan }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       <Nav right={
-        <NavLink onClick={onNewScan}>Nieuwe scan</NavLink>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <NavLink onClick={onNewScan}>Nieuwe scan</NavLink>
+          {onBack && <NavBack onClick={onBack} />}
+        </div>
       } />
       <Page>
         {/* Kop */}

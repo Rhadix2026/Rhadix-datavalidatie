@@ -37,7 +37,7 @@ export default function UserDashboard({ onBack, authUser }) {
     <div style={styles.page}>
       {/* Header */}
       <div style={styles.header}>
-        <button onClick={onBack} style={styles.backBtn}>← Terug</button>
+        <NavBack onClick={onBack} dark />
         <div>
           <h1 style={styles.h1}>Mijn dashboard</h1>
           <p style={styles.subtitle}>{full_name || authUser?.email}</p>

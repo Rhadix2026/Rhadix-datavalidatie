@@ -6,7 +6,7 @@ export function RhadixLogo({ height = 44, onHome }) {
   return (
     <a href="https://rhadix.nl" onClick={handleClick}
        style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', cursor: 'pointer' }}>
-      <img src="/rhadix-logo.svg" alt="Rhadix"
+      <img src="/rhadix-logo.jpg" alt="Rhadix"
            style={{ height, width: 'auto', objectFit: 'contain' }} />
     </a>
   )

@@ -41,6 +41,7 @@ from app.auth.schemas import (
     UpdateApplicationRequest,
     UpdateLicenseRequest,
 )
+from app.audit import ADMIN_ACTION, USER_CREATED, USER_UPDATED, audit_log
 from app.auth.security import hash_password
 from app.database import get_db
 from app.models.auth_models import (
@@ -174,8 +175,8 @@ def admin_create_user(
         raise HTTPException(404, "Tenant not found")
     if db.query(User).filter(User.email == body.email.lower()).first():
         raise HTTPException(400, f"Email '{body.email}' is already in use")
-    if len(body.password) < 8:
-        raise HTTPException(422, "Password must be at least 8 characters")
+    if len(body.password) < 12:
+        raise HTTPException(422, "Password must be at least 12 characters")
     try:
         role = UserRole(body.role)
     except ValueError:
@@ -193,6 +194,8 @@ def admin_create_user(
     db.add(user)
     db.commit()
     db.refresh(user)
+    audit_log(USER_CREATED, user_id=str(user.id), email=user.email,
+              tenant_id=str(tid), role=role.value, created_by="RHADIX_ADMIN")
     return {"id": str(user.id), "email": user.email, "role": user.role.value}
 
 
@@ -222,6 +225,8 @@ def admin_update_user(
             raise HTTPException(422, f"Invalid role: {body.role}")
     db.commit()
     db.refresh(user)
+    audit_log(USER_UPDATED, user_id=str(user.id), email=user.email,
+              changes={"full_name": body.full_name, "role": body.role})
     return {"id": str(user.id), "email": user.email, "full_name": user.full_name, "role": user.role.value}
 
 

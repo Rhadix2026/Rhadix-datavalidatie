@@ -11,7 +11,19 @@ from passlib.context import CryptContext
 # ---------------------------------------------------------------------------
 # Configuration (override via environment variables)
 # ---------------------------------------------------------------------------
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "CHANGE_ME_rhadix_dev_key_min_32_chars_!!!!")
+
+# JWT_SECRET_KEY must be set explicitly — no insecure fallback allowed.
+# Generate a secure key with:
+#   python -c "import secrets; print(secrets.token_hex(32))"
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "JWT_SECRET_KEY environment variable is not set. "
+        "Generate a secure key with: "
+        "python -c \"import secrets; print(secrets.token_hex(32))\" "
+        "and set it in your .env file or deployment secrets."
+    )
+
 ALGORITHM  = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 

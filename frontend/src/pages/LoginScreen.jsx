@@ -55,7 +55,7 @@ export default function LoginScreen({ onLogin }) {
             style={{ display: 'inline-block', textDecoration: 'none' }}
             title="Terug naar rhadix.nl"
           >
-            <img src="/rhadix-logo.png" alt="Rhadix" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
+            <img src="/rhadix-logo.jpg" alt="Rhadix" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
           </a>
         </div>
 

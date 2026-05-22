@@ -6,7 +6,7 @@ export function RhadixLogo({ height = 44, onHome }) {
   return (
     <a href="https://rhadix.nl" onClick={handleClick}
        style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', cursor: 'pointer' }}>
-      <img src="/rhadix-logo.png" alt="Rhadix"
+      <img src="/rhadix-logo.jpg" alt="Rhadix"
            style={{ height, width: 'auto', objectFit: 'contain' }} />
     </a>
   )
@@ -16,7 +16,7 @@ export function RhadixLogo({ height = 44, onHome }) {
 export function TreeDecoration({ opacity = 0.35, style: sx = {} }) {
   return (
     <img
-      src="/rhadix-boom.png"
+      src="/rhadix-boom.jpg"
       alt=""
       style={{
         position: 'absolute', bottom: 0, right: -20,

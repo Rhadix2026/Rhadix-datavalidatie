@@ -70,7 +70,7 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
         flexShrink: 0,
       }}>
         <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-          <img src="/rhadix-logo.png" alt="Rhadix" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
+          <img src="/rhadix-logo.jpg" alt="Rhadix" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {authUser && onDashboard && (

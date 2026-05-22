@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceL
 import RhadixIndexGauge from '../components/dashboard/RhadixIndexGauge'
 import ScoreBadge       from '../components/dashboard/ScoreBadge'
 import { getAuthToken } from '../services/api'
+import { NavBack } from '../components/UI'
 
 const API = import.meta.env.VITE_API_URL ?? ''
 

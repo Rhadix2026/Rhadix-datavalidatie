@@ -55,19 +55,8 @@ export default function LoginScreen({ onLogin }) {
             style={{ display: 'inline-block', textDecoration: 'none' }}
             title="Terug naar rhadix.nl"
           >
-            <img
-              src="/rhadix-logo.png"
-              alt="Rhadix"
-              style={{ height: 44, objectFit: 'contain' }}
-              onError={e => {
-                e.target.style.display = 'none'
-                e.target.nextSibling.style.display = 'block'
-              }}
-            />
-            <span style={{
-              display: 'none', fontFamily: 'var(--font-brand)', fontWeight: 800,
-              fontSize: 28, color: '#fff', letterSpacing: '4px',
-            }}>RHADIX</span>
+            <span style={{ fontFamily: 'var(--font-brand)', fontWeight: 800,
+              fontSize: 28, color: '#fff', letterSpacing: '4px' }}>RHADIX</span>
           </a>
         </div>
 

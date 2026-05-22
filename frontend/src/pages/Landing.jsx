@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Nav, TreeDecoration } from '../components/UI'
+import { TreeDecoration } from '../components/UI'
 
 function AnimatedCounter() {
   const [count, setCount] = useState(0)
@@ -60,15 +60,28 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
                                   authUser, onLogout }) {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Nav
-        authUser={authUser}
-        onLogout={onLogout}
-        onAdmin={onAdmin}
-        onOrgAdmin={onOrgAdmin}
-        onDashboard={onDashboard}
-        onOrgDashboard={onOrgDashboard}
-        onPlatformDashboard={onPlatformDashboard}
-      />
+      {/* Banner nav met logo — zichtbaar over de volle breedte */}
+      <header style={{
+        background: 'var(--blue-dark)', borderBottom: '1px solid rgba(255,255,255,.12)',
+        padding: '0 32px', height: 64, display: 'flex',
+        alignItems: 'center', justifyContent: 'space-between',
+        position: 'sticky', top: 0, zIndex: 100,
+        boxShadow: '0 2px 12px rgba(0,0,0,.35)',
+        flexShrink: 0,
+      }}>
+        <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <img src="/rhadix-logo.png" alt="Rhadix" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
+        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {authUser && onDashboard && (
+            <button onClick={onDashboard} style={{
+              background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
+              borderRadius: 'var(--radius)', padding: '6px 14px',
+              color: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font)',
+            }}>Dashboard</button>
+          )}
+        </div>
+      </header>
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
         {/* Left hero */}
@@ -79,10 +92,7 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
           position: 'relative', overflow: 'hidden',
         }}>
           <TreeDecoration />
-          {/* Logo in hero */}
-          <div style={{ marginBottom: 36 }}>
-            <img src="/rhadix-logo.png" alt="Rhadix" style={{ height: 52, width: 'auto', objectFit: 'contain' }} />
-          </div>
+          {/* Logo placeholder verwijderd — logo staat in de header */}
 
           <div style={{
             display: 'inline-flex', background: 'rgba(111,168,208,.25)',

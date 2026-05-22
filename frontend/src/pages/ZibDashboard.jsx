@@ -38,13 +38,13 @@ function ScoreRing({ score, size = 64, label }) {
   )
 }
 
-export default function ZibDashboard({ results, onNewScan, onActuality, onTraceability, onProfiles, onBack }) {
+export default function ZibDashboard({ results, onNewScan, onActuality, onTraceability, onProfiles, onBack, onHome }) {
   const [activeDomain, setActiveDomain] = useState('patient')
 
   if (!results) {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-        <Nav right={
+        <Nav onHome={onHome} right={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {onActuality && (
               <button
@@ -99,7 +99,7 @@ export default function ZibDashboard({ results, onNewScan, onActuality, onTracea
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Nav right={
+      <Nav onHome={onHome} right={
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <NavLink onClick={onNewScan}>Nieuwe scan</NavLink>
           {onBack && <NavBack onClick={onBack} />}

@@ -297,6 +297,7 @@ export default function App() {
           onTraceability={() => openTraceability('dashboard')}
           onProfiles={() => openProfiles('dashboard')}
           onReconciliation={canReconciliation ? () => setStep('reconciliation') : null}
+          onHome={() => setStep('landing')}
         />
       )}
       {step === 'stap2_resultaat' && (
@@ -334,6 +335,7 @@ export default function App() {
           onActieplan={addActie}
           onGotoActieplan={() => setStep('actieplan')}
           onBack={() => setStep('dashboard')}
+          onHome={() => setStep('landing')}
         />
       )}
       {step === 'actieplan' && (
@@ -351,6 +353,7 @@ export default function App() {
           results={activeScanResult}
           onNewScan={startNewScan}
           onBack={() => setStep('landing')}
+          onHome={() => setStep('landing')}
         />
       )}
 
@@ -363,6 +366,7 @@ export default function App() {
           onTraceability={() => openTraceability('zib_dashboard')}
           onProfiles={() => openProfiles('zib_dashboard')}
           onBack={() => setStep('landing')}
+          onHome={() => setStep('landing')}
         />
       )}
 

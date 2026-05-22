@@ -1,10 +1,13 @@
-// ─── Rhadix logo placeholder (tijdelijk tekst-only) ─────────────────────────
-export function RhadixLogo({ height = 44 }) {
+// ─── Rhadix logo (brand SVG — thuis-knop) ────────────────────────────────────
+export function RhadixLogo({ height = 44, onHome }) {
+  const handleClick = (e) => {
+    if (onHome) { e.preventDefault(); onHome(); }
+  }
   return (
-    <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-      <span style={{ color: '#fff', fontWeight: 800, fontSize: 20, letterSpacing: '0.08em', fontFamily: 'var(--font)' }}>
-        RHADIX
-      </span>
+    <a href="https://rhadix.nl" onClick={handleClick}
+       style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', cursor: 'pointer' }}>
+      <img src="/rhadix-logo.svg" alt="Rhadix"
+           style={{ height, width: 'auto', objectFit: 'contain' }} />
     </a>
   )
 }
@@ -17,7 +20,7 @@ export function TreeDecoration({ opacity = 0.18, style: sx = {} }) {
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
-                      onDashboard, onOrgDashboard, onPlatformDashboard }) {
+                      onDashboard, onOrgDashboard, onPlatformDashboard, onHome }) {
   return (
     <header style={{
       background: 'var(--blue-hero)', borderBottom: '1px solid rgba(255,255,255,.08)',
@@ -26,7 +29,7 @@ export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
       position: 'sticky', top: 0, zIndex: 100,
       boxShadow: '0 2px 12px rgba(0,0,0,.25)',
     }}>
-      <RhadixLogo />
+      <RhadixLogo onHome={onHome} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         {right}
         {authUser && (

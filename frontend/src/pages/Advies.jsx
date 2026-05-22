@@ -128,7 +128,7 @@ export function Advies({ domain, results, onActieplan, onGotoActieplan, onBack }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Nav right={<NavBack onClick={onBack} />} />
+      <Nav onHome={onHome} right={<NavBack onClick={onBack} />} />
       <Page>
         <PageTitle title={`Advies voor ${domain}`} sub="Concrete aanbevelingen om hiaten op te lossen" />
 
@@ -288,7 +288,7 @@ export function Actieplan({ items, results, onDashboard, onBack }) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Nav right={
+      <Nav onHome={onHome} right={
         <div style={{ display: 'flex', gap: 16 }}>
           <button onClick={onDashboard} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text2)', fontFamily: 'var(--font)', fontWeight: 500 }}>Dashboard</button>
           <NavBack onClick={onBack} />

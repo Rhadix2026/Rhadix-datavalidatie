@@ -137,7 +137,7 @@ function FileCard({ result }) {
   )
 }
 
-export default function AlgemeenDashboard({ results, onNewScan }) {
+export default function AlgemeenDashboard({ results, onNewScan, onHome }) {
   if (!results) return null
   const { file_results = [], summary = {} } = results
 
@@ -147,7 +147,7 @@ export default function AlgemeenDashboard({ results, onNewScan }) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Nav right={
+      <Nav onHome={onHome} right={
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <NavLink onClick={onNewScan}>Nieuwe scan</NavLink>
           {onBack && <NavBack onClick={onBack} />}

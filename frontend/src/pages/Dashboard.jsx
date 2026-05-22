@@ -140,14 +140,14 @@ function domainStatus(domain, results) {
 
 const DOT_COLORS = { red: 'var(--red)', amber: 'var(--amber)', green: 'var(--green)' }
 
-export default function Dashboard({ results, scanHistory = [], step1Completed, step2Completed, onNewScan, onAdvies, onBeschikbaarheidsRapport, onKikvRapport, onManagementRapport, onConceptMapping, onActuality, onTraceability, onProfiles, onReconciliation }) {
+export default function Dashboard({ results, scanHistory = [], step1Completed, step2Completed, onNewScan, onAdvies, onBeschikbaarheidsRapport, onKikvRapport, onManagementRapport, onConceptMapping, onActuality, onTraceability, onProfiles, onReconciliation, onHome }) {
   const [activeDomain, setActiveDomain] = useState('Werkovereenkomst')
 
   // Guard: toon nooit placeholder-data als er geen actief scanresultaat is
   if (!results) {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-        <Nav right={<NavLink onClick={onNewScan}>Nieuwe scan</NavLink>} />
+        <Nav onHome={onHome} right={<NavLink onClick={onNewScan}>Nieuwe scan</NavLink>} />
         <Page>
           <div style={{ textAlign: 'center', padding: '80px 24px' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
@@ -183,7 +183,7 @@ export default function Dashboard({ results, scanHistory = [], step1Completed, s
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Nav right={
+      <Nav onHome={onHome} right={
         <>
           <NavLink onClick={onProfiles}>📚 Profielen</NavLink>
           <NavLink onClick={onNewScan}>Nieuwe scan</NavLink>

@@ -18,6 +18,7 @@ name: Deploy — Production
 #   PROD_SSH_USER        — SSH gebruiker (bijv. root)
 #   PROD_DB_PASSWORD     — Productie-databasewachtwoord
 #   PROD_LICENSE_KEY     — Productielijcentiesleutel
+#   PROD_JWT_SECRET_KEY  — JWT signing secret productie (aparte waarde van staging!)
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -189,6 +190,7 @@ jobs:
             echo "RHADIX_VERSION=$VERSION"       >> /opt/rhadix-app/.env.production
             echo "DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}" >> /opt/rhadix-app/.env.production
             echo "RHADIX_LICENSE_KEY=${{ secrets.PROD_LICENSE_KEY }}" >> /opt/rhadix-app/.env.production
+            echo "JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}" >> /opt/rhadix-app/.env.production
             echo "GHCR_USER=${{ github.actor }}" >> /opt/rhadix-app/.env.production
             echo "GHCR_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> /opt/rhadix-app/.env.production
 

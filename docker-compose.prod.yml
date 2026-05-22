@@ -31,6 +31,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL:        postgresql://${DB_USER:-kikv}:${DB_PASSWORD}@db:5432/${DB_NAME:-kikv_validator}
+      JWT_SECRET_KEY:      ${JWT_SECRET_KEY:?Stel JWT_SECRET_KEY in als GitHub Secret / .env}
       RHADIX_LICENSE_KEY:  ${RHADIX_LICENSE_KEY:?Licentiesleutel verplicht — zie .env}
     volumes:
       - rhadix_profiles:/app/data/profiles

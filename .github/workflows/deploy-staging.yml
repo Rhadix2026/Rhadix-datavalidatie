@@ -11,6 +11,7 @@ name: Deploy — Staging
 #   STAGING_SSH_USER     — SSH gebruiker (bijv. root)
 #   STAGING_DB_PASSWORD  — Wachtwoord voor de staging-database
 #   STAGING_LICENSE_KEY  — Licentiecsleutel voor staging
+#   STAGING_JWT_SECRET_KEY — JWT signing secret (genereer met: python -c "import secrets; print(secrets.token_hex(32))")
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -154,6 +155,7 @@ jobs:
             # Voeg secrets toe (apart, zodat ze niet in bash history staan)
             echo "STAGING_DB_PASSWORD=${{ secrets.STAGING_DB_PASSWORD }}" >> /opt/rhadix-app/.env.staging
             echo "STAGING_LICENSE_KEY=${{ secrets.STAGING_LICENSE_KEY }}" >> /opt/rhadix-app/.env.staging
+            echo "STAGING_JWT_SECRET_KEY=${{ secrets.STAGING_JWT_SECRET_KEY }}" >> /opt/rhadix-app/.env.staging
 
             # Beveilig het env-bestand (alleen root leesbaar)
             chmod 600 /opt/rhadix-app/.env.staging

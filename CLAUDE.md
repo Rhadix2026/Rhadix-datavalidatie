@@ -52,7 +52,7 @@ git checkout staging && git merge main --no-edit && git push origin staging && g
 git tag v1.5.X && git push origin v1.5.X
 ```
 
-**Huidige versie:** v1.5.15
+**Huidige versie:** v1.5.19
 
 ---
 
@@ -115,5 +115,9 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 | 2026-05-22 | v1.5.15 | SVG logo vervangen door JPG brand assets (logo + boom) in UI.jsx, Landing.jsx, LoginScreen.jsx |
 | 2026-05-22 | — | Productie hersteld na bad gateway: .env.production ontbrak, GHCR_ORG miste |
 | 2026-05-22 | — | Server gestabiliseerd: 2GB swap toegevoegd, Docker-on-boot bevestigd, restart:always aanwezig |
+| 2026-05-22 | v1.5.19 | Terug-knop (→ login) + Dashboard-knop volgorde in nav landing page |
+| 2026-05-22 | v1.5.18 | Terug naar rhadix.nl knop toegevoegd aan nav |
+| 2026-05-22 | v1.5.17 | NavBack import fix UserDashboard (wit scherm), staging groen kleurenpalet hersteld |
+| 2026-05-22 | v1.5.16 | Staging gereset naar main, pipeline hersteld (staging=groen, prod=navy) |
 | 2026-05-22 | — | CLAUDE.md aangemaakt als persistent projectgeheugen |
 | 2026-05-21 | v1.5.14 | BIO security hardening (B01-B10) voltooid |

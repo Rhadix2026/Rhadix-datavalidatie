@@ -63,10 +63,14 @@ def _run_migrations() -> None:
         ini_path = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
         cfg = Config(ini_path)
         # Override sqlalchemy.url from env so Docker credentials are always used
-        cfg.set_main_option(
-            "sqlalchemy.url",
-            os.getenv("DATABASE_URL", "postgresql://kikv:kikv@localhost:5432/kikv_validator"),
-        )
+        # B10: geen hardcoded fallback — DATABASE_URL moet altijd zijn ingesteld
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            raise RuntimeError(
+                "DATABASE_URL environment variable is not set. "
+                "Set it in your .env file or deployment secrets."
+            )
+        cfg.set_main_option("sqlalchemy.url", db_url)
         command.upgrade(cfg, "head")
         log.info("Alembic migrations applied successfully.")
     except Exception as exc:
@@ -86,7 +90,15 @@ _run_migrations()
 # ---------------------------------------------------------------------------
 # FastAPI application
 # ---------------------------------------------------------------------------
-app = FastAPI(title="Rhadix Validator API", version="1.0.0")
+# B08: Swagger/ReDoc alleen beschikbaar als ENABLE_DOCS=true (nooit in productie)
+_enable_docs = os.getenv("ENABLE_DOCS", "false").lower() == "true"
+app = FastAPI(
+    title="Rhadix Validator API",
+    version="1.0.0",
+    docs_url="/docs" if _enable_docs else None,
+    redoc_url="/redoc" if _enable_docs else None,
+    openapi_url="/openapi.json" if _enable_docs else None,
+)
 
 # CORS — allow the frontend origins used in development and on the server
 _allow_origins = [
@@ -103,8 +115,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_allow_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # B09: expliciete methods en headers i.p.v. wildcard (BIO 13.1.3)
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
 # ── Public ────────────────────────────────────────────────────────────────────

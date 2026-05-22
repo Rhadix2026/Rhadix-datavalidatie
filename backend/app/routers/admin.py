@@ -42,7 +42,7 @@ from app.auth.schemas import (
     UpdateLicenseRequest,
 )
 from app.audit import ADMIN_ACTION, USER_CREATED, USER_UPDATED, audit_log
-from app.auth.security import hash_password
+from app.auth.security import hash_password, validate_password_strength
 from app.database import get_db
 from app.models.auth_models import (
     Application,
@@ -175,8 +175,10 @@ def admin_create_user(
         raise HTTPException(404, "Tenant not found")
     if db.query(User).filter(User.email == body.email.lower()).first():
         raise HTTPException(400, f"Email '{body.email}' is already in use")
-    if len(body.password) < 12:
-        raise HTTPException(422, "Password must be at least 12 characters")
+    try:
+        validate_password_strength(body.password)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
     try:
         role = UserRole(body.role)
     except ValueError:
@@ -577,8 +579,10 @@ def admin_reset_user_password(
     user = db.query(User).filter(User.id == uid).first()
     if not user:
         raise HTTPException(404, "User not found")
-    if len(body.new_password) < 12:
-        raise HTTPException(422, "Password must be at least 12 characters")
+    try:
+        validate_password_strength(body.new_password)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
 
     user.password_hash = hash_password(body.new_password)
     db.commit()

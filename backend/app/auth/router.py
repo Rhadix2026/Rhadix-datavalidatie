@@ -8,21 +8,24 @@ PATCH /api/auth/me/password — change own password
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.audit import (
-    LOGIN_BLOCKED, LOGIN_FAILURE, LOGIN_SUCCESS,
+    LOGIN_BLOCKED, LOGIN_FAILURE, LOGIN_SUCCESS, LOGOUT,
     PASSWORD_CHANGED, PASSWORD_CHANGE_FAILED,
     audit_log,
 )
 from app.auth.brute_force import is_blocked, record_failure, record_success, seconds_until_unblocked
+from app.auth.token_blocklist import block_token
 from app.auth.dependencies import get_current_user
 from app.auth.schemas import LoginRequest, PasswordChangeRequest, TokenResponse, UserResponse
-from app.auth.security import create_access_token, hash_password, verify_password
+from app.auth.security import create_access_token, hash_password, validate_password_strength, verify_password
 from app.database import get_db
 from app.models.auth_models import User, UserApplication, UserRole
 
 router = APIRouter(tags=["Auth"])
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def _get_client_ip(request: Request) -> str:
@@ -124,8 +127,10 @@ def change_password(
         )
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
-    if len(body.new_password) < 12:
-        raise HTTPException(status_code=422, detail="Password must be at least 12 characters")
+    try:
+        validate_password_strength(body.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
     current_user.password_hash = hash_password(body.new_password)
     db.commit()
@@ -136,3 +141,26 @@ def change_password(
         email=current_user.email,
         tenant_id=str(current_user.tenant_id),
     )
+
+
+@router.post("/logout", status_code=204)
+def logout(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+    current_user: User = Depends(get_current_user),
+):
+    """Invalideer het huidige JWT token (voeg toe aan blocklist)."""
+    from jose import jwt as _jwt
+    from app.auth.security import SECRET_KEY, ALGORITHM
+    import time
+
+    try:
+        payload = _jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        exp = payload.get("exp", time.time() + 3600)
+        jti = payload.get("jti") or credentials.credentials
+        block_token(jti, float(exp))
+    except Exception:
+        pass  # Token was al ongeldig — logout succesvol
+
+    audit_log(LOGOUT, request, user_id=str(current_user.id), email=current_user.email,
+              tenant_id=str(current_user.tenant_id))

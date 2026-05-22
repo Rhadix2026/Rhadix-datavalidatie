@@ -29,6 +29,39 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# ---------------------------------------------------------------------------
+# Wachtwoordsterkte validatie
+# ---------------------------------------------------------------------------
+
+def validate_password_strength(password: str) -> None:
+    """Valideer wachtwoordcomplexiteit conform BIO 9.4.3.
+
+    Eisen:
+    - Minimaal 12 tekens
+    - Minimaal 1 hoofdletter
+    - Minimaal 1 kleine letter
+    - Minimaal 1 cijfer
+    - Minimaal 1 speciaal teken (!@#$%^&*()_+-=[]{}|;:,.<>?)
+
+    Gooit ValueError met een duidelijke melding als niet aan de eisen voldaan.
+    """
+    import re
+    errors = []
+    if len(password) < 12:
+        errors.append("minimaal 12 tekens")
+    if not re.search(r"[A-Z]", password):
+        errors.append("minimaal 1 hoofdletter")
+    if not re.search(r"[a-z]", password):
+        errors.append("minimaal 1 kleine letter")
+    if not re.search(r"[0-9]", password):
+        errors.append("minimaal 1 cijfer")
+    if not re.search(r"[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]", password):
+        errors.append("minimaal 1 speciaal teken (!@#$%^&* etc.)")
+    if errors:
+        raise ValueError("Wachtwoord voldoet niet: " + ", ".join(errors) + ".")
+
+
+
 
 # ---------------------------------------------------------------------------
 # Password helpers

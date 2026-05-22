@@ -32,6 +32,7 @@ from jose import JWTError
 from sqlalchemy.orm import Session
 
 from app.auth.security import decode_access_token
+from app.auth.token_blocklist import is_blocked as token_is_blocked
 from app.database import get_db
 from app.models.auth_models import Application, User, UserApplication, UserRole
 
@@ -62,6 +63,15 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Controleer of het token ingetrokken is (logout)
+    jti = payload.get("jti") or credentials.credentials
+    if token_is_blocked(jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

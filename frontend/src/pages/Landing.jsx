@@ -81,8 +81,7 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
           <TreeDecoration />
           {/* Logo in hero */}
           <div style={{ marginBottom: 36 }}>
-            <span style={{ fontFamily: 'var(--font-brand)', fontWeight: 800,
-              fontSize: 28, color: '#fff', letterSpacing: '4px' }}>RHADIX</span>
+            <img src="/rhadix-logo.png" alt="Rhadix" style={{ height: 52, width: 'auto', objectFit: 'contain' }} />
           </div>
 
           <div style={{

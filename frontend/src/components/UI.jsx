@@ -6,15 +6,27 @@ export function RhadixLogo({ height = 44, onHome }) {
   return (
     <a href="https://rhadix.nl" onClick={handleClick}
        style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', cursor: 'pointer' }}>
-      <img src="/rhadix-logo.jpg" alt="Rhadix"
+      <img src="/rhadix-logo.png" alt="Rhadix"
            style={{ height, width: 'auto', objectFit: 'contain' }} />
     </a>
   )
 }
 
-// ─── Boom decoratie (tijdelijk leeg) ─────────────────────────────────────────
-export function TreeDecoration({ opacity = 0.18, style: sx = {} }) {
-  return null
+// ─── Boom decoratie (officieel brand PNG) ────────────────────────────────────
+export function TreeDecoration({ opacity = 0.35, style: sx = {} }) {
+  return (
+    <img
+      src="/rhadix-boom.png"
+      alt=""
+      style={{
+        position: 'absolute', bottom: 0, right: -20,
+        width: '55%', maxWidth: 420,
+        opacity, pointerEvents: 'none', userSelect: 'none',
+        objectFit: 'contain',
+        ...sx
+      }}
+    />
+  )
 }
 
 

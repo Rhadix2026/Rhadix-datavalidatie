@@ -73,17 +73,19 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
           <img src="/rhadix-logo.jpg" alt="Rhadix" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <a href="https://rhadix.nl" style={{
-            color: 'rgba(255,255,255,.7)', fontSize: 13, textDecoration: 'none',
-            fontFamily: 'var(--font)', padding: '6px 14px',
-            border: '1px solid rgba(255,255,255,.15)', borderRadius: 'var(--radius)',
-          }}>← Terug naar rhadix.nl</a>
           {authUser && onDashboard && (
             <button onClick={onDashboard} style={{
               background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
               borderRadius: 'var(--radius)', padding: '6px 14px',
               color: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font)',
             }}>Dashboard</button>
+          )}
+          {onLogout && (
+            <button onClick={onLogout} style={{
+              background: 'transparent', border: '1px solid rgba(255,255,255,.15)',
+              borderRadius: 'var(--radius)', padding: '6px 14px',
+              color: 'rgba(255,255,255,.7)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font)',
+            }}>← Terug</button>
           )}
         </div>
       </header>

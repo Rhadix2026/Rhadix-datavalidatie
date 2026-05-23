@@ -58,11 +58,18 @@ git tag v1.5.X && git push origin v1.5.X
 
 ## Server — handmatige herstelcommando's
 
-Als productie down is:
+Als productie down is (normaal handelt watchdog dit automatisch af binnen 60s):
 ```bash
 ssh root@46.224.224.26
 cd /opt/rhadix-app
 docker compose -p rhadix-prod -f docker-compose.prod.yml --env-file .env.production up -d
+```
+
+Status bekijken:
+```bash
+docker compose -p rhadix-prod ps
+docker compose -p rhadix-staging ps
+cat /var/log/rhadix-watchdog.log | tail -20
 ```
 
 Inhoud .env.production als die ontbreekt:
@@ -79,8 +86,11 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 - Docker on boot: `systemctl is-enabled docker` → enabled ✓
 - Restart policy: `restart: always` op alle containers ✓
-- Swap: 2GB `/swapfile` — controleer na reboot of swap in /etc/fstab staat!
-- Geen OOM-history
+- Swap: 2GB `/swapfile` in `/etc/fstab` → persistent na reboot ✓
+- Docker Compose projecten: `rhadix-prod` (productie) en `rhadix-staging` (staging) — volledig geïsoleerd ✓
+- Watchdog: `/usr/local/bin/rhadix-watchdog.sh` via cron elke minuut — herstart productie automatisch ✓
+- Watchdog log: `/var/log/rhadix-watchdog.log`
+- SSH Keychain: `UseKeychain yes` in `~/.ssh/config` op Mac — geen wachtwoord meer nodig ✓
 
 ---
 
@@ -115,7 +125,7 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 | 2026-05-22 | v1.5.15 | SVG logo vervangen door JPG brand assets (logo + boom) in UI.jsx, Landing.jsx, LoginScreen.jsx |
 | 2026-05-22 | — | Productie hersteld na bad gateway: .env.production ontbrak, GHCR_ORG miste |
 | 2026-05-22 | — | Server gestabiliseerd: 2GB swap toegevoegd, Docker-on-boot bevestigd, restart:always aanwezig |
-| 2026-05-23 | — | ROOT CAUSE 502 gevonden: staging --remove-orphans verwijderde prod containers. Fix: -p rhadix-prod / -p rhadix-staging projectnamen. Watchdog toegevoegd. |
+| 2026-05-23 | — | ROOT CAUSE 502 definitief opgelost: Docker Compose projectnamen (-p rhadix-prod / -p rhadix-staging). Watchdog cron elke minuut. Deploy rollback. SSH Keychain fix. rhadix.nl logo JPG. Swap persistent. |
 | 2026-05-23 | — | Productie hersteld (502), swap-persistent fix, deploy workflow verbeterd met automatische rollback |
 | 2026-05-22 | v1.5.19 | Terug-knop (→ login) + Dashboard-knop volgorde in nav landing page |
 | 2026-05-22 | v1.5.18 | Terug naar rhadix.nl knop toegevoegd aan nav |

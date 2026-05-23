@@ -61,5 +61,7 @@ services:
 volumes:
   pgdata:
     name: rhadix_pgdata
+    external: true
   rhadix_profiles:
     name: rhadix_profiles
+    external: true

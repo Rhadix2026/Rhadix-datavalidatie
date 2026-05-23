@@ -60,6 +60,8 @@ services:
 volumes:
   pgdata_staging:
     name: rhadix_staging_pgdata
+    external: true
     # Let op: ANDERE naam dan productie (rhadix_pgdata) — data is strikt gescheiden
   rhadix_staging_profiles:
     name: rhadix_staging_profiles
+    external: true

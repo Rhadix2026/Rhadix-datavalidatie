@@ -166,19 +166,19 @@ jobs:
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # ── Pull nieuwste :staging images ───────────────────────────────────
-            docker compose \
+            docker compose -p rhadix-staging \
               -f /opt/rhadix-app/docker-compose.staging.yml \
               --env-file /opt/rhadix-app/.env.staging \
               pull
 
             # ── Start/herstart staging stack ────────────────────────────────────
-            docker compose \
+            docker compose -p rhadix-staging \
               -f /opt/rhadix-app/docker-compose.staging.yml \
               --env-file /opt/rhadix-app/.env.staging \
               up -d --remove-orphans
 
             echo "✓ Staging deployment klaar"
-            docker compose \
+            docker compose -p rhadix-staging \
               -f /opt/rhadix-app/docker-compose.staging.yml \
               --env-file /opt/rhadix-app/.env.staging \
               ps

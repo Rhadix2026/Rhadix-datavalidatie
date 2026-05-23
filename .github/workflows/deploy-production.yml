@@ -178,7 +178,7 @@ jobs:
           # Niet set -e hier — rollback-logica handelt fouten zelf af
           script: |
             VERSION="${{ needs.build.outputs.version }}"
-            COMPOSE_CMD="docker compose -f /opt/rhadix-app/docker-compose.prod.yml --env-file /opt/rhadix-app/.env.production"
+            COMPOSE_CMD="docker compose -p rhadix-prod -f /opt/rhadix-app/docker-compose.prod.yml --env-file /opt/rhadix-app/.env.production"
 
             # ── Sla vorige versie op voor rollback ──────────────────────────────
             PREV_VERSION=$(docker inspect rhadix-backend \
@@ -261,7 +261,7 @@ jobs:
                 echo "✓ Rollback naar $PREV_VERSION geslaagd — site is weer online"
               else
                 echo "✗ Rollback ook mislukt (HTTP $RB_STATUS) — handmatige interventie nodig"
-                echo "  Voer uit op server: cd /opt/rhadix-app && docker compose -f docker-compose.prod.yml --env-file .env.production up -d"
+                echo "  Voer uit op server: cd /opt/rhadix-app && docker compose -p rhadix-prod -f docker-compose.prod.yml --env-file .env.production up -d"
               fi
             else
               echo "Geen bruikbare vorige versie voor rollback (was: ${PREV_VERSION:-leeg})"

@@ -62,7 +62,7 @@ Als productie down is:
 ```bash
 ssh root@46.224.224.26
 cd /opt/rhadix-app
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+docker compose -p rhadix-prod -f docker-compose.prod.yml --env-file .env.production up -d
 ```
 
 Inhoud .env.production als die ontbreekt:
@@ -115,6 +115,7 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 | 2026-05-22 | v1.5.15 | SVG logo vervangen door JPG brand assets (logo + boom) in UI.jsx, Landing.jsx, LoginScreen.jsx |
 | 2026-05-22 | — | Productie hersteld na bad gateway: .env.production ontbrak, GHCR_ORG miste |
 | 2026-05-22 | — | Server gestabiliseerd: 2GB swap toegevoegd, Docker-on-boot bevestigd, restart:always aanwezig |
+| 2026-05-23 | — | ROOT CAUSE 502 gevonden: staging --remove-orphans verwijderde prod containers. Fix: -p rhadix-prod / -p rhadix-staging projectnamen. Watchdog toegevoegd. |
 | 2026-05-23 | — | Productie hersteld (502), swap-persistent fix, deploy workflow verbeterd met automatische rollback |
 | 2026-05-22 | v1.5.19 | Terug-knop (→ login) + Dashboard-knop volgorde in nav landing page |
 | 2026-05-22 | v1.5.18 | Terug naar rhadix.nl knop toegevoegd aan nav |

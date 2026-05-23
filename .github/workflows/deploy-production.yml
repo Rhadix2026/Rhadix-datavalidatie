@@ -169,15 +169,23 @@ jobs:
           source:   docker-compose.prod.yml
           target:   /opt/rhadix-app/
 
-      - name: Schrijf .env.production op server en deploy
+      - name: Deploy met automatische rollback bij mislukking
         uses: appleboy/ssh-action@v1.0.3
         with:
           host:     ${{ secrets.PROD_SSH_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key:      ${{ secrets.PROD_SSH_KEY }}
+          # Niet set -e hier — rollback-logica handelt fouten zelf af
           script: |
-            set -e
             VERSION="${{ needs.build.outputs.version }}"
+            COMPOSE_CMD="docker compose -f /opt/rhadix-app/docker-compose.prod.yml --env-file /opt/rhadix-app/.env.production"
+
+            # ── Sla vorige versie op voor rollback ──────────────────────────────
+            PREV_VERSION=$(docker inspect rhadix-backend \
+              --format '{{.Config.Image}}' 2>/dev/null \
+              | awk -F: '{print $NF}' || echo "")
+            echo "Vorige versie: ${PREV_VERSION:-onbekend}"
+            echo "Nieuwe versie: $VERSION"
 
             # ── Schrijf productie env-file ────────────────────────────────────
             cat > /opt/rhadix-app/.env.production << 'ENVEOF'
@@ -188,57 +196,75 @@ jobs:
             BACKEND_PORT=8010
             ENVEOF
 
-            echo "RHADIX_VERSION=$VERSION"       >> /opt/rhadix-app/.env.production
-            echo "DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}" >> /opt/rhadix-app/.env.production
-            echo "RHADIX_LICENSE_KEY=${{ secrets.PROD_LICENSE_KEY }}" >> /opt/rhadix-app/.env.production
-            echo "JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}" >> /opt/rhadix-app/.env.production
-            echo "GHCR_USER=${{ github.actor }}" >> /opt/rhadix-app/.env.production
-            echo "GHCR_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> /opt/rhadix-app/.env.production
-
+            echo "RHADIX_VERSION=$VERSION"                                    >> /opt/rhadix-app/.env.production
+            echo "DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}"               >> /opt/rhadix-app/.env.production
+            echo "RHADIX_LICENSE_KEY=${{ secrets.PROD_LICENSE_KEY }}"        >> /opt/rhadix-app/.env.production
+            echo "JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}"         >> /opt/rhadix-app/.env.production
             chmod 600 /opt/rhadix-app/.env.production
 
             # ── Login bij GHCR ────────────────────────────────────────────────
             echo "${{ secrets.GITHUB_TOKEN }}" | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # ── Pull images voor deze exacte versie ───────────────────────────
-            docker compose \
-              -f /opt/rhadix-app/docker-compose.prod.yml \
-              --env-file /opt/rhadix-app/.env.production \
-              pull
+            # ── Pull nieuwe images VÓÓR containers stoppen ────────────────────
+            # (bij pull-fout: containers blijven draaien, workflow faalt veilig)
+            if ! $COMPOSE_CMD pull; then
+              echo "✗ Pull mislukt — containers onaangeroerd, deploy afgebroken"
+              exit 1
+            fi
 
-            # ── Start/herstart productie-stack ────────────────────────────────
-            docker compose \
-              -f /opt/rhadix-app/docker-compose.prod.yml \
-              --env-file /opt/rhadix-app/.env.production \
-              up -d --remove-orphans
+            # ── Start nieuwe versie ───────────────────────────────────────────
+            $COMPOSE_CMD up -d --remove-orphans
+            echo "Containers gestart, health check..."
 
-            echo "✓ Productie deployment klaar: $VERSION"
-            docker compose \
-              -f /opt/rhadix-app/docker-compose.prod.yml \
-              --env-file /opt/rhadix-app/.env.production \
-              ps
-
-      - name: Health check productie
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host:     ${{ secrets.PROD_SSH_HOST }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key:      ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            set -e
-            echo "Health check productie..."
+            # ── Health check (90 seconden) ────────────────────────────────────
+            HEALTHY=false
             for i in $(seq 1 18); do
               STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-                http://localhost:8010/api/health || echo "000")
+                http://localhost:8010/api/health 2>/dev/null || echo "000")
               if [ "$STATUS" = "200" ]; then
-                echo "✓ Productie bereikbaar (HTTP $STATUS)"
-                docker ps --filter "name=rhadix-" --format "  {{.Names}}: {{.Status}}"
-                exit 0
+                HEALTHY=true
+                echo "✓ Productie bereikbaar na poging $i (HTTP 200)"
+                break
               fi
               echo "  Poging $i/18 — HTTP $STATUS — wacht 5s..."
               sleep 5
             done
-            echo "✗ Health check mislukt — container logs:"
-            docker logs rhadix-backend --tail 30 || true
+
+            # ── Geslaagd ──────────────────────────────────────────────────────
+            if [ "$HEALTHY" = "true" ]; then
+              echo ""
+              echo "════════════════════════════════════════"
+              echo "  ✓ DEPLOY GESLAAGD: $VERSION"
+              echo "════════════════════════════════════════"
+              $COMPOSE_CMD ps
+              exit 0
+            fi
+
+            # ── ROLLBACK ──────────────────────────────────────────────────────
+            echo ""
+            echo "════════════════════════════════════════"
+            echo "  ✗ HEALTH CHECK MISLUKT — AUTOMATISCHE ROLLBACK"
+            echo "════════════════════════════════════════"
+            echo "Backend logs (laatste 50 regels):"
+            docker logs rhadix-backend --tail 50 || true
+
+            if [ -n "$PREV_VERSION" ] && [ "$PREV_VERSION" != "$VERSION" ] && [ "$PREV_VERSION" != "latest" ]; then
+              echo ""
+              echo "Terugzetten naar: $PREV_VERSION"
+              sed -i "s/RHADIX_VERSION=.*/RHADIX_VERSION=$PREV_VERSION/" /opt/rhadix-app/.env.production
+              $COMPOSE_CMD up -d --remove-orphans
+              sleep 15
+              RB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+                http://localhost:8010/api/health 2>/dev/null || echo "000")
+              if [ "$RB_STATUS" = "200" ]; then
+                echo "✓ Rollback naar $PREV_VERSION geslaagd — site is weer online"
+              else
+                echo "✗ Rollback ook mislukt (HTTP $RB_STATUS) — handmatige interventie nodig"
+                echo "  Voer uit op server: cd /opt/rhadix-app && docker compose -f docker-compose.prod.yml --env-file .env.production up -d"
+              fi
+            else
+              echo "Geen bruikbare vorige versie voor rollback (was: ${PREV_VERSION:-leeg})"
+            fi
+
             exit 1

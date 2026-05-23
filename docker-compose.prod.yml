@@ -9,7 +9,7 @@ services:
   db:
     image: postgres:16-alpine
     container_name: rhadix-db
-    restart: unless-stopped
+    restart: always
     environment:
       POSTGRES_USER:     ${DB_USER:-kikv}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Stel DB_PASSWORD in in .env}

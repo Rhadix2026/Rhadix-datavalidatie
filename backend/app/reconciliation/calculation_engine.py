@@ -1,11 +1,14 @@
 """
 Rhadix Reconciliation Engine — Calculation Engine
 Laadt brondata, past filters toe en berekent de verwachte indicatorwaarde.
+Ondersteunde formaten: CSV, Excel (.xlsx/.xls), AFAS XML (Profit GET-connector)
 """
 
 from __future__ import annotations
 
 import io
+import re
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -24,6 +27,60 @@ class CalcResult:
     metadata: dict = field(default_factory=dict)
 
 
+# ---------------------------------------------------------------------------
+# XML-parser voor AFAS Profit GET-connector output
+# Structuur: <RootElement><RecordElement><Veld>waarde</Veld>...</RecordElement>...
+# ---------------------------------------------------------------------------
+
+_AFAS_DATE_COMPACT = re.compile(r"^\d{8}$")          # 20200303
+_AFAS_DATETIME_ISO = re.compile(r"^\d{4}-\d{2}-\d{2}T")  # 2026-04-19T00:00:00
+
+
+def _parse_afas_xml(source: io.BytesIO) -> pd.DataFrame:
+    """Parseer AFAS Profit XML naar een pandas DataFrame.
+    De root-tag bevat herhaalde record-tags; elke record wordt één rij.
+    Lege elementen worden None. Datumvelden worden herkend en omgezet.
+    """
+    source.seek(0)
+    tree = ET.parse(source)
+    root = tree.getroot()
+
+    rows = []
+    for record in root:          # directe children van root = records
+        row: dict = {}
+        for field_el in record:  # children van record = velden
+            text = field_el.text
+            if text is None or text.strip() == "":
+                row[field_el.tag] = None
+            elif _AFAS_DATE_COMPACT.match(text.strip()):
+                # 20200303 → pd.Timestamp
+                try:
+                    row[field_el.tag] = pd.to_datetime(text.strip(), format="%Y%m%d")
+                except Exception:
+                    row[field_el.tag] = text.strip()
+            elif _AFAS_DATETIME_ISO.match(text.strip()):
+                # 2026-04-19T00:00:00 → pd.Timestamp
+                try:
+                    row[field_el.tag] = pd.to_datetime(text.strip())
+                except Exception:
+                    row[field_el.tag] = text.strip()
+            else:
+                row[field_el.tag] = text.strip()
+        rows.append(row)
+
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows)
+
+
+def _is_xml(source: io.BytesIO) -> bool:
+    """Controleer of de bron XML is door de eerste bytes te lezen."""
+    source.seek(0)
+    header = source.read(64).lstrip()
+    source.seek(0)
+    return header.startswith(b"<?xml") or header.startswith(b"<")
+
+
 class DataLoader:
     @staticmethod
     def load(source, **read_kwargs) -> pd.DataFrame:
@@ -31,9 +88,15 @@ class DataLoader:
             path = Path(source)
             if path.suffix in {".xlsx", ".xls"}:
                 return pd.read_excel(path, **read_kwargs)
+            if path.suffix == ".xml":
+                with open(path, "rb") as f:
+                    return _parse_afas_xml(io.BytesIO(f.read()))
             return pd.read_csv(path, **read_kwargs)
         if isinstance(source, bytes):
             source = io.BytesIO(source)
+        # Auto-detectie op basis van inhoud
+        if _is_xml(source):
+            return _parse_afas_xml(source)
         try:
             source.seek(0)
             return pd.read_csv(source, **read_kwargs)

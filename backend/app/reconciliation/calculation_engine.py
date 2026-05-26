@@ -90,7 +90,9 @@ class CalculationEngine:
                 continue
             mask &= _apply_filter(df, condition)
         if rule.peildatum and rule.peildatum_field and rule.peildatum_field in df.columns:
-            df[rule.peildatum_field] = pd.to_datetime(df[rule.peildatum_field], errors="coerce")
+            df[rule.peildatum_field] = pd.to_datetime(
+                df[rule.peildatum_field], errors="coerce", dayfirst=getattr(rule, "dayfirst", False)
+            )
             cutoff = pd.Timestamp(rule.peildatum)
             mask &= (df[rule.peildatum_field].isna()) | (df[rule.peildatum_field] >= cutoff)
         return df[mask].copy(), df[~mask].copy()

@@ -791,7 +791,499 @@ function exportJSON(results) {
 // Main Dashboard
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Happy Flow Tab
+// ---------------------------------------------------------------------------
+
+const DATASET_LABELS = {
+  "medewerker_ons.csv":             { label: "Medewerkers ONS",              icon: "👤", color: "#3b82f6" },
+  "medewerker_afas_hrm.csv":        { label: "Medewerkers AFAS HRM",         icon: "👤", color: "#6366f1" },
+  "werkovereenkomst_ons.csv":       { label: "Werkovereenkomsten ONS",        icon: "📋", color: "#0891b2" },
+  "werkovereenkomst_afas_hrm.csv":  { label: "Werkovereenkomsten AFAS HRM",   icon: "📋", color: "#0e7490" },
+  "client_ons.csv":                 { label: "Cliënten ONS",                  icon: "🏥", color: "#16a34a" },
+  "verzuim_ons.csv":                { label: "Verzuim ONS",                   icon: "🤒", color: "#dc2626" },
+  "verzuim_afas_hrm.csv":           { label: "Verzuim AFAS HRM",              icon: "🤒", color: "#b91c1c" },
+  "financieleboeking_afas_fin.csv": { label: "Financiële boekingen AFAS",     icon: "💶", color: "#d97706" },
+  "grootboekrubriek_afas_fin.csv":  { label: "Grootboekrubrieken AFAS",       icon: "📊", color: "#b45309" },
+  "vestiging_ons.csv":              { label: "Vestigingen ONS",               icon: "🏢", color: "#7c3aed" },
+  "wlzkostenplaats_afas_fin.csv":   { label: "WLZ-kostenplaatsen AFAS",       icon: "💰", color: "#a16207" },
+  "functie_ons.csv":                { label: "Functies ONS",                  icon: "🎓", color: "#0369a1" },
+};
+
+function SparqlViewModal({ indicator, sparqls, onClose }) {
+  const [selected, setSelected] = React.useState(null);
+  const sparqlList = Object.values(sparqls || {});
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,.5)",
+      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+    }} onClick={onClose}>
+      <div style={{
+        background: "#fff", borderRadius: 12, padding: 24,
+        maxWidth: 760, width: "92%", maxHeight: "85vh", overflowY: "auto",
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>📡 Koppel SPARQL-indicator</div>
+            <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{indicator?.indicator_name}</div>
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#94a3b8" }}>✕</button>
+        </div>
+
+        {sparqlList.length === 0 && (
+          <div style={{ padding: "20px", textAlign: "center", color: "#94a3b8" }}>
+            Geen profiel geselecteerd of geen SPARQL-queries beschikbaar.
+            <br />
+            <span style={{ fontSize: 12, marginTop: 6, display: "block" }}>
+              Selecteer eerst een uitwisselprofiel in het formulier hierboven.
+            </span>
+          </div>
+        )}
+
+        {sparqlList.length > 0 && (
+          <div style={{ maxHeight: 420, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc", position: "sticky", top: 0 }}>
+                  <th style={thStyle}>ID</th>
+                  <th style={thStyle}>Titel</th>
+                  <th style={{ ...thStyle, textAlign: "center" }}>Actie</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sparqlList.map((s, i) => (
+                  <tr key={s.id} style={{
+                    borderTop: "1px solid #f1f5f9",
+                    background: selected?.id === s.id ? "#eff6ff" : (i % 2 === 0 ? "#fff" : "#fafafa"),
+                  }}>
+                    <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "#64748b" }}>{s.id}</td>
+                    <td style={{ ...tdStyle, color: selected?.id === s.id ? "#1d4ed8" : "#1e293b", fontWeight: selected?.id === s.id ? 600 : 400 }}>
+                      {s.title}
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: "center" }}>
+                      <button
+                        onClick={() => setSelected(selected?.id === s.id ? null : s)}
+                        style={{
+                          padding: "3px 10px", borderRadius: 4, fontSize: 11, cursor: "pointer",
+                          border: selected?.id === s.id ? "1px solid #3b82f6" : "1px solid #cbd5e1",
+                          background: selected?.id === s.id ? "#3b82f6" : "#fff",
+                          color: selected?.id === s.id ? "#fff" : "#374151",
+                        }}
+                      >
+                        {selected?.id === s.id ? "✓ Geselecteerd" : "Bekijk"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {selected && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 6 }}>
+              📋 SPARQL query: {selected.title}
+            </div>
+            <pre style={{
+              background: "#1e293b", color: "#e2e8f0", borderRadius: 8,
+              padding: "14px 16px", fontSize: 11, lineHeight: 1.6,
+              overflowX: "auto", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word",
+              maxHeight: 250, overflowY: "auto",
+            }}>
+              {selected.sparql_query}
+            </pre>
+            <button
+              onClick={() => navigator.clipboard?.writeText(selected.sparql_query)}
+              style={{ marginTop: 8, padding: "5px 12px", borderRadius: 6, border: "1px solid #cbd5e1", background: "#f8fafc", cursor: "pointer", fontSize: 12, color: "#475569" }}
+            >
+              📋 Kopieer query
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function HappyFlowResultCard({ result, sparqls, onViewSparql }) {
+  const ds = result.source_dataset || "";
+  const dsInfo = DATASET_LABELS[ds] || { label: ds, icon: "📄", color: "#64748b" };
+  const hasError = result.metadata?.error;
+
+  return (
+    <div style={{
+      background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10,
+      padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,.06)",
+      borderLeft: `4px solid ${hasError ? "#ef4444" : dsInfo.color}`,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{result.indicator_name}</div>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, fontFamily: "monospace" }}>{result.indicator_id}</div>
+        </div>
+        <div style={{
+          padding: "3px 10px", borderRadius: 12, fontSize: 12, fontWeight: 600, flexShrink: 0, marginLeft: 10,
+          background: hasError ? "#fee2e2" : "#f0f9ff",
+          color: hasError ? "#dc2626" : dsInfo.color,
+        }}>
+          {dsInfo.icon} {dsInfo.label}
+        </div>
+      </div>
+
+      {hasError ? (
+        <div style={{ fontSize: 12, color: "#ef4444", padding: "6px 10px", background: "#fee2e2", borderRadius: 6 }}>
+          ⚠ Fout: {result.metadata.error}
+        </div>
+      ) : (
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto",
+          gap: 10, alignItems: "center",
+          background: "#f8fafc", borderRadius: 8, padding: "10px 14px",
+        }}>
+          <div>
+            <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 }}>Uitkomst (CSV)</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: dsInfo.color, marginTop: 2 }}>
+              {result.expected_value !== null && result.expected_value !== undefined
+                ? (typeof result.expected_value === "number" && !Number.isInteger(result.expected_value)
+                  ? result.expected_value.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  : result.expected_value.toLocaleString("nl-NL"))
+                : "—"}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 }}>Meegeteld</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", marginTop: 2 }}>{(result.record_count ?? 0).toLocaleString("nl-NL")}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 }}>Totaal rijen</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#64748b", marginTop: 2 }}>{(result.total_rows ?? 0).toLocaleString("nl-NL")}</div>
+          </div>
+          <button
+            onClick={() => onViewSparql(result)}
+            style={{
+              padding: "6px 12px", borderRadius: 6, border: "1px solid #bfdbfe",
+              background: "#eff6ff", cursor: "pointer", fontSize: 12, fontWeight: 500,
+              color: "#1d4ed8", whiteSpace: "nowrap",
+            }}
+          >
+            📡 SPARQL
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HappyFlowTab() {
+  const [files, setFiles]                   = useState([]);
+  const [dragOver, setDragOver]             = useState(false);
+  const [loading, setLoading]               = useState(false);
+  const [batchResult, setBatchResult]       = useState(null);
+  const [profiles, setProfiles]             = useState([]);
+  const [selectedProfile, setSelectedProfile] = useState("");
+  const [sparqlModal, setSparqlModal]       = useState(null); // result voor modal
+  const [filterTag, setFilterTag]           = useState("all");
+  const fileInputRef = React.useRef();
+
+  React.useEffect(() => {
+    authFetch("/api/profiles/")
+      .then(r => r.json())
+      .then(d => setProfiles(Array.isArray(d) ? d : []))
+      .catch(console.error);
+  }, []);
+
+  function handleFileChange(e) {
+    const newFiles = Array.from(e.target.files || []);
+    setFiles(prev => {
+      const existing = new Set(prev.map(f => f.name));
+      return [...prev, ...newFiles.filter(f => !existing.has(f.name))];
+    });
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setDragOver(false);
+    const newFiles = Array.from(e.dataTransfer.files || []).filter(f => f.name.endsWith(".csv") || f.name.endsWith(".xlsx"));
+    setFiles(prev => {
+      const existing = new Set(prev.map(f => f.name));
+      return [...prev, ...newFiles.filter(f => !existing.has(f.name))];
+    });
+  }
+
+  function removeFile(name) {
+    setFiles(prev => prev.filter(f => f.name !== name));
+  }
+
+  async function handleRun() {
+    if (files.length === 0) return;
+    setLoading(true);
+    setBatchResult(null);
+    try {
+      const fd = new FormData();
+      files.forEach(f => fd.append("files", f, f.name));
+      if (selectedProfile) fd.append("profile_filename", selectedProfile);
+      const resp = await authFetch(`${API_BASE}/happy-flow/batch`, { method: "POST", body: fd });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        throw new Error(err.detail || resp.statusText);
+      }
+      setBatchResult(await resp.json());
+    } catch (err) {
+      alert("Fout: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function exportHappyFlowCSV() {
+    if (!batchResult) return;
+    const header = ["indicator_id", "naam", "dataset", "uitkomst", "meegeteld", "totaal_rijen"];
+    const rows = (batchResult.all_results || []).map(r => [
+      r.indicator_id, r.indicator_name, r.source_dataset,
+      r.expected_value ?? "", r.record_count ?? "", r.total_rows ?? "",
+    ]);
+    const csv = [header, ...rows].map(r => r.join(";")).join("\n");
+    Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
+      download: "happy-flow-resultaten.csv",
+    }).click();
+  }
+
+  const knownFiles = new Set(Object.keys(DATASET_LABELS));
+  const recognizedFiles = files.filter(f => knownFiles.has(f.name));
+  const unknownFiles    = files.filter(f => !knownFiles.has(f.name));
+
+  // Resultaten filteren op tag
+  const allResults = batchResult?.all_results || [];
+  const tagGroups = ["all", "medewerkers", "werkovereenkomsten", "clienten", "verzuim", "financieel", "vestigingen", "functies", "kostenplaatsen"];
+  const filteredResults = filterTag === "all"
+    ? allResults
+    : allResults.filter(r => (r.tags || []).includes(filterTag));
+
+  // Groepeer per dataset voor weergave
+  const datasets = batchResult?.datasets || {};
+
+  return (
+    <div>
+      {/* ── Upload sectie ──────────────────────────────────────────────── */}
+      <div style={{
+        background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10,
+        padding: 20, marginBottom: 20,
+      }}>
+        <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700 }}>Happy Flow — Batch upload</h3>
+
+        {/* Profiel dropdown */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Uitwisselprofiel (optioneel — voor SPARQL-koppelingen)</label>
+          <select
+            value={selectedProfile}
+            onChange={e => setSelectedProfile(e.target.value)}
+            style={{ ...inputStyle, maxWidth: 420 }}
+          >
+            <option value="">— Geen profiel (alleen CSV-berekeningen) —</option>
+            {profiles.map(p => (
+              <option key={p.filename} value={p.filename}>
+                {p.name || p.filename} ({p.indicator_count} indicatoren)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Drop zone */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            border: `2px dashed ${dragOver ? "#3b82f6" : "#cbd5e1"}`,
+            borderRadius: 10, padding: "28px 20px", textAlign: "center",
+            cursor: "pointer", background: dragOver ? "#eff6ff" : "#fff",
+            transition: "all 0.15s", marginBottom: 14,
+          }}
+        >
+          <div style={{ fontSize: 28, marginBottom: 6 }}>📂</div>
+          <div style={{ fontWeight: 600, fontSize: 14, color: "#475569" }}>
+            Sleep CSV-bestanden hiernaartoe of klik om te bladeren
+          </div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>
+            medewerker_ons.csv, werkovereenkomst_ons.csv, client_ons.csv, …
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.xlsx"
+            multiple
+            style={{ display: "none" }}
+            onChange={handleFileChange}
+          />
+        </div>
+
+        {/* Bestandenlijst */}
+        {files.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 6 }}>
+              {files.length} bestand{files.length !== 1 ? "en" : ""} geselecteerd
+              {recognizedFiles.length > 0 && <span style={{ color: "#16a34a" }}> — {recognizedFiles.length} herkend</span>}
+              {unknownFiles.length > 0 && <span style={{ color: "#f59e0b" }}> — {unknownFiles.length} onbekend (worden overgeslagen)</span>}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {files.map(f => {
+                const known = knownFiles.has(f.name);
+                const dsInfo = DATASET_LABELS[f.name] || { icon: "📄", color: "#94a3b8" };
+                return (
+                  <div key={f.name} style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "4px 10px", borderRadius: 16,
+                    background: known ? "#f0fdf4" : "#fef9c3",
+                    border: `1px solid ${known ? "#86efac" : "#fde68a"}`,
+                    fontSize: 12,
+                  }}>
+                    <span>{dsInfo.icon}</span>
+                    <span style={{ color: known ? "#15803d" : "#92400e" }}>{f.name}</span>
+                    <button
+                      onClick={e => { e.stopPropagation(); removeFile(f.name); }}
+                      style={{ border: "none", background: "none", cursor: "pointer", color: "#94a3b8", fontSize: 13, padding: 0, lineHeight: 1 }}
+                    >✕</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <button
+            onClick={handleRun}
+            disabled={loading || recognizedFiles.length === 0}
+            style={{
+              padding: "10px 24px", borderRadius: 8,
+              background: (loading || recognizedFiles.length === 0) ? "#cbd5e1" : "#3b82f6",
+              color: "#fff", border: "none", fontWeight: 600, fontSize: 14,
+              cursor: (loading || recognizedFiles.length === 0) ? "not-allowed" : "pointer",
+            }}
+          >
+            {loading ? "⏳ Bezig met berekenen…" : `▶ Bereken ${recognizedFiles.length} bestand${recognizedFiles.length !== 1 ? "en" : ""}`}
+          </button>
+          {files.length > 0 && (
+            <button
+              onClick={() => { setFiles([]); setBatchResult(null); }}
+              style={{ padding: "10px 16px", borderRadius: 8, background: "#fff", border: "1px solid #e2e8f0", cursor: "pointer", fontSize: 13, color: "#64748b" }}
+            >
+              Wis alles
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Resultaten ─────────────────────────────────────────────────── */}
+      {batchResult && (
+        <>
+          {/* Samenvatting */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12,
+            marginBottom: 20,
+          }}>
+            {[
+              { label: "Indicatoren berekend", value: batchResult.total_indicators, color: "#3b82f6" },
+              { label: "Datasets verwerkt", value: batchResult.total_datasets, color: "#16a34a" },
+              { label: "Bestanden overgeslagen", value: (batchResult.skipped_files || []).length, color: "#f59e0b" },
+              { label: "SPARQL-queries beschikbaar", value: batchResult.profile_sparqls_available || 0, color: "#8b5cf6" },
+            ].map(m => (
+              <div key={m.label} style={{
+                background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10,
+                padding: "14px 16px", textAlign: "center",
+              }}>
+                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 }}>{m.label}</div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: m.color, marginTop: 4 }}>{m.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Overgeslagen bestanden melding */}
+          {batchResult.skipped_files?.length > 0 && (
+            <div style={{ marginBottom: 16, padding: "10px 14px", background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, fontSize: 13, color: "#92400e" }}>
+              ⚠ Geen regels gevonden voor: {batchResult.skipped_files.join(", ")}
+            </div>
+          )}
+
+          {/* Filter tabs */}
+          {allResults.length > 0 && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: "#64748b", marginRight: 4 }}>Filter:</span>
+              {tagGroups.map(tag => {
+                const count = tag === "all" ? allResults.length : allResults.filter(r => (r.tags || []).includes(tag)).length;
+                if (count === 0 && tag !== "all") return null;
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => setFilterTag(tag)}
+                    style={{
+                      padding: "4px 12px", borderRadius: 12, fontSize: 12, cursor: "pointer",
+                      border: filterTag === tag ? "1.5px solid #3b82f6" : "1px solid #cbd5e1",
+                      background: filterTag === tag ? "#eff6ff" : "#fff",
+                      color: filterTag === tag ? "#1d4ed8" : "#475569",
+                      fontWeight: filterTag === tag ? 600 : 400,
+                    }}
+                  >
+                    {tag === "all" ? "Alles" : tag.charAt(0).toUpperCase() + tag.slice(1)} ({count})
+                  </button>
+                );
+              })}
+              <button onClick={exportHappyFlowCSV} style={{ marginLeft: "auto", ...exportBtn }}>⬇ CSV exporteren</button>
+            </div>
+          )}
+
+          {/* Resultatenlijst */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {filteredResults.map(r => (
+              <HappyFlowResultCard
+                key={r.indicator_id}
+                result={r}
+                sparqls={batchResult.profile_sparqls || {}}
+                onViewSparql={result => setSparqlModal(result)}
+              />
+            ))}
+          </div>
+
+          {filteredResults.length === 0 && (
+            <div style={{ textAlign: "center", padding: "32px 0", color: "#94a3b8" }}>
+              Geen indicatoren voor dit filter.
+            </div>
+          )}
+        </>
+      )}
+
+      {!batchResult && !loading && (
+        <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>📂</div>
+          Upload de happy flow CSV-bestanden om de indicatoren te berekenen.
+          <br />
+          <span style={{ fontSize: 12, marginTop: 8, display: "block" }}>
+            Bestanden worden automatisch herkend op basis van bestandsnaam
+          </span>
+        </div>
+      )}
+
+      {sparqlModal && (
+        <SparqlViewModal
+          indicator={sparqlModal}
+          sparqls={batchResult?.profile_sparqls || {}}
+          onClose={() => setSparqlModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Dashboard
+// ---------------------------------------------------------------------------
+
 export default function ReconciliationDashboard({ onBack }) {
+  const [activeTab, setActiveTab]              = useState("happy-flow");
   const [indicators, setIndicators]           = useState([]);
   const [results, setResults]                 = useState([]);
   const [calcPreview, setCalcPreview]         = useState(null);
@@ -810,10 +1302,16 @@ export default function ReconciliationDashboard({ onBack }) {
   const totalOK = results.filter(r => r.status === "OK").length;
   const overallScore = results.length > 0 ? (totalOK / results.length) * 100 : null;
 
-  return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px", fontFamily: "Inter, system-ui, sans-serif" }}>
+  const tabs = [
+    { id: "happy-flow", label: "🚀 Happy Flow batch" },
+    { id: "manual",     label: "🔧 Handmatig per indicator" },
+  ];
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+  return (
+    <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px", fontFamily: "Inter, system-ui, sans-serif" }}>
+
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
           {onBack && (
             <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 13, marginBottom: 6, padding: 0, display: "block" }}>
@@ -822,54 +1320,81 @@ export default function ReconciliationDashboard({ onBack }) {
           )}
           <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>🔁 Reconciliation Engine</h2>
           <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>
-            Vergelijk brondata-uitkomsten met SPARQL-indicatoren
+            Vergelijk brondata-uitkomsten met SPARQL-indicatoren uit het uitwisselprofiel
           </p>
         </div>
-        {overallScore !== null && (
+        {activeTab === "manual" && overallScore !== null && (
           <ScoreGauge score={overallScore} label={results[0]?.reconciliation_score_label || ""} />
         )}
       </div>
 
-      <UploadForm
-        indicators={indicators}
-        onResult={handleResult}
-        onCalcPreview={handleCalcPreview}
-        loading={loading}
-        setLoading={setLoading}
-      />
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 2, marginBottom: 24, borderBottom: "2px solid #e2e8f0" }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: "10px 20px", border: "none", cursor: "pointer",
+              background: "none", fontWeight: activeTab === tab.id ? 700 : 400,
+              fontSize: 14, color: activeTab === tab.id ? "#1d4ed8" : "#64748b",
+              borderBottom: activeTab === tab.id ? "2px solid #1d4ed8" : "2px solid transparent",
+              marginBottom: -2,
+              transition: "all 0.15s",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {calcPreview && (
-        <CalcPreviewCard calc={calcPreview} indicatorName={calcPreviewName} onClose={() => setCalcPreview(null)} />
-      )}
+      {/* Tab inhoud */}
+      {activeTab === "happy-flow" && <HappyFlowTab />}
 
-      {results.length > 0 && (
+      {activeTab === "manual" && (
         <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 16 }}>Vergelijkingsresultaten ({totalOK}/{results.length} OK)</h3>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => exportCSV(results)} style={exportBtn}>⬇ CSV</button>
-              <button onClick={() => exportJSON(results)} style={exportBtn}>⬇ JSON</button>
+          <UploadForm
+            indicators={indicators}
+            onResult={handleResult}
+            onCalcPreview={handleCalcPreview}
+            loading={loading}
+            setLoading={setLoading}
+          />
+
+          {calcPreview && (
+            <CalcPreviewCard calc={calcPreview} indicatorName={calcPreviewName} onClose={() => setCalcPreview(null)} />
+          )}
+
+          {results.length > 0 && (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 16 }}>Vergelijkingsresultaten ({totalOK}/{results.length} OK)</h3>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => exportCSV(results)} style={exportBtn}>⬇ CSV</button>
+                  <button onClick={() => exportJSON(results)} style={exportBtn}>⬇ JSON</button>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {results.map(r => (
+                  <IndicatorCard key={r.indicator_id} result={r} onDrillDown={setDrillTarget} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {results.length === 0 && !calcPreview && !loading && (
+            <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
+              Kies een indicator en upload een bronbestand om te beginnen.
+              <br />
+              <span style={{ fontSize: 12, marginTop: 8, display: "block" }}>
+                "📄 Bekijk brondata" toont de CSV-uitkomst &nbsp;·&nbsp; "▶ Reconcilieer" vergelijkt met SPARQL
+              </span>
             </div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {results.map(r => (
-              <IndicatorCard key={r.indicator_id} result={r} onDrillDown={setDrillTarget} />
-            ))}
-          </div>
+          )}
+
+          <DrillDownModal result={drillTarget} onClose={() => setDrillTarget(null)} />
         </>
       )}
-
-      {results.length === 0 && !calcPreview && !loading && (
-        <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
-          Kies een indicator en upload een bronbestand om te beginnen.
-          <br />
-          <span style={{ fontSize: 12, marginTop: 8, display: "block" }}>
-            "📄 Bekijk brondata" toont de CSV-uitkomst &nbsp;·&nbsp; "▶ Reconcilieer" vergelijkt met SPARQL
-          </span>
-        </div>
-      )}
-
-      <DrillDownModal result={drillTarget} onClose={() => setDrillTarget(null)} />
     </div>
   );
 }

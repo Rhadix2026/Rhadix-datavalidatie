@@ -30,9 +30,17 @@ from .rule_engine import RuleEngine
 
 
 def _sanitize(obj):
-    """Vervang NaN/Inf door None zodat JSON-serialisatie werkt."""
+    """Vervang NaN/Inf/Timestamp door JSON-serialiseerbare waarden.
+    Behandelt ook pandas Timestamps die ontstaan bij XML-import met datumvelden.
+    """
+    import datetime
+    import pandas as pd
+    if obj is None:
+        return None
     if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
         return None
+    if isinstance(obj, (pd.Timestamp, datetime.datetime, datetime.date)):
+        return obj.isoformat() if not pd.isnull(obj) else None
     if isinstance(obj, dict):
         return {k: _sanitize(v) for k, v in obj.items()}
     if isinstance(obj, list):

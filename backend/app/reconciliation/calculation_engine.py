@@ -169,8 +169,13 @@ class CalculationEngine:
         if col is None:     raise ValueError(f"Aggregatiefunctie '{fn}' vereist een 'field'.")
         if col not in df.columns:
             return None  # kolom ontbreekt in bronbestand — geen fout, wel Unknown status
-        if fn == "sum":     return float(df[col].sum())
-        if fn == "mean":    v = df[col].mean();    return round(float(v), 4) if not pd.isna(v) else None
-        if fn == "median":  v = df[col].median();  return round(float(v), 4) if not pd.isna(v) else None
-        if fn == "nunique": return int(df[col].nunique())
+        # Voor numerieke functies: converteer kolom naar numeriek (vangt XML-stringwaarden op)
+        if fn in ("sum", "mean", "median"):
+            series = pd.to_numeric(df[col], errors="coerce")
+        else:
+            series = df[col]
+        if fn == "sum":     return float(series.sum())
+        if fn == "mean":    v = series.mean();    return round(float(v), 4) if not pd.isna(v) else None
+        if fn == "median":  v = series.median();  return round(float(v), 4) if not pd.isna(v) else None
+        if fn == "nunique": return int(series.nunique())
         raise ValueError(f"Onbekende aggregatiefunctie: {fn}")

@@ -36,6 +36,7 @@ class IndicatorRule(BaseModel):
     source_dataset: str
     peildatum_field: str | None = None
     peildatum: str | None = None
+    dayfirst: bool = False          # True voor Nederlandse datumnotatie dd/MM/yyyy
     filters: list[FilterCondition] = Field(default_factory=list)
     aggregation: AggregationConfig
     sparql_query: str | None = None

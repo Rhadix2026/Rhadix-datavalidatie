@@ -15,6 +15,9 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
+# Profiles dir voor SPARQL-opzoeken
+_PROFILES_DIR = Path(__file__).parent.parent.parent / "data" / "profiles"
+
 from .calculation_engine import CalculationEngine
 from .reconciliation_engine import (
     BatchReconciliationResult,
@@ -162,3 +165,152 @@ async def batch_reconcile(
 
     batch = BatchReconciliationResult(results=results)
     return JSONResponse(content=batch.to_dict())
+
+
+# ── Happy Flow Batch ──────────────────────────────────────────────────────────
+
+def _load_profile_sparqls(profile_filename: str) -> dict[str, dict]:
+    """Laad alle indicator-SPARQLs uit een opgeslagen profiel.
+    Geeft dict terug: {indicator_id: {id, title, sparql_query}}
+    """
+    if not profile_filename:
+        return {}
+    path = _PROFILES_DIR / profile_filename
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        indicators = data.get("indicators", {})
+        out = {}
+        if isinstance(indicators, list):
+            for ind in indicators:
+                ind_id = ind.get("id") or ind.get("indicator_id", "")
+                sparql_raw = ind.get("sparql_query") or ind.get("files", {}).get("sparql", {}).get("raw", "")
+                if sparql_raw:
+                    out[ind_id] = {
+                        "id": ind_id,
+                        "title": ind.get("title") or ind.get("metadata", {}).get("title", ind_id),
+                        "sparql_query": sparql_raw,
+                    }
+        else:
+            for k, v in indicators.items():
+                if k == "-INDEX":
+                    continue
+                sparql_raw = v.get("files", {}).get("sparql", {}).get("raw", "")
+                if sparql_raw:
+                    out[k] = {
+                        "id": k,
+                        "title": v.get("metadata", {}).get("title", k),
+                        "sparql_query": sparql_raw,
+                    }
+        return out
+    except Exception:
+        return {}
+
+
+@router.post("/happy-flow/batch")
+async def happy_flow_batch(
+    files: list[UploadFile] = File(...),
+    profile_filename: str = Form(default=""),
+):
+    """
+    Upload meerdere happy flow CSV-bestanden tegelijk.
+
+    Het systeem herkent automatisch welke berekeningsregels van toepassing zijn
+    op basis van de bestandsnaam (source_dataset in de YAML-regels).
+
+    Optioneel: geef een profile_filename mee om per indicator ook de bijbehorende
+    SPARQL-query uit het geïmporteerde KIK-V-profiel terug te krijgen.
+
+    Retourneert alle berekende indicatorwaarden gegroepeerd per dataset.
+    """
+    # ── Lees alle bestanden in één keer ──────────────────────────────────────
+    file_contents: dict[str, bytes] = {}
+    for upload in files:
+        filename = (upload.filename or "").strip()
+        if filename:
+            file_contents[filename] = await upload.read()
+
+    if not file_contents:
+        raise HTTPException(status_code=400, detail="Geen geldige bestanden ontvangen.")
+
+    # ── Laad optioneel profiel-SPARQLs ────────────────────────────────────────
+    profile_sparqls = _load_profile_sparqls(profile_filename) if profile_filename else {}
+
+    # ── Bereken alle indicatoren die matchen op bestandsnaam ─────────────────
+    happy_flow_rules = [r for r in _rule_engine.list_rules() if "happy_flow" in r.tags]
+
+    results = []
+    skipped_files = []  # bestanden waarvoor geen regels gevonden zijn
+    matched_files = set()
+
+    for rule in happy_flow_rules:
+        if rule.source_dataset not in file_contents:
+            continue
+        matched_files.add(rule.source_dataset)
+        try:
+            contents = file_contents[rule.source_dataset]
+            calc = _calc_engine.calculate(rule, source=io.BytesIO(contents))
+            # Maak een ReconciliationResult zonder SPARQL (status UNKNOWN)
+            recon = _recon_engine.reconcile(rule, calc, actual_value=None)
+            # Voeg de SPARQL-query toe als vrije tekst (niet uitvoerbaar)
+            result_dict = recon.to_dict()
+            result_dict["source_dataset"] = rule.source_dataset
+            result_dict["tags"] = rule.tags
+            result_dict["record_count"] = calc.record_count
+            result_dict["total_rows"] = calc.metadata.get("total_rows", 0)
+            results.append(result_dict)
+        except Exception as exc:
+            results.append({
+                "indicator_id": rule.indicator_id,
+                "indicator_name": rule.name,
+                "source_dataset": rule.source_dataset,
+                "tags": rule.tags,
+                "expected_value": None,
+                "actual_value": None,
+                "absolute_difference": None,
+                "percentage_difference": None,
+                "status": "Unknown",
+                "confidence_score": 0.0,
+                "reconciliation_score_label": "Fout",
+                "record_count": 0,
+                "total_rows": 0,
+                "metadata": {"error": str(exc)},
+                "drill_down": [],
+            })
+
+    # ── Bepaal niet-gematchte bestanden ───────────────────────────────────────
+    for filename in file_contents:
+        if filename not in matched_files:
+            skipped_files.append(filename)
+
+    # ── Groepeer resultaten per dataset ───────────────────────────────────────
+    datasets: dict[str, list] = {}
+    for r in results:
+        ds = r.get("source_dataset", "onbekend")
+        if ds not in datasets:
+            datasets[ds] = []
+        datasets[ds].append(r)
+
+    return JSONResponse(content=_sanitize({
+        "total_indicators": len(results),
+        "total_datasets": len(datasets),
+        "skipped_files": skipped_files,
+        "profile_sparqls_available": len(profile_sparqls),
+        "profile_sparqls": profile_sparqls,
+        "datasets": datasets,
+        "all_results": results,
+    }))
+
+
+@router.get("/happy-flow/rules")
+def list_happy_flow_rules():
+    """Geeft alle happy flow berekeningsregels terug (indicatoren gegroepeerd per dataset)."""
+    hf_rules = [r.dict() for r in _rule_engine.list_rules() if "happy_flow" in r.tags]
+    by_dataset: dict[str, list] = {}
+    for r in hf_rules:
+        ds = r["source_dataset"]
+        if ds not in by_dataset:
+            by_dataset[ds] = []
+        by_dataset[ds].append(r)
+    return {"rules": hf_rules, "by_dataset": by_dataset}

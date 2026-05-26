@@ -705,7 +705,7 @@ function UploadForm({ indicators, onResult, onCalcPreview, loading, setLoading }
               background: "#f8fafc", cursor: "pointer", fontSize: 13, fontWeight: 500, whiteSpace: "nowrap",
             }}>
               Bladeren…
-              <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" style={{ display: "none" }}
+              <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,.xml" style={{ display: "none" }}
                 onChange={e => setFileName(e.target.files[0]?.name || "")} />
             </label>
             <span style={{ fontSize: 12, color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1114,7 +1114,7 @@ function HappyFlowTab() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.xlsx"
+            accept=".csv,.xlsx,.xls,.xml"
             multiple
             style={{ display: "none" }}
             onChange={handleFileChange}

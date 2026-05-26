@@ -796,6 +796,7 @@ function exportJSON(results) {
 // ---------------------------------------------------------------------------
 
 const DATASET_LABELS = {
+  // ── ONS / AFAS CSV-formaten ──────────────────────────────────────────────
   "medewerker_ons.csv":             { label: "Medewerkers ONS",              icon: "👤", color: "#3b82f6" },
   "medewerker_afas_hrm.csv":        { label: "Medewerkers AFAS HRM",         icon: "👤", color: "#6366f1" },
   "werkovereenkomst_ons.csv":       { label: "Werkovereenkomsten ONS",        icon: "📋", color: "#0891b2" },
@@ -808,6 +809,11 @@ const DATASET_LABELS = {
   "vestiging_ons.csv":              { label: "Vestigingen ONS",               icon: "🏢", color: "#7c3aed" },
   "wlzkostenplaats_afas_fin.csv":   { label: "WLZ-kostenplaatsen AFAS",       icon: "💰", color: "#a16207" },
   "functie_ons.csv":                { label: "Functies ONS",                  icon: "🎓", color: "#0369a1" },
+  // ── AFAS Profit GET-connector XML-formaten ───────────────────────────────
+  "Profit_Employees_150_voorbeeld.xml":       { label: "Profit Employees (XML)",        icon: "👤", color: "#7c3aed" },
+  "Profit_Employees_basic_150_voorbeeld.xml": { label: "Profit Employees Basic (XML)",  icon: "👤", color: "#6d28d9" },
+  "Profit_Illness_150_voorbeeld.xml":         { label: "Profit Illness / Verzuim (XML)", icon: "🤒", color: "#dc2626" },
+  "Profit_Timetable_150_voorbeeld.xml":       { label: "Profit Timetable (XML)",        icon: "📋", color: "#0891b2" },
 };
 
 function SparqlViewModal({ indicator, sparqls, onClose }) {
@@ -1106,10 +1112,10 @@ function HappyFlowTab() {
         >
           <div style={{ fontSize: 28, marginBottom: 6 }}>📂</div>
           <div style={{ fontWeight: 600, fontSize: 14, color: "#475569" }}>
-            Sleep CSV-bestanden hiernaartoe of klik om te bladeren
+            Sleep CSV- of XML-bestanden hiernaartoe of klik om te bladeren
           </div>
           <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>
-            medewerker_ons.csv, werkovereenkomst_ons.csv, client_ons.csv, …
+            medewerker_ons.csv, Profit_Employees_basic_150_voorbeeld.xml, …
           </div>
           <input
             ref={fileInputRef}

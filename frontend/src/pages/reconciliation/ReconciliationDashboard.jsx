@@ -605,6 +605,280 @@ const tdStyle = { padding: "7px 12px" };
 // Upload form
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// SPARQL loslaten op de data — kolom→concept mapping + triple store
+// ---------------------------------------------------------------------------
+
+const TYPE_OPTIONS = [
+  { v: "string",   label: "Tekst" },
+  { v: "date",     label: "Datum" },
+  { v: "decimal",  label: "Getal" },
+  { v: "integer",  label: "Geheel getal" },
+  { v: "boolean",  label: "Ja/nee" },
+  { v: "resource", label: "Verwijzing (URI)" },
+];
+
+function SparqlOnDataPanel({ fileRef, fileName, sparqlQuery, sparqlLabel, calcRuleId }) {
+  const [concepts, setConcepts]   = useState({ classes: [], properties: [] });
+  const [columns, setColumns]     = useState([]);
+  const [sampleRows, setSample]   = useState([]);
+  const [mapping, setMapping]     = useState({});   // col -> {concept_uri, type}
+  const [classUri, setClassUri]   = useState("");
+  const [idField, setIdField]     = useState("");
+  const [loadingCols, setLoadCols] = useState(false);
+  const [running, setRunning]     = useState(false);
+  const [result, setResult]       = useState(null);
+  const [error, setError]         = useState(null);
+  const [open, setOpen]           = useState(false);
+
+  React.useEffect(() => {
+    authFetch(`${API_BASE}/concepts`)
+      .then(r => r.ok ? r.json() : Promise.reject("kon concepten niet laden"))
+      .then(setConcepts)
+      .catch(() => {});
+  }, []);
+
+  async function loadColumns() {
+    const file = fileRef.current?.files?.[0];
+    if (!file) { alert("Kies eerst een bronbestand."); return; }
+    setLoadCols(true); setError(null); setResult(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const resp = await authFetch(`${API_BASE}/preview-columns`, { method: "POST", body: fd });
+      if (!resp.ok) throw new Error(await resp.text());
+      const data = await resp.json();
+      setColumns(data.columns || []);
+      setSample(data.sample_rows || []);
+      // prefill mapping uit server-suggesties
+      const sug = data.suggested_mapping || {};
+      const m = {};
+      (data.columns || []).forEach(col => {
+        if (sug[col]) {
+          const s = sug[col];
+          m[col] = { concept_uri: s.concept_uri, type: s.kind === "resource" ? "resource" : (s.datatype || "string") };
+        } else {
+          m[col] = { concept_uri: "", type: "string" };
+        }
+      });
+      setMapping(m);
+      // raad ID-kolom
+      const guess = (data.columns || []).find(c => /(^|_)id$|nummer$/i.test(c)) || (data.columns || [])[0] || "";
+      setIdField(guess);
+      setOpen(true);
+    } catch (err) {
+      setError("Kon kolommen niet lezen: " + err.message);
+    } finally {
+      setLoadCols(false);
+    }
+  }
+
+  function setColMap(col, patch) {
+    setMapping(prev => ({ ...prev, [col]: { ...prev[col], ...patch } }));
+  }
+
+  async function run() {
+    const file = fileRef.current?.files?.[0];
+    if (!file)        { alert("Kies eerst een bronbestand."); return; }
+    if (!sparqlQuery) { alert("Selecteer eerst een SPARQL-query uit het uitwisselprofiel."); return; }
+    // bouw mapping-payload: alleen kolommen met concept
+    const payload = {};
+    Object.entries(mapping).forEach(([col, cfg]) => {
+      if (cfg.concept_uri) {
+        payload[col] = {
+          concept_uri: cfg.concept_uri,
+          kind: cfg.type === "resource" ? "resource" : "literal",
+          datatype: cfg.type === "resource" ? "string" : cfg.type,
+        };
+      }
+    });
+    if (Object.keys(payload).length === 0) {
+      alert("Koppel minstens één kolom aan een concept."); return;
+    }
+    setRunning(true); setError(null); setResult(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("sparql_query", sparqlQuery);
+      fd.append("mapping", JSON.stringify(payload));
+      if (classUri) fd.append("class_uri", classUri);
+      if (idField)  fd.append("id_field", idField);
+      if (calcRuleId) fd.append("indicator_id", calcRuleId);
+      const resp = await authFetch(`${API_BASE}/sparql-reconcile`, { method: "POST", body: fd });
+      if (!resp.ok) throw new Error(await resp.text());
+      setResult(await resp.json());
+    } catch (err) {
+      setError("Fout bij uitvoeren: " + err.message);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  const sectionStyle = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, marginBottom: 16 };
+  const small = { fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 };
+
+  return (
+    <div style={{ ...sectionStyle, borderColor: "#c7d2fe", background: "#f5f7ff" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ ...small, marginBottom: 0, color: "#4338ca" }}>
+          🧩 SPARQL loslaten op de data (triple store)
+        </div>
+        <button type="button" onClick={loadColumns} disabled={loadingCols || !fileName}
+          style={{ padding: "6px 14px", borderRadius: 6, background: "#fff", color: "#4338ca",
+                   border: "1.5px solid #c7d2fe", fontWeight: 600, fontSize: 13,
+                   cursor: (!fileName || loadingCols) ? "not-allowed" : "pointer", opacity: !fileName ? 0.5 : 1 }}>
+          {loadingCols ? "Bezig…" : "1 · Laad kolommen uit bestand"}
+        </button>
+      </div>
+
+      <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+        Koppel elke kolom aan een KIK-V-concept. De brondata wordt omgezet naar RDF-triples,
+        in de triple store geladen en de geselecteerde SPARQL-query wordt erop uitgevoerd.
+        {sparqlLabel
+          ? <span> Geselecteerde query: <strong>{sparqlLabel}</strong>.</span>
+          : <span style={{ color: "#b45309" }}> Selecteer eerst een SPARQL-query hierboven.</span>}
+      </div>
+
+      {open && columns.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          {/* record-class + id-kolom */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={labelStyle}>Record-type (rdf:type per rij)</label>
+              <select value={classUri} onChange={e => setClassUri(e.target.value)} style={inputStyle}>
+                <option value="">-- geen / kies class --</option>
+                {concepts.classes.map(c => (
+                  <option key={c.uri} value={c.uri}>
+                    {c.common ? "★ " : ""}{c.label}{c.module ? ` (${c.module})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>ID-kolom (bepaalt de node-URI)</label>
+              <select value={idField} onChange={e => setIdField(e.target.value)} style={inputStyle}>
+                <option value="">-- rij-index --</option>
+                {columns.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* mapping-tabel */}
+          <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "#eef2ff", textAlign: "left" }}>
+                  <th style={{ padding: "8px 10px" }}>Kolom</th>
+                  <th style={{ padding: "8px 10px" }}>Voorbeeld</th>
+                  <th style={{ padding: "8px 10px" }}>Concept (predicaat)</th>
+                  <th style={{ padding: "8px 10px", width: 150 }}>Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {columns.map(col => {
+                  const ex = sampleRows[0] ? String(sampleRows[0][col] ?? "") : "";
+                  const cfg = mapping[col] || { concept_uri: "", type: "string" };
+                  return (
+                    <tr key={col} style={{ borderTop: "1px solid #e2e8f0" }}>
+                      <td style={{ padding: "6px 10px", fontWeight: 600 }}>{col}</td>
+                      <td style={{ padding: "6px 10px", color: "#94a3b8", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex}</td>
+                      <td style={{ padding: "6px 10px" }}>
+                        <select value={cfg.concept_uri} onChange={e => setColMap(col, { concept_uri: e.target.value })}
+                          style={{ ...inputStyle, padding: "5px 8px" }}>
+                          <option value="">— negeer kolom —</option>
+                          {concepts.properties.map(p => (
+                            <option key={p.uri} value={p.uri}>
+                              {p.kikv ? "★ " : ""}{p.label}{p.module ? ` (${p.module})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={{ padding: "6px 10px" }}>
+                        <select value={cfg.type} onChange={e => setColMap(col, { type: e.target.value })}
+                          style={{ ...inputStyle, padding: "5px 8px" }}>
+                          {TYPE_OPTIONS.map(t => <option key={t.v} value={t.v}>{t.label}</option>)}
+                        </select>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <button type="button" onClick={run} disabled={running || !sparqlQuery}
+            style={{ marginTop: 14, padding: "10px 22px", borderRadius: 8, background: "#4338ca", color: "#fff",
+                     border: "none", fontWeight: 600, fontSize: 14,
+                     cursor: (running || !sparqlQuery) ? "not-allowed" : "pointer", opacity: !sparqlQuery ? 0.5 : 1 }}>
+            {running ? "Triples bouwen & query draaien…" : "2 · ▶ Genereer triples & draai SPARQL"}
+          </button>
+        </div>
+      )}
+
+      {error && <div style={{ marginTop: 12, color: "#b91c1c", fontSize: 13 }}>{error}</div>}
+
+      {result && <SparqlOnDataResult result={result} />}
+    </div>
+  );
+}
+
+function SparqlOnDataResult({ result }) {
+  const sr = result.sparql_result || {};
+  const recon = result.reconciliation;
+  const calc = result.calculation;
+  const backendBadge = sr.backend === "fuseki"
+    ? { label: "Fuseki", color: "#0e7490", bg: "#cffafe" }
+    : { label: "rdflib (in-memory)", color: "#7c3aed", bg: "#ede9fe" };
+
+  return (
+    <div style={{ marginTop: 16, background: "#fff", border: "1px solid #c7d2fe", borderRadius: 8, padding: 16 }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+        <strong style={{ color: "#3730a3" }}>SPARQL-resultaat</strong>
+        <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, color: backendBadge.color, background: backendBadge.bg }}>
+          {backendBadge.label}
+        </span>
+        <span style={{ fontSize: 12, color: "#64748b" }}>{sr.triple_count} triples · {result.row_count} rijen</span>
+        {sr.fuseki_error && <span style={{ fontSize: 11, color: "#b45309" }}>Fuseki niet bereikbaar — fallback gebruikt</span>}
+      </div>
+
+      {sr.query_error
+        ? <div style={{ color: "#b91c1c", fontSize: 13 }}>Query-fout: {sr.query_error}</div>
+        : (sr.rows && sr.rows.length > 0
+          ? (
+            <table style={{ borderCollapse: "collapse", fontSize: 13, marginBottom: 8 }}>
+              <thead><tr style={{ background: "#f1f5f9" }}>
+                {sr.columns.map(c => <th key={c} style={{ padding: "6px 12px", textAlign: "left" }}>{c}</th>)}
+              </tr></thead>
+              <tbody>
+                {sr.rows.slice(0, 20).map((row, i) => (
+                  <tr key={i} style={{ borderTop: "1px solid #e2e8f0" }}>
+                    {sr.columns.map(c => <td key={c} style={{ padding: "6px 12px" }}>{String(row[c] ?? "")}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+          : <div style={{ color: "#64748b", fontSize: 13 }}>Query gaf geen resultaten. Controleer de kolom→concept mapping en het record-type.</div>
+        )}
+
+      {recon && calc && (
+        <div style={{ marginTop: 12, borderTop: "1px solid #e2e8f0", paddingTop: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 8 }}>
+            Vergelijking met berekeningsregel
+          </div>
+          <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
+            <Metric label="CSV-uitkomst" value={fmt(calc.expected_value)} color="#0891b2" />
+            <Metric label="SPARQL-uitkomst" value={fmt(sr.scalar)} color="#4338ca" />
+            <Metric label="Verschil" value={fmt(recon.absolute_difference)} color="#64748b" />
+            <StatusBadge status={recon.status} />
+            <span style={{ fontSize: 13, color: "#64748b" }}>Score: <strong style={{ color: scoreColor(recon.confidence_score) }}>{fmt(recon.confidence_score)}</strong></span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UploadForm({ indicators, onResult, onCalcPreview, loading, setLoading }) {
   const [selectedIndicator, setSelectedIndicator] = useState("");
   const [selectedSparqlInd, setSelectedSparqlInd] = useState(null);
@@ -755,6 +1029,15 @@ function UploadForm({ indicators, onResult, onCalcPreview, loading, setLoading }
           {loading ? "Bezig…" : "▶ Reconcilieer"}
         </button>
       </div>
+
+      {/* ── SPARQL loslaten op de data (triple store) ─────────────────── */}
+      <SparqlOnDataPanel
+        fileRef={fileRef}
+        fileName={fileName}
+        sparqlQuery={selectedSparqlInd?.sparql_query}
+        sparqlLabel={selectedSparqlInd?.title || selectedSparqlInd?.id}
+        calcRuleId={selectedIndicator}
+      />
     </form>
   );
 }
@@ -1011,7 +1294,7 @@ function HappyFlowTab() {
   function handleDrop(e) {
     e.preventDefault();
     setDragOver(false);
-    const newFiles = Array.from(e.dataTransfer.files || []).filter(f => f.name.endsWith(".csv") || f.name.endsWith(".xlsx"));
+    const newFiles = Array.from(e.dataTransfer.files || []).filter(f => /\.(csv|xlsx|xls|xml)$/i.test(f.name));
     setFiles(prev => {
       const existing = new Set(prev.map(f => f.name));
       return [...prev, ...newFiles.filter(f => !existing.has(f.name))];

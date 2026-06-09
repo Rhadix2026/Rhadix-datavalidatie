@@ -112,6 +112,7 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
+| 2026-06-09 | — | Reconciliation Engine — "SPARQL loslaten op de data": nieuwe `rdf_store.py` (kolom→concept mapping → RDF-triples → triple store). **Fuseki** als triple store toegevoegd aan alle docker-compose-bestanden (stain/jena-fuseki:5.1.0, -Xmx512m, intern netwerk) met **rdflib in-memory fallback**. Nieuwe endpoints: GET /concepts, POST /preview-columns, POST /sparql-reconcile. Frontend: SparqlOnDataPanel in manual-tab (kolom→concept mapping-UI, record-class + ID-kolom keuze, triples genereren + SPARQL draaien, resultaat + vergelijking met berekeningsregel). XML-fix in Happy Flow drag-drop. Env-var FUSEKI_PASSWORD/STAGING_FUSEKI_PASSWORD. |
 | 2026-05-26 | — | Reconciliation Engine: happy flow batch-feature gebouwd. 24 YAML-regels voor alle CSV-typen (medewerker, werkovereenkomst, client, verzuim, financieel, vestiging, functie, kostenplaats). Nieuw endpoint POST /api/reconciliation/happy-flow/batch + GET /happy-flow/rules. Frontend: tabblad "Happy Flow batch" met multi-file upload, auto-detectie op bestandsnaam, SPARQL-koppeling vanuit uitwisselprofiel. DayFirst=True fix voor dd/MM/yyyy datumnotatie. |
 | 2026-05-22 | v1.5.15 | SVG logo vervangen door JPG brand assets (logo + boom) in UI.jsx, Landing.jsx, LoginScreen.jsx |
 | 2026-05-22 | — | Productie hersteld na bad gateway: .env.production ontbrak, GHCR_ORG miste |

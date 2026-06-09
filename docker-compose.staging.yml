@@ -38,11 +38,17 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      fuseki:
+        condition: service_started
     environment:
       DATABASE_URL:       postgresql://${STAGING_DB_USER:-kikv_staging}:${STAGING_DB_PASSWORD}@rhadix-staging-db:5432/${STAGING_DB_NAME:-kikv_staging}
       JWT_SECRET_KEY:     ${STAGING_JWT_SECRET_KEY:?Stel STAGING_JWT_SECRET_KEY in als GitHub Secret}
       RHADIX_LICENSE_KEY: ${STAGING_LICENSE_KEY:?Licentiesleutel verplicht — zie .env.staging}
       RHADIX_ENV:         staging
+      FUSEKI_URL:         http://rhadix-staging-fuseki:3030
+      FUSEKI_DATASET:     rhadix
+      FUSEKI_USER:        admin
+      FUSEKI_PASSWORD:    ${STAGING_FUSEKI_PASSWORD:-rhadix-staging-admin}
     volumes:
       - rhadix_staging_profiles:/app/data/profiles
     ports:
@@ -57,6 +63,18 @@ services:
     ports:
       - "${STAGING_FRONTEND_PORT:-5175}:80"
 
+  fuseki:
+    image: stain/jena-fuseki:5.1.0
+    container_name: rhadix-staging-fuseki
+    restart: unless-stopped
+    environment:
+      ADMIN_PASSWORD:   ${STAGING_FUSEKI_PASSWORD:-rhadix-staging-admin}
+      FUSEKI_DATASET_1: rhadix
+      JVM_ARGS:         -Xmx512m
+    volumes:
+      - fuseki_staging:/fuseki
+    # Geen externe poort — alleen intern Docker-netwerk
+
 volumes:
   pgdata_staging:
     name: rhadix_staging_pgdata
@@ -65,3 +83,5 @@ volumes:
   rhadix_staging_profiles:
     name: rhadix_staging_profiles
     external: true
+  fuseki_staging:
+    name: rhadix_staging_fuseki

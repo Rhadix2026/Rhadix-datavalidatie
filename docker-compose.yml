@@ -24,8 +24,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      fuseki:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql://kikv:kikv@db:5432/kikv_validator
+      FUSEKI_URL: http://fuseki:3030
+      FUSEKI_DATASET: rhadix
+      FUSEKI_USER: admin
+      FUSEKI_PASSWORD: rhadix-admin
     ports:
       - "8010:8000"
     volumes:
@@ -41,6 +47,21 @@ services:
     ports:
       - "5174:80"
 
+  fuseki:
+    image: stain/jena-fuseki:5.1.0
+    container_name: rhadix-v131-fuseki
+    restart: unless-stopped
+    environment:
+      ADMIN_PASSWORD: rhadix-admin
+      FUSEKI_DATASET_1: rhadix
+      JVM_ARGS: -Xmx512m
+    volumes:
+      - fuseki_v131:/fuseki
+    ports:
+      - "3030:3030"   # lokaal toegankelijk voor debugging
+
 volumes:
   pgdata_v131:
     name: rhadix_v131_pgdata
+  fuseki_v131:
+    name: rhadix_v131_fuseki

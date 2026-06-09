@@ -29,10 +29,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      fuseki:
+        condition: service_started
     environment:
       DATABASE_URL:        postgresql://${DB_USER:-kikv}:${DB_PASSWORD}@db:5432/${DB_NAME:-kikv_validator}
       JWT_SECRET_KEY:      ${JWT_SECRET_KEY:?Stel JWT_SECRET_KEY in als GitHub Secret / .env}
       RHADIX_LICENSE_KEY:  ${RHADIX_LICENSE_KEY:?Licentiesleutel verplicht — zie .env}
+      FUSEKI_URL:          http://fuseki:3030
+      FUSEKI_DATASET:      rhadix
+      FUSEKI_USER:         admin
+      FUSEKI_PASSWORD:     ${FUSEKI_PASSWORD:-rhadix-prod-admin}
     volumes:
       - rhadix_profiles:/app/data/profiles
     ports:
@@ -53,6 +59,18 @@ services:
     ports:
       - "${FRONTEND_PORT:-5174}:80"
 
+  fuseki:
+    image: stain/jena-fuseki:5.1.0
+    container_name: rhadix-fuseki
+    restart: always
+    environment:
+      ADMIN_PASSWORD:   ${FUSEKI_PASSWORD:-rhadix-prod-admin}
+      FUSEKI_DATASET_1: rhadix
+      JVM_ARGS:         -Xmx512m
+    volumes:
+      - fuseki_data:/fuseki
+    # Geen externe poort — alleen intern Docker-netwerk
+
   # ── Watchtower verwijderd ────────────────────────────────────────────────
   # Deployments worden beheerd via GitHub Actions (deploy-production.yml).
   # Automatische image-updates via Watchtower veroorzaakten ongewenste
@@ -65,3 +83,5 @@ volumes:
   rhadix_profiles:
     name: rhadix_profiles
     external: true
+  fuseki_data:
+    name: rhadix_fuseki

@@ -27,6 +27,10 @@ from .reconciliation_engine import (
     SPARQLEngine,
 )
 from .rule_engine import RuleEngine
+from .calculation_engine import DataLoader
+from . import rdf_store
+from app.services import ontology_index
+from app.services.sparql_validator import _FIELD_PREDICATE as _KIKV_PREDICATES, _SCHEMA_CLASS as _KIKV_CLASSES
 
 
 def _sanitize(obj):
@@ -136,6 +140,203 @@ async def reconcile_indicator(
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     return JSONResponse(content=recon.to_dict())
+
+
+# ── SPARQL-op-data (Reconciliation Engine — handmatig) ─────────────────────────
+
+# Veelgebruikte record-classes bovenaan de dropdown
+_COMMON_CLASSES = [
+    "http://purl.org/ozo/onz-pers#Medewerker",
+    "http://purl.org/ozo/onz-pers#WerkOvereenkomst",
+    "http://purl.org/ozo/onz-pers#WerkOvereenkomstAfspraak",
+    "http://purl.org/ozo/onz-pers#ArbeidsOvereenkomst",
+    "http://purl.org/ozo/onz-pers#ZorgverlenerFunctie",
+    "http://purl.org/ozo/onz-zorg#Client",
+    "http://purl.org/ozo/onz-org#Vestiging",
+    "http://purl.org/ozo/onz-fin#Grootboekpost",
+    "http://purl.org/ozo/onz-fin#Grootboekrubriek",
+    "http://purl.org/ozo/onz-fin#Kostenplaats",
+]
+
+
+def _concept_entry(uri: str) -> dict:
+    c = ontology_index.CONCEPTS.get(uri, {})
+    return {
+        "uri": uri,
+        "name": c.get("name") or uri.split("#")[-1],
+        "label": c.get("label_nl") or c.get("name") or uri.split("#")[-1],
+        "module": c.get("module", ""),
+        "common": uri in _COMMON_CLASSES,
+    }
+
+
+def _property_entry(uri: str) -> dict:
+    p = ontology_index.PROPERTIES.get(uri, {})
+    return {
+        "uri": uri,
+        "name": p.get("name") or uri.split("#")[-1],
+        "label": p.get("label_nl") or p.get("name") or uri.split("#")[-1],
+        "module": p.get("module", ""),
+    }
+
+
+@router.get("/concepts")
+def list_concepts():
+    """Concepten (classes) en eigenschappen (properties) voor de kolom->concept mapping-UI."""
+    classes = [_concept_entry(u) for u in ontology_index.CONCEPTS.keys()]
+    # gangbare classes eerst, dan alfabetisch op label
+    classes.sort(key=lambda c: (not c["common"], c["label"].lower()))
+    prop_uris = set(ontology_index.PROPERTIES.keys())
+    properties = [_property_entry(u) for u in prop_uris]
+    # voeg de curated KIK-V-predicaten toe die de uitwisselprofiel-queries gebruiken
+    for fld, uri in _KIKV_PREDICATES.items():
+        if uri not in prop_uris:
+            properties.append({"uri": uri, "name": uri.split("#")[-1],
+                               "label": uri.split("#")[-1], "module": "kik-v", "kikv": True})
+            prop_uris.add(uri)
+    properties.sort(key=lambda p: (not p.get("kikv", False), p["label"].lower()))
+    return {
+        "classes": classes,
+        "properties": properties,
+        "common_classes": _COMMON_CLASSES,
+    }
+
+
+# kolom-keyword → (concept_uri, datatype) voor auto-suggestie
+_SUGGEST_KEYWORDS = {
+    "personeelsnummer": ("http://purl.org/ozo/onz-g#personeelsnummer", "string"),
+    "medewerkernummer": ("http://purl.org/ozo/onz-g#personeelsnummer", "string"),
+    "medewerkerid": ("http://purl.org/ozo/onz-g#personeelsnummer", "string"),
+    "geboortedatum": ("http://purl.org/ozo/onz-g#geboortedatum", "date"),
+    "startdatum": ("http://purl.org/ozo/onz-g#startDatum", "date"),
+    "begindatum": ("http://purl.org/ozo/onz-g#startDatum", "date"),
+    "einddatum": ("http://purl.org/ozo/onz-g#eindDatum", "date"),
+    "startmoment": ("http://purl.org/ozo/onz-g#startDatum", "date"),
+    "eindmoment": ("http://purl.org/ozo/onz-g#eindDatum", "date"),
+    "urenperweek": ("http://purl.org/ozo/onz-pers#contractOmvang", "decimal"),
+    "contractomvang": ("http://purl.org/ozo/onz-pers#contractOmvang", "decimal"),
+    "functie": ("http://purl.org/ozo/onz-pers#functieBenaming", "string"),
+    "kwalificatieniveau": ("http://purl.org/ozo/onz-pers#kwalificatieNiveau", "string"),
+    "soortverzuim": ("http://purl.org/ozo/onz-pers#soortVerzuim", "string"),
+    "verzuimpercentage": ("http://purl.org/ozo/onz-pers#aoPercentage", "decimal"),
+    "overeenkomsttype": ("http://purl.org/ozo/onz-pers#overeenkomstType", "string"),
+    "contracttype": ("http://purl.org/ozo/onz-pers#overeenkomstType", "string"),
+    "dienstverbandnummer": ("http://purl.org/ozo/onz-g#dienstverbandIdentifier", "string"),
+}
+
+
+def _suggest_concept(column: str) -> dict | None:
+    """Suggestie: eerst curated KIK-V-keywords, dan property-naam/-label."""
+    key = column.strip().lower().replace("_", "").replace(" ", "")
+    if not key:
+        return None
+    if key in _SUGGEST_KEYWORDS:
+        uri, dt = _SUGGEST_KEYWORDS[key]
+        return {"concept_uri": uri, "kind": "literal", "datatype": dt}
+    best = None
+    for uri, p in ontology_index.PROPERTIES.items():
+        name = (p.get("name") or "").lower().replace("_", "")
+        lbl = (p.get("label_nl") or "").lower().replace(" ", "")
+        if key == name or (lbl and key == lbl):
+            return {"concept_uri": uri, "kind": "literal", "datatype": "string"}
+        if best is None and (key in name or (name and name in key)):
+            best = {"concept_uri": uri, "kind": "literal", "datatype": "string"}
+    return best
+
+
+@router.post("/preview-columns")
+async def preview_columns(file: UploadFile = File(...)):
+    """Lees de kolommen + een paar voorbeeldrijen uit een geupload bestand (CSV/Excel/XML)."""
+    contents = await file.read()
+    try:
+        df = DataLoader.load(io.BytesIO(contents))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Kon bestand niet lezen: {exc}")
+    columns = [str(c) for c in df.columns]
+    sample = _sanitize(df.head(5).to_dict(orient="records"))
+    suggestions = {col: _suggest_concept(col) for col in columns}
+    return JSONResponse(content=_sanitize({
+        "filename": file.filename,
+        "columns": columns,
+        "row_count": int(len(df)),
+        "sample_rows": sample,
+        "suggested_mapping": {k: v for k, v in suggestions.items() if v},
+    }))
+
+
+@router.post("/sparql-reconcile")
+async def sparql_reconcile(
+    file: UploadFile = File(...),
+    sparql_query: str = Form(...),
+    mapping: str = Form(...),                       # JSON: {kolom: {concept_uri, kind, datatype}}
+    class_uri: str | None = Form(default=None),
+    id_field: str | None = Form(default=None),
+    indicator_id: str | None = Form(default=None),  # berekeningsregel voor CSV-uitkomst (optioneel)
+    prefer_fuseki: bool = Form(default=True),
+):
+    """
+    Laat de geselecteerde SPARQL-query los op de geuploade brondata:
+    brondata -> RDF-triples (volgens mapping) -> triple store (Fuseki/rdflib) -> SPARQL -> resultaat.
+
+    Als een indicator_id (berekeningsregel) is meegegeven, wordt ook de CSV-uitkomst
+    berekend en vergeleken met de SPARQL-uitkomst.
+    """
+    try:
+        mapping_dict = json.loads(mapping) if mapping else {}
+    except Exception:
+        raise HTTPException(status_code=400, detail="mapping moet geldige JSON zijn.")
+    if not isinstance(mapping_dict, dict):
+        raise HTTPException(status_code=400, detail="mapping moet een JSON-object zijn.")
+
+    contents = await file.read()
+
+    # ── Brondata -> records ──────────────────────────────────────────────────
+    try:
+        df = DataLoader.load(io.BytesIO(contents))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Kon bestand niet lezen: {exc}")
+    records = _sanitize(df.to_dict(orient="records"))
+
+    # ── SPARQL op de triples ─────────────────────────────────────────────────
+    try:
+        run = rdf_store.run_sparql_on_records(
+            records=records,
+            mapping=mapping_dict,
+            sparql=sparql_query,
+            class_uri=class_uri or None,
+            id_field=id_field or None,
+            prefer_fuseki=prefer_fuseki,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Triple-generatie/SPARQL faalde: {exc}")
+
+    response: dict = {
+        "sparql_result": run.to_dict(),
+        "row_count": int(len(df)),
+        "columns": [str(c) for c in df.columns],
+    }
+
+    # ── Optioneel: vergelijk met CSV-berekeningsregel ────────────────────────
+    if indicator_id:
+        try:
+            rule = _rule_engine.get(indicator_id)
+            calc = _calc_engine.calculate(rule, source=io.BytesIO(contents))
+            recon = _recon_engine.reconcile(
+                rule, calc,
+                actual_value=run.scalar,   # SPARQL-uitkomst als 'werkelijke' waarde
+            )
+            response["calculation"] = {
+                "indicator_id": calc.indicator_id,
+                "expected_value": calc.expected_value,
+                "record_count": calc.record_count,
+            }
+            response["reconciliation"] = recon.to_dict()
+        except KeyError:
+            response["calculation_error"] = f"Berekeningsregel niet gevonden: {indicator_id}"
+        except Exception as exc:
+            response["calculation_error"] = str(exc)
+
+    return JSONResponse(content=_sanitize(response))
 
 
 @router.post("/batch")

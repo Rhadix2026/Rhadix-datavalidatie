@@ -20,6 +20,7 @@ import { Advies, Actieplan }   from './pages/Advies'
 import Stap2Resultaat          from './pages/Stap2Resultaat'
 import ReconciliationDashboard from './pages/reconciliation/ReconciliationDashboard'
 import LoginScreen        from './pages/LoginScreen'
+import AppPortal          from './pages/AppPortal'
 import AdminDashboard     from './pages/AdminDashboard'
 import OrgAdminDashboard  from './pages/OrgAdminDashboard'
 import UserDashboard      from './pages/UserDashboard'
@@ -35,6 +36,7 @@ import PlatformDashboard  from './pages/PlatformDashboard'
 
 export default function App() {
   const [step, setStep]                 = useState('login')
+  const [entry, setEntry]               = useState('portal')   // 'portal' | 'login'
   const [authUser, setAuthUser]         = useState(null)   // { id, email, role, tenant_id, tenant_name }
   const [systems, setSystems]           = useState([])
   const [standard, setStandard]         = useState('kikv')
@@ -85,7 +87,10 @@ export default function App() {
 
   // ── Guard: not authenticated ──────────────────────────────────────────────
   if (!authUser) {
-    return <LoginScreen onLogin={handleLogin} />
+    if (entry === 'login') {
+      return <LoginScreen onLogin={handleLogin} onBack={() => setEntry('portal')} />
+    }
+    return <AppPortal onLogin={() => setEntry('login')} />
   }
 
   const completeUpload = (result) => {

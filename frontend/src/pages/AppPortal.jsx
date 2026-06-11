@@ -2,7 +2,7 @@ import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
 import { TreeDecoration } from '../components/UI'
 
 // Staging-URL voorlopig; later vervangbaar via VITE_UITVRAAG_URL.
-const UITVRAAG_URL = import.meta.env.VITE_UITVRAAG_URL || 'http://46.224.224.26:5177'
+const UITVRAAG_URL = import.meta.env.VITE_UITVRAAG_URL || 'https://uitvraag.rhadix.nl'
 
 function AppCard({ accent, accentBg, accentText, mark, laag, naam, omschrijving, badge, actie, onClick, disabled }) {
   return (
@@ -76,7 +76,7 @@ export default function AppPortal({ onLogin }) {
           <AppCard accent="var(--blue)" accentBg="var(--blue-light)" accentText="var(--blue-dark)"
             mark="U" laag="AFNEMERSKANT" naam="Rhadix Uitvraag"
             omschrijving="Gevalideerde vragen stellen aan zorgaanbieders en de antwoorden inzien, vergelijken en analyseren."
-            actie="Openen →" onClick={() => { window.location.href = UITVRAAG_URL }} />
+            actie="Inloggen →" onClick={() => { window.location.href = UITVRAAG_URL }} />
           <AppCard accent="var(--green)" accentBg="var(--green-light)" accentText="#0F6E56"
             mark="DV" laag="BIJ DE BRON · DATAKWALITEIT" naam="Rhadix Datavalidatie"
             omschrijving="Pre-screening: is de datahuishouding van de zorgaanbieder klaar om gevalideerde vragen te beantwoorden?"

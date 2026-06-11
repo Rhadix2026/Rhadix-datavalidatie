@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
 import { TreeDecoration } from '../components/UI'
 
-export default function LoginScreen({ onLogin }) {
+export default function LoginScreen({ onLogin, onBack }) {
   const [email,      setEmail]      = useState('')
   const [password,   setPassword]   = useState('')
   const [loading,    setLoading]    = useState(false)
@@ -100,7 +100,13 @@ export default function LoginScreen({ onLogin }) {
         borderLeft: '1px solid var(--border)',
       }}>
         <div style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Inloggen</h2>
+          {onBack && (
+            <button type="button" onClick={onBack} style={{
+              background: 'none', border: 'none', padding: 0, marginBottom: 14, cursor: 'pointer',
+              color: 'var(--text3)', fontSize: 13, fontFamily: 'var(--font)',
+            }}>← Terug naar appkeuze</button>
+          )}
+          <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Inloggen bij Rhadix Datavalidatie</h2>
           <p style={{ fontSize: 14, color: 'var(--text3)' }}>Voer uw e-mailadres en wachtwoord in.</p>
         </div>
 

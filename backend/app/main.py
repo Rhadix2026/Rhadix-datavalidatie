@@ -87,6 +87,40 @@ def _run_migrations() -> None:
 
 _run_migrations()
 
+
+def _reset_single_admin() -> None:
+    """Tijdelijke testopzet: verwijder alle gebruikers en zet één vaste
+    RHADIX_ADMIN neer. Inloggegevens in de app gebakken; AUTH_RESET=0 slaat dit over."""
+    if os.getenv("AUTH_RESET", "1").lower() in ("0", "false", "no"):
+        return
+    try:
+        import uuid
+        from sqlalchemy import text
+        from app.database import SessionLocal
+        from app.models.auth_models import Tenant, User, UserRole
+        from app.auth.security import hash_password
+        email = "admin@rhadix.nl"; password = "Rhadixvalidatie26!"
+        db = SessionLocal()
+        try:
+            db.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
+            db.commit()
+            tenant = db.query(Tenant).filter(Tenant.slug == "rhadix-platform").first()
+            if not tenant:
+                tenant = Tenant(id=uuid.uuid4(), slug="rhadix-platform", name="Rhadix Platform", is_active=True)
+                db.add(tenant); db.flush()
+            db.add(User(id=uuid.uuid4(), tenant_id=tenant.id, email=email,
+                        password_hash=hash_password(password), full_name="Rhadix Admin",
+                        role=UserRole.RHADIX_ADMIN, is_active=True))
+            db.commit()
+            log.info("Auth reset: single admin %s ready.", email)
+        finally:
+            db.close()
+    except Exception:
+        import traceback; log.error("Auth reset failed:\n%s", traceback.format_exc())
+
+
+_reset_single_admin()
+
 # ---------------------------------------------------------------------------
 # FastAPI application
 # ---------------------------------------------------------------------------

@@ -92,15 +92,21 @@ def parse_xml_bytes(content: bytes, max_rows: int = MAX_ROWS) -> tuple[list, lis
     except ET.ParseError as e:
         raise ValueError(f"Ongeldig XML-bestand: {e}")
 
+    # AFAS kent twee exportvormen: named export (<Profit_Employees><Employee>) en
+    # GET-connector (<root><skip/><take/><rows><row>…). Kies de juiste container.
+    rows_el = root.find("rows")
+    container = rows_el if (rows_el is not None and len(list(rows_el)) > 0) else root
+
     headers_ordered: list[str] = []
     headers_seen: set[str] = set()
     rows: list[dict] = []
 
-    for record in root:
+    for record in container:
         row: dict[str, str] = {}
         for field in record:
             tag = field.tag
-            val = _normalize_xml_value(field.text or "")
+            is_nil = (field.get("nil") or "").lower() == "true"
+            val = "" if is_nil else _normalize_xml_value(field.text or "")
             row[tag] = val
             if tag not in headers_seen:
                 headers_seen.add(tag)

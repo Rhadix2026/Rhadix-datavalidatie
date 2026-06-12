@@ -137,7 +137,7 @@ function FileCard({ result }) {
   )
 }
 
-export default function AlgemeenDashboard({ results, onNewScan, onHome }) {
+export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack }) {
   if (!results) return null
   const { file_results = [], summary = {} } = results
 

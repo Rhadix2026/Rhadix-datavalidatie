@@ -3,7 +3,6 @@ import { TreeDecoration } from '../components/UI'
 
 // Per-omgeving instelbaar via VITE_*; fallback = staging-server.
 const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || 'http://46.224.224.26:5177'
-// TODO(Rene): bevestig de juiste Datastation-URL/poort (aanname hieronder).
 const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || 'http://46.224.224.26:5176'
 
 function AppCard({ accent, accentBg, accentText, mark, laag, naam, omschrijving, badge, actie, onClick, disabled }) {

@@ -1,9 +1,12 @@
 import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
 import { TreeDecoration } from '../components/UI'
 
-// Per-omgeving instelbaar via VITE_*; fallback = staging-server.
-const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || 'http://46.224.224.26:5177'
-const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || 'http://46.224.224.26:5176'
+// Omgevings-afhankelijke URL's (VITE_* overschrijft; anders prod- of staging-fallback).
+const IS_PROD = (import.meta.env.VITE_RHADIX_ENV || 'production') === 'production'
+const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || (IS_PROD ? 'https://uitvraag.rhadix.nl' : 'http://46.224.224.26:5177')
+// Datastation draait nog niet op productie -> daar 'Binnenkort' tonen.
+const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || (IS_PROD ? '' : 'http://46.224.224.26:5176')
+const DATASTATION_ACTIVE = !!DATASTATION_URL
 
 function AppCard({ accent, accentBg, accentText, mark, laag, naam, omschrijving, badge, actie, onClick, disabled }) {
   return (
@@ -84,8 +87,11 @@ export default function AppPortal({ onLogin }) {
             actie="Inloggen →" onClick={() => { window.location.href = UITVRAAG_URL }} />
           <AppCard accent="var(--amber)" accentBg="var(--amber-light)" accentText="#854F0B"
             mark="DS" laag="BIJ DE BRON · REKENKRACHT" naam="Rhadix Datastation"
+            badge={DATASTATION_ACTIVE ? undefined : "in ontwikkeling"}
             omschrijving="Het datastation berekent het antwoord lokaal (SPARQL/Fuseki) bij de zorgaanbieder."
-            actie="Inloggen →" onClick={() => { window.location.href = DATASTATION_URL }} />
+            actie={DATASTATION_ACTIVE ? "Inloggen →" : "Binnenkort"}
+            disabled={!DATASTATION_ACTIVE}
+            onClick={() => { window.location.href = DATASTATION_URL }} />
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { TreeDecoration } from '../components/UI'
 const IS_PROD = (import.meta.env.VITE_RHADIX_ENV || 'production') === 'production'
 const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || (IS_PROD ? 'https://uitvraag.rhadix.nl' : 'http://46.224.224.26:5177')
 // Datastation draait nog niet op productie -> daar 'Binnenkort' tonen.
-const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || (IS_PROD ? '' : 'http://46.224.224.26:5176')
+const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || (IS_PROD ? '' : 'http://46.224.224.26:5181')
 const DATASTATION_ACTIVE = !!DATASTATION_URL
 
 function AppCard({ accent, accentBg, accentText, mark, laag, naam, omschrijving, badge, actie, onClick, disabled }) {

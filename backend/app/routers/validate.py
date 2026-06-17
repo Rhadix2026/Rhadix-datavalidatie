@@ -15,6 +15,7 @@ from app.services.concept_validator import validate_concept_mapping
 from app.services.zib_validator import validate_zib
 from app.services.zib_rules import detect_zib_schema
 from app.services.algemeen_validator import validate_algemeen
+from app.services.algemeen_benchmark import benchmark_against_reference
 from app.services.actuality_validator import validate_actuality, detect_date_fields, get_kikv_norm_for_schema
 from app.services.traceability import enrich_file_result, collect_all_issues
 from app.services.owl_validator import validate_structural, validate_relational
@@ -201,6 +202,12 @@ async def upload_and_validate(
     if standard == "algemeen":
         alg_input = [{"filename": p["filename"], "headers": p["headers"], "rows": p["rows"]} for p in parsed]
         result = validate_algemeen(alg_input)
+        # Benchmark tegen het AFAS-referentieontwerp (alleen AFAS-bestanden tellen mee)
+        try:
+            benchmark = benchmark_against_reference(alg_input)
+        except Exception as _bench_err:
+            print(f"[WARN] benchmark failed (result still returned): {_bench_err}")
+            benchmark = {"applicable": False, "error": str(_bench_err)}
         run_id = None
         created_at = None
         try:
@@ -224,7 +231,7 @@ async def upload_and_validate(
         except Exception:
             pass
         return {**result, "run_id": run_id, "created_at": created_at,
-                "label": label or "Algemeen-scan"}
+                "label": label or "Algemeen-scan", "benchmark": benchmark}
 
     # ── ZIB-pad ───────────────────────────────────────────────────────────────
     if standard == "zib":

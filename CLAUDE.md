@@ -55,7 +55,7 @@ git checkout staging && git merge main --no-edit && git push origin staging && g
 git tag v1.5.X && git push origin v1.5.X
 ```
 
-**Huidige versie:** v1.5.19
+**Huidige versie:** v1.5.24
 
 ---
 
@@ -117,6 +117,7 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
+| 2026-06-17 | v1.5.24 | RELEASE naar productie: staging -> main gemerged. Bevat: AFAS GetConnector JSON-import (parse_json_bytes), niet-destructieve auth-bootstrap (geen TRUNCATE), werkende demo-login achter DEMO_SEED/staging, Beheer-knop op landing, portal-volgorde DV/Uitvraag/Datastation met omgevings-afhankelijke URL's (Datastation prod='Binnenkort'). 153 tests groen. |
 | 2026-06-17 | — | Portal-URL's omgevings-afhankelijk via VITE_RHADIX_ENV: Uitvraag prod=https://uitvraag.rhadix.nl / staging=:5177; Datastation staging=:5176 actief, prod='Binnenkort' (Rhadix-datastation heeft nog geen prod-release: geen tags). Voorbereiding release v1.5.24. |
 | 2026-06-17 | — | Demo achter eigen vlag: backend `_ensure_demo_user` nu gegate door `DEMO_SEED` (expliciet wint; default alleen seeden als `RHADIX_ENV=staging`) i.p.v. AUTH_RESET. Frontend: 'Demo toegang'-blok op loginscherm alleen tonen buiten productie (VITE_RHADIX_ENV != production). Prod blijft schoon, staging houdt demo. env-examples: DEMO_SEED gedocumenteerd. Suite 153 passed. |
 | 2026-06-17 | — | Demo + beheer: demo-login werkend gemaakt — `_ensure_demo_user` seedt idempotent demo1@rhadix.nl (ORG_ADMIN) in tenant 'rhadix-demo' met app-toegang (TenantApplication+UserApplication voor alle actieve apps). Beheer-knop toegevoegd aan Landing-header (RHADIX_ADMIN->Admin/AdminDashboard, ORG_ADMIN->OrgAdminDashboard); header negeerde onAdmin/onOrgAdmin eerder. Suite 153 passed. |

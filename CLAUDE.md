@@ -9,7 +9,10 @@ Dit bestand wordt automatisch gelezen bij elke nieuwe sessie. Het bevat alle pro
 ## Project
 
 **Rhadix Datavalidatie** — een KIK-V / ZIB-validatietool voor zorginstellingen.
-- **Repo:** https://github.com/Rhadix2026/Rhadix-datavalidatie
+- **Repos:**
+  - https://github.com/Rhadix2026/Rhadix-datavalidatie (deze app)
+  - https://github.com/Rhadix2026/rhadix-uitvraag
+  - https://github.com/Rhadix2026/Rhadix-datastation
 - **Stack:** FastAPI (Python) backend, React/Vite frontend, PostgreSQL, Docker
 - **Server:** `46.224.224.26` (Hetzner VPS, Ubuntu, 4GB RAM, 2GB swap)
 - **SSH:** `ssh root@46.224.224.26`
@@ -104,6 +107,8 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 - **Git lock-files in sandbox:** altijd naar `/tmp/` klonen, nooit naar gemounte Downloads-map
 - **Staging toont oude versie:** pushes naar `main` deployen NIET naar staging — altijd handmatig mergen naar `staging` branch na een main-push
 - **Browser-cache (immutable assets):** na logo/asset-updates altijd hard refresh `Cmd+Shift+R`
+- **Auth-bootstrap (was destructieve testopzet):** bij startup wordt `admin@rhadix.nl` **niet-destructief** geborgd (aangemaakt als die ontbreekt; nooit `TRUNCATE` van users). `AUTH_RESET=0` slaat het over. Wachtwoord stond hardcoded en is gelekt — bij gelegenheid wijzigen.
+- **AFAS-import JSON:** de import-kant accepteert sinds 2026-06-17 ook AFAS GetConnector JSON (`{skip,take,rows}`), naast XML. JSON- en XML-parser leveren identieke rijen (pariteit getest).
 - **Bad gateway productie:** controleer of `.env.production` aanwezig is én `GHCR_ORG=rhadix2026` erin staat
 
 ---
@@ -112,6 +117,12 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
+| 2026-06-17 | — | Portal-URL's omgevings-afhankelijk via VITE_RHADIX_ENV: Uitvraag prod=https://uitvraag.rhadix.nl / staging=:5177; Datastation staging=:5176 actief, prod='Binnenkort' (Rhadix-datastation heeft nog geen prod-release: geen tags). Voorbereiding release v1.5.24. |
+| 2026-06-17 | — | Demo achter eigen vlag: backend `_ensure_demo_user` nu gegate door `DEMO_SEED` (expliciet wint; default alleen seeden als `RHADIX_ENV=staging`) i.p.v. AUTH_RESET. Frontend: 'Demo toegang'-blok op loginscherm alleen tonen buiten productie (VITE_RHADIX_ENV != production). Prod blijft schoon, staging houdt demo. env-examples: DEMO_SEED gedocumenteerd. Suite 153 passed. |
+| 2026-06-17 | — | Demo + beheer: demo-login werkend gemaakt — `_ensure_demo_user` seedt idempotent demo1@rhadix.nl (ORG_ADMIN) in tenant 'rhadix-demo' met app-toegang (TenantApplication+UserApplication voor alle actieve apps). Beheer-knop toegevoegd aan Landing-header (RHADIX_ADMIN->Admin/AdminDashboard, ORG_ADMIN->OrgAdminDashboard); header negeerde onAdmin/onOrgAdmin eerder. Suite 153 passed. |
+| 2026-06-17 | — | Portal (AppPortal.jsx): volgorde Datavalidatie -> Uitvraag -> Datastation, alle knoppen 'Inloggen', Datastation geactiveerd (env VITE_DATASTATION_URL, fallback poort 5176, bevestigd door Rene). Uitvraag/Datastation-URL per omgeving via VITE_*. |
+| 2026-06-17 | — | Alignment + security: destructieve `_reset_single_admin` (TRUNCATE users + hardcoded admin elke herstart) vervangen door niet-destructieve `_ensure_admin` (admin geborgd, gebruikers behouden). AppPortal Uitvraag-knop label 'Openen'->'Inloggen' op staging (gelijk aan main; URL blijft env-specifiek). Token uit git-remote verwijderd. Repo-divergentie in kaart: staging 22 vóór op main, main 2 (Uitvraag-knop + testopzet). Plan: staging=bron -> release naar prod na test. Suite 153 passed. |
+| 2026-06-17 | — | Import-kant: JSON-parser (`parse_json_bytes`) toegevoegd voor AFAS GetConnector-formaat `{skip,take,rows}` + losse dict/array; `json` toegevoegd aan parse_upload, extensie-allowlist en frontend accept-filters (Upload.jsx, ReconciliationDashboard.jsx). 5 nieuwe tests incl. XML/JSON-pariteit; pariteit bevestigd op 6 echte connector-bestanden (Werkgevers, Organigram, Functies, Medewerkergegevens, roosters, verzuimverloop). Volledige suite 153 passed. Repo-URL's (3) vastgelegd. |
 | 2026-06-09 | — | Reconciliation Engine — "SPARQL loslaten op de data": nieuwe `rdf_store.py` (kolom→concept mapping → RDF-triples → triple store). **Fuseki** als triple store toegevoegd aan alle docker-compose-bestanden (stain/jena-fuseki:5.1.0, -Xmx512m, intern netwerk) met **rdflib in-memory fallback**. Nieuwe endpoints: GET /concepts, POST /preview-columns, POST /sparql-reconcile. Frontend: SparqlOnDataPanel in manual-tab (kolom→concept mapping-UI, record-class + ID-kolom keuze, triples genereren + SPARQL draaien, resultaat + vergelijking met berekeningsregel). XML-fix in Happy Flow drag-drop. Env-var FUSEKI_PASSWORD/STAGING_FUSEKI_PASSWORD. |
 | 2026-05-26 | — | Reconciliation Engine: happy flow batch-feature gebouwd. 24 YAML-regels voor alle CSV-typen (medewerker, werkovereenkomst, client, verzuim, financieel, vestiging, functie, kostenplaats). Nieuw endpoint POST /api/reconciliation/happy-flow/batch + GET /happy-flow/rules. Frontend: tabblad "Happy Flow batch" met multi-file upload, auto-detectie op bestandsnaam, SPARQL-koppeling vanuit uitwisselprofiel. DayFirst=True fix voor dd/MM/yyyy datumnotatie. |
 | 2026-05-22 | v1.5.15 | SVG logo vervangen door JPG brand assets (logo + boom) in UI.jsx, Landing.jsx, LoginScreen.jsx |

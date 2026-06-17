@@ -88,38 +88,113 @@ def _run_migrations() -> None:
 _run_migrations()
 
 
-def _reset_single_admin() -> None:
-    """Tijdelijke testopzet: verwijder alle gebruikers en zet één vaste
-    RHADIX_ADMIN neer. Inloggegevens in de app gebakken; AUTH_RESET=0 slaat dit over."""
+# ---------------------------------------------------------------------------
+# Borg dat de vaste RHADIX_ADMIN in elke omgeving bestaat.
+# Niet-destructief: bestaande gebruikers blijven onaangeroerd; de admin wordt
+# alleen aangemaakt als die nog niet bestaat. Met AUTH_RESET=0 sla je dit over.
+# ---------------------------------------------------------------------------
+def _ensure_admin() -> None:
     if os.getenv("AUTH_RESET", "1").lower() in ("0", "false", "no"):
         return
     try:
         import uuid
-        from sqlalchemy import text
         from app.database import SessionLocal
         from app.models.auth_models import Tenant, User, UserRole
         from app.auth.security import hash_password
-        email = "admin@rhadix.nl"; password = "Rhadixvalidatie26!"
+
+        email = "admin@rhadix.nl"
+        password = "Rhadixvalidatie26!"
         db = SessionLocal()
         try:
-            db.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
-            db.commit()
+            if db.query(User).filter(User.email == email).first():
+                return  # admin bestaat al -- gebruikers onaangeroerd laten
             tenant = db.query(Tenant).filter(Tenant.slug == "rhadix-platform").first()
             if not tenant:
-                tenant = Tenant(id=uuid.uuid4(), slug="rhadix-platform", name="Rhadix Platform", is_active=True)
-                db.add(tenant); db.flush()
-            db.add(User(id=uuid.uuid4(), tenant_id=tenant.id, email=email,
-                        password_hash=hash_password(password), full_name="Rhadix Admin",
-                        role=UserRole.RHADIX_ADMIN, is_active=True))
+                tenant = Tenant(id=uuid.uuid4(), slug="rhadix-platform",
+                                name="Rhadix Platform", is_active=True)
+                db.add(tenant)
+                db.flush()
+            db.add(User(
+                id=uuid.uuid4(), tenant_id=tenant.id, email=email,
+                password_hash=hash_password(password), full_name="Rhadix Admin",
+                role=UserRole.RHADIX_ADMIN, is_active=True,
+            ))
             db.commit()
-            log.info("Auth reset: single admin %s ready.", email)
+            log.info("Admin %s ensured.", email)
         finally:
             db.close()
     except Exception:
-        import traceback; log.error("Auth reset failed:\n%s", traceback.format_exc())
+        import traceback
+        log.error("Ensure admin failed:\n%s", traceback.format_exc())
 
 
-_reset_single_admin()
+_ensure_admin()
+
+
+# ---------------------------------------------------------------------------
+# Borg een werkende demo-login (demo1@rhadix.nl) met app-toegang.
+# Idempotent en niet-destructief; met AUTH_RESET=0 sla je dit over.
+# ---------------------------------------------------------------------------
+def _ensure_demo_user() -> None:
+    # DEMO_SEED expliciet wint; anders standaard alleen op staging seeden.
+    _demo = os.getenv("DEMO_SEED")
+    if _demo is not None:
+        if _demo.lower() in ("0", "false", "no"):
+            return
+    elif os.getenv("RHADIX_ENV", "").lower() != "staging":
+        return
+    try:
+        import uuid
+        from app.database import SessionLocal
+        from app.models.auth_models import (Tenant, User, UserRole,
+                                            Application, TenantApplication, UserApplication)
+        from app.auth.security import hash_password
+
+        email = "demo1@rhadix.nl"
+        password = "Demogebruiker1!"
+        db = SessionLocal()
+        try:
+            tenant = db.query(Tenant).filter(Tenant.slug == "rhadix-demo").first()
+            if not tenant:
+                tenant = Tenant(id=uuid.uuid4(), slug="rhadix-demo",
+                                name="Rhadix Demo", is_active=True)
+                db.add(tenant)
+                db.flush()
+            user = db.query(User).filter(User.email == email).first()
+            if not user:
+                user = User(id=uuid.uuid4(), tenant_id=tenant.id, email=email,
+                            password_hash=hash_password(password),
+                            full_name="Demo Gebruiker",
+                            role=UserRole.ORG_ADMIN, is_active=True)
+                db.add(user)
+                db.flush()
+            # App-toegang voor alle actieve applicaties (idempotent).
+            for app_row in db.query(Application).filter(Application.is_active == True).all():
+                ta = db.query(TenantApplication).filter(
+                    TenantApplication.tenant_id == tenant.id,
+                    TenantApplication.application_id == app_row.id).first()
+                if not ta:
+                    ta = TenantApplication(id=uuid.uuid4(), tenant_id=tenant.id,
+                                           application_id=app_row.id)
+                    db.add(ta)
+                    db.flush()
+                ua = db.query(UserApplication).filter(
+                    UserApplication.user_id == user.id,
+                    UserApplication.application_id == app_row.id).first()
+                if not ua:
+                    db.add(UserApplication(id=uuid.uuid4(), user_id=user.id,
+                                           application_id=app_row.id,
+                                           tenant_application_id=ta.id))
+            db.commit()
+            log.info("Demo-user %s geborgd met app-toegang.", email)
+        finally:
+            db.close()
+    except Exception:
+        import traceback
+        log.error("Ensure demo user failed:\n%s", traceback.format_exc())
+
+
+_ensure_demo_user()
 
 # ---------------------------------------------------------------------------
 # FastAPI application

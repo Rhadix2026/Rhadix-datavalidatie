@@ -137,13 +137,166 @@ function FileCard({ result }) {
   )
 }
 
+// ── Benchmark tegen referentieontwerp ──────────────────────────────────────────
+
+const STATUS_STYLE = {
+  covered:      { icon: '✓', color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', label: 'Gedekt' },
+  missing:      { icon: '✗', color: '#ef4444', bg: '#fef2f2', border: '#fca5a5', label: 'Ontbreekt' },
+  out_of_scope: { icon: '○', color: '#9ca3af', bg: '#f9fafb', border: '#e5e7eb', label: 'Niet in bronontwerp' },
+}
+
+function ConceptRow({ c }) {
+  const st = STATUS_STYLE[c.status] || STATUS_STYLE.out_of_scope
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 10,
+      padding: '8px 12px', borderRadius: 'var(--radius)',
+      background: st.bg, border: `1px solid ${st.border}`, marginBottom: 6,
+    }}>
+      <span style={{ fontSize: 13, color: st.color, fontWeight: 800, lineHeight: '18px' }}>{st.icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{c.concept}</div>
+        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+          {c.afas_attr
+            ? <>Bronveld: <code style={{ background: '#f3f4f6', padding: '1px 6px', borderRadius: 4 }}>{c.afas_attr}</code></>
+            : <span style={{ fontStyle: 'italic' }}>Geen bronveld in referentieontwerp v6.0</span>}
+          {c.transform && <span> · bewerking: {c.transform}</span>}
+        </div>
+        {c.status === 'covered' && c.present_in?.length > 0 && (
+          <div style={{ fontSize: 11, color: '#059669', marginTop: 2 }}>Aangetroffen in: {c.present_in.join(', ')}</div>
+        )}
+        {c.status === 'missing' && (
+          <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>Niet aanwezig in de geladen export.</div>
+        )}
+      </div>
+      <span style={{ fontSize: 10, fontWeight: 700, color: st.color, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{st.label}</span>
+    </div>
+  )
+}
+
+function ElementCard({ el }) {
+  const [open, setOpen] = useState(el.missing > 0)
+  return (
+    <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', marginBottom: 12, overflow: 'hidden' }}>
+      <div onClick={() => setOpen(o => !o)}
+        style={{ padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{el.label}</div>
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+            <span style={{ color: '#059669', fontWeight: 600 }}>{el.covered} gedekt</span>
+            {el.missing > 0 && <> · <span style={{ color: '#ef4444', fontWeight: 600 }}>{el.missing} ontbreekt</span></>}
+            {el.out_of_scope > 0 && <> · <span style={{ color: '#9ca3af' }}>{el.out_of_scope} niet in bronontwerp</span></>}
+          </div>
+        </div>
+        {el.coverage !== null && (
+          <div style={{ textAlign: 'center' }}>
+            <ScoreBadge value={el.coverage} />
+            <span style={{ fontSize: 11, color: 'var(--text3)' }}>%</span>
+          </div>
+        )}
+        <span style={{ fontSize: 12, color: 'var(--text3)' }}>{open ? '▲' : '▼'}</span>
+      </div>
+      {open && (
+        <div style={{ padding: '0 18px 16px' }}>
+          {el.concepts.map((c, i) => <ConceptRow key={i} c={c} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BenchmarkSection({ benchmark }) {
+  if (!benchmark) return null
+  if (!benchmark.applicable) {
+    return (
+      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-xl)', padding: 18, marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>Benchmark niet beschikbaar</div>
+        <div style={{ fontSize: 13, color: 'var(--text2)' }}>
+          Het referentieontwerp is specifiek voor AFAS Profit HRM. Er zijn geen AFAS-bestanden in deze scan herkend,
+          dus er valt niets te benchmarken.
+        </div>
+      </div>
+    )
+  }
+
+  const { reference = {}, summary = {}, elementen = [], profielen = {}, extra_fields = [], afas_files = [] } = benchmark
+  const covColor = summary.coverage >= 85 ? '#059669' : summary.coverage >= 65 ? 'var(--blue)' : summary.coverage >= 50 ? '#f59e0b' : '#ef4444'
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      {/* Kop */}
+      <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: '18px 20px', marginBottom: 16 }}>
+        <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600, marginBottom: 6 }}>
+          📐 Benchmark tegen {reference.title || 'referentieontwerp'}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 900, color: covColor, lineHeight: 1 }}>
+              {summary.coverage}<span style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>%</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>Conceptdekking</div>
+          </div>
+          <div style={{ display: 'flex', gap: 20 }}>
+            {[
+              { label: 'Gedekt',             value: summary.concepts_covered,     color: '#059669' },
+              { label: 'Ontbreekt',          value: summary.concepts_missing,     color: summary.concepts_missing > 0 ? '#ef4444' : '#059669' },
+              { label: 'Niet in bronontwerp', value: summary.concepts_out_of_scope, color: '#9ca3af' },
+            ].map((s, i) => (
+              <div key={i} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 10 }}>
+          {reference.leverancier} {reference.source_system} · referentieontwerp v{reference.version} · vergeleken met: {afas_files.join(', ')}
+        </div>
+      </div>
+
+      {/* Per gegevenselement */}
+      {elementen.map((el, i) => <ElementCard key={i} el={el} />)}
+
+      {/* Extra velden */}
+      {extra_fields.length > 0 && (
+        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: '14px 18px', marginBottom: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>
+            Aangeleverd maar niet in het referentieontwerp ({extra_fields.length})
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text3)' }}>{extra_fields.join(', ')}</div>
+        </div>
+      )}
+
+      {/* Uitwisselprofielen */}
+      {profielen.items?.length > 0 && (
+        <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: '14px 18px', marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Uitwisselprofielen</div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 10, fontStyle: 'italic' }}>{profielen.note}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {profielen.items.map((p, i) => (
+              <span key={i} title={p.omschrijving}
+                style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 12px' }}>
+                {p.code}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack }) {
+  const [showBenchmark, setShowBenchmark] = useState(false)
   if (!results) return null
-  const { file_results = [], summary = {} } = results
+  const { file_results = [], summary = {}, benchmark = null } = results
 
   const indexColor = summary.rhadix_index >= 85 ? '#059669'
     : summary.rhadix_index >= 65 ? 'var(--blue)'
     : summary.rhadix_index >= 50 ? '#f59e0b' : '#ef4444'
+
+  // Benchmark mag pas wanneer de pre-scan zonder blokkerende fouten is doorlopen.
+  const checksPassed = (summary.error_count || 0) === 0
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
@@ -191,6 +344,37 @@ export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack }
         {file_results.map((result, i) => (
           <FileCard key={i} result={result} />
         ))}
+
+        {/* Benchmark tegen referentieontwerp */}
+        {benchmark && (
+          <div style={{ marginTop: 8, marginBottom: 8 }}>
+            <button
+              onClick={() => setShowBenchmark(s => !s)}
+              disabled={!checksPassed}
+              title={checksPassed ? '' : 'Beschikbaar zodra de pre-scan zonder fouten is doorlopen'}
+              style={{
+                width: '100%', padding: '13px',
+                background: checksPassed ? 'var(--blue)' : '#cbd5e1',
+                color: '#fff', border: 'none', borderRadius: 'var(--radius)',
+                fontSize: 15, fontWeight: 700,
+                cursor: checksPassed ? 'pointer' : 'not-allowed',
+                fontFamily: 'var(--font)',
+              }}
+            >
+              {showBenchmark ? '▲ Benchmark verbergen' : '📐 Benchmark tegen referentieontwerp'}
+            </button>
+            {!checksPassed && (
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, textAlign: 'center' }}>
+                Beschikbaar zodra de data zonder blokkerende fouten door de checks is.
+              </div>
+            )}
+            {showBenchmark && checksPassed && (
+              <div style={{ marginTop: 16 }}>
+                <BenchmarkSection benchmark={benchmark} />
+              </div>
+            )}
+          </div>
+        )}
 
         <button
           onClick={onNewScan}

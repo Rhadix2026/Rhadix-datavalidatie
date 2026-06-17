@@ -89,17 +89,15 @@ _run_migrations()
 
 
 # ---------------------------------------------------------------------------
-# Tijdelijke testopzet: reset de auth naar één vaste admin.
-# Verwijdert bij startup alle gebruikers en zet precies één RHADIX_ADMIN neer.
-# Inloggegevens zijn bewust in de app gebakken (makkelijker testen);
-# met AUTH_RESET=0 sla je dit over.
+# Borg dat de vaste RHADIX_ADMIN in elke omgeving bestaat.
+# Niet-destructief: bestaande gebruikers blijven onaangeroerd; de admin wordt
+# alleen aangemaakt als die nog niet bestaat. Met AUTH_RESET=0 sla je dit over.
 # ---------------------------------------------------------------------------
-def _reset_single_admin() -> None:
+def _ensure_admin() -> None:
     if os.getenv("AUTH_RESET", "1").lower() in ("0", "false", "no"):
         return
     try:
         import uuid
-        from sqlalchemy import text
         from app.database import SessionLocal
         from app.models.auth_models import Tenant, User, UserRole
         from app.auth.security import hash_password
@@ -108,8 +106,8 @@ def _reset_single_admin() -> None:
         password = "Rhadixvalidatie26!"
         db = SessionLocal()
         try:
-            db.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
-            db.commit()
+            if db.query(User).filter(User.email == email).first():
+                return  # admin bestaat al -- gebruikers onaangeroerd laten
             tenant = db.query(Tenant).filter(Tenant.slug == "rhadix-platform").first()
             if not tenant:
                 tenant = Tenant(id=uuid.uuid4(), slug="rhadix-platform",
@@ -122,15 +120,15 @@ def _reset_single_admin() -> None:
                 role=UserRole.RHADIX_ADMIN, is_active=True,
             ))
             db.commit()
-            log.info("Auth reset: single admin %s ready.", email)
+            log.info("Admin %s ensured.", email)
         finally:
             db.close()
     except Exception:
         import traceback
-        log.error("Auth reset failed:\n%s", traceback.format_exc())
+        log.error("Ensure admin failed:\n%s", traceback.format_exc())
 
 
-_reset_single_admin()
+_ensure_admin()
 
 # ---------------------------------------------------------------------------
 # FastAPI application

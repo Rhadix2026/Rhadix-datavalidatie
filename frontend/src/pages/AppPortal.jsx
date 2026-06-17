@@ -76,7 +76,7 @@ export default function AppPortal({ onLogin }) {
           <AppCard accent="var(--blue)" accentBg="var(--blue-light)" accentText="var(--blue-dark)"
             mark="U" laag="AFNEMERSKANT" naam="Rhadix Uitvraag"
             omschrijving="Gevalideerde vragen stellen aan zorgaanbieders en de antwoorden inzien, vergelijken en analyseren."
-            actie="Openen →" onClick={() => { window.location.href = UITVRAAG_URL }} />
+            actie="Inloggen →" onClick={() => { window.location.href = UITVRAAG_URL }} />
           <AppCard accent="var(--green)" accentBg="var(--green-light)" accentText="#0F6E56"
             mark="DV" laag="BIJ DE BRON · DATAKWALITEIT" naam="Rhadix Datavalidatie"
             omschrijving="Pre-screening: is de datahuishouding van de zorgaanbieder klaar om gevalideerde vragen te beantwoorden?"

@@ -1,8 +1,10 @@
 import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
 import { TreeDecoration } from '../components/UI'
 
-// Staging-URL voorlopig; later vervangbaar via VITE_UITVRAAG_URL.
-const UITVRAAG_URL = import.meta.env.VITE_UITVRAAG_URL || 'http://46.224.224.26:5177'
+// Per-omgeving instelbaar via VITE_*; fallback = staging-server.
+const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || 'http://46.224.224.26:5177'
+// TODO(Rene): bevestig de juiste Datastation-URL/poort (aanname hieronder).
+const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || 'http://46.224.224.26:5176'
 
 function AppCard({ accent, accentBg, accentText, mark, laag, naam, omschrijving, badge, actie, onClick, disabled }) {
   return (
@@ -73,18 +75,18 @@ export default function AppPortal({ onLogin }) {
           <p style={{ fontSize: 14, color: 'var(--text3)' }}>De drie Rhadix-applicaties binnen het KIK-V-stelsel.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <AppCard accent="var(--blue)" accentBg="var(--blue-light)" accentText="var(--blue-dark)"
-            mark="U" laag="AFNEMERSKANT" naam="Rhadix Uitvraag"
-            omschrijving="Gevalideerde vragen stellen aan zorgaanbieders en de antwoorden inzien, vergelijken en analyseren."
-            actie="Inloggen →" onClick={() => { window.location.href = UITVRAAG_URL }} />
           <AppCard accent="var(--green)" accentBg="var(--green-light)" accentText="#0F6E56"
             mark="DV" laag="BIJ DE BRON · DATAKWALITEIT" naam="Rhadix Datavalidatie"
             omschrijving="Pre-screening: is de datahuishouding van de zorgaanbieder klaar om gevalideerde vragen te beantwoorden?"
             actie="Inloggen →" onClick={onLogin} />
+          <AppCard accent="var(--blue)" accentBg="var(--blue-light)" accentText="var(--blue-dark)"
+            mark="U" laag="AFNEMERSKANT" naam="Rhadix Uitvraag"
+            omschrijving="Gevalideerde vragen stellen aan zorgaanbieders en de antwoorden inzien, vergelijken en analyseren."
+            actie="Inloggen →" onClick={() => { window.location.href = UITVRAAG_URL }} />
           <AppCard accent="var(--amber)" accentBg="var(--amber-light)" accentText="#854F0B"
-            mark="DS" laag="BIJ DE BRON · REKENKRACHT" naam="Rhadix Datastation" badge="in ontwikkeling"
-            omschrijving="Het datastation berekent het antwoord lokaal (SPARQL/Fuseki). Nu nog de reconciliatie-module in Datavalidatie."
-            actie="Binnenkort" disabled />
+            mark="DS" laag="BIJ DE BRON · REKENKRACHT" naam="Rhadix Datastation"
+            omschrijving="Het datastation berekent het antwoord lokaal (SPARQL/Fuseki) bij de zorgaanbieder."
+            actie="Inloggen →" onClick={() => { window.location.href = DATASTATION_URL }} />
         </div>
       </div>
     </div>

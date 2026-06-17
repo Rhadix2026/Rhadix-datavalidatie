@@ -136,7 +136,12 @@ _ensure_admin()
 # Idempotent en niet-destructief; met AUTH_RESET=0 sla je dit over.
 # ---------------------------------------------------------------------------
 def _ensure_demo_user() -> None:
-    if os.getenv("AUTH_RESET", "1").lower() in ("0", "false", "no"):
+    # DEMO_SEED expliciet wint; anders standaard alleen op staging seeden.
+    _demo = os.getenv("DEMO_SEED")
+    if _demo is not None:
+        if _demo.lower() in ("0", "false", "no"):
+            return
+    elif os.getenv("RHADIX_ENV", "").lower() != "staging":
         return
     try:
         import uuid

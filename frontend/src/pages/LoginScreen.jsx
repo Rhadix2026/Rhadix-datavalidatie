@@ -110,7 +110,8 @@ export default function LoginScreen({ onLogin, onBack }) {
           <p style={{ fontSize: 14, color: 'var(--text3)' }}>Voer uw e-mailadres en wachtwoord in.</p>
         </div>
 
-        {/* ── Demo-inloggegevens ── */}
+        {/* ── Demo-inloggegevens (alleen buiten productie) ── */}
+        {(import.meta.env.VITE_RHADIX_ENV || 'production') !== 'production' && (
         <div style={{
           background: '#f0fdf4', border: '1px solid #bbf7d0',
           borderRadius: 'var(--radius)', padding: '12px 14px',
@@ -130,6 +131,7 @@ export default function LoginScreen({ onLogin, onBack }) {
             <div>Wachtwoord: <code style={{ fontFamily: 'monospace', fontWeight: 600 }}>Demogebruiker1!</code></div>
           </div>
         </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -46,13 +46,13 @@
 
 :root {
   /* ── Rhadix brand palette ───────────────────────────── */
-  --blue:        #2A4A38;   /* Rhadix salie groen – primary  */
-  --blue-dark:   #1A3025;   /* deep salie groen              */
-  --blue-hero:   #2A4A38;   /* hero / nav background         */
-  --blue-light:  #EBF5EF;   /* very light sage tint          */
-  --blue-mid:    #BAD4C2;   /* mid sage for badges/tags      */
-  --rhadix-accent: #52876A; /* accent sage groen             */
-  --rhadix-sub:  #7AA890;   /* subtitle / secondary text     */
+  --blue:        #1A2847;   /* Rhadix navy – primary (productie) */
+  --blue-dark:   #0F1A30;   /* deep navy                   */
+  --blue-hero:   #1A2847;   /* hero / nav background       */
+  --blue-light:  #E8F2FA;   /* very light blue tint        */
+  --blue-mid:    #B8D4EA;   /* mid blue for badges/tags    */
+  --rhadix-accent: #6FA8D0; /* accent blue                 */
+  --rhadix-sub:  #8BADC5;   /* subtitle / secondary text   */
 
   /* ── Neutrals ───────────────────────────────────────── */
   --text:        #111827;
@@ -181,4 +181,17 @@ h1, h2, h3 {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+
+/* ── Staging-palet (salie groen) — alleen als de app met VITE_RHADIX_ENV=staging
+   is gebouwd; productie blijft navy. Voorkomt dat een merge het palet wisselt. ── */
+:root[data-env="staging"] {
+  --blue:        #2A4A38;
+  --blue-dark:   #1A3025;
+  --blue-hero:   #2A4A38;
+  --blue-light:  #EBF5EF;
+  --blue-mid:    #BAD4C2;
+  --rhadix-accent: #52876A;
+  --rhadix-sub:  #7AA890;
 }

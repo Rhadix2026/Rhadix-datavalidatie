@@ -117,6 +117,7 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
+| 2026-06-17 | — | Fix palet-regressie: door eerdere `-X theirs` staging->main merges was het staging-groene palet op productie beland. index.css nu omgevings-gestuurd: `:root` = navy (prod), `:root[data-env=staging]` = salie groen; main.jsx zet data-env uit VITE_RHADIX_ENV. Identiek op beide branches -> merge kan palet niet meer wisselen. |
 | 2026-06-17 | v1.5.25 | RELEASE: Datastation-knop op productie geactiveerd -> https://datastation.rhadix.nl (Datastation kreeg eigen prod-deploy v1.0.0 + nginx-vhost 5180/8016 + Cloudflare DNS). Tevens portal staging Datastation-URL gecorrigeerd 5176->5181 (5176 was Uitvraag-prod). |
 | 2026-06-17 | v1.5.24 | RELEASE naar productie: staging -> main gemerged. Bevat: AFAS GetConnector JSON-import (parse_json_bytes), niet-destructieve auth-bootstrap (geen TRUNCATE), werkende demo-login achter DEMO_SEED/staging, Beheer-knop op landing, portal-volgorde DV/Uitvraag/Datastation met omgevings-afhankelijke URL's (Datastation prod='Binnenkort'). 153 tests groen. |
 | 2026-06-17 | — | Portal-URL's omgevings-afhankelijk via VITE_RHADIX_ENV: Uitvraag prod=https://uitvraag.rhadix.nl / staging=:5177; Datastation staging=:5176 actief, prod='Binnenkort' (Rhadix-datastation heeft nog geen prod-release: geen tags). Voorbereiding release v1.5.24. |

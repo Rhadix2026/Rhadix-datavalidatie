@@ -120,11 +120,58 @@ def parse_xml_bytes(content: bytes, max_rows: int = MAX_ROWS) -> tuple[list, lis
     return headers_ordered, rows
 
 
+def parse_json_bytes(content: bytes, max_rows: int = MAX_ROWS) -> tuple[list, list]:
+    """Parseer AFAS GetConnector JSON-exports.
+
+    Ondersteunt de REST GetConnector-envelope {"skip":..,"take":..,"rows":[..]},
+    een losse record-dict, en een platte lijst van records. Waarden worden
+    gestringificeerd en datums genormaliseerd, identiek aan de XML-parser, zodat
+    XML- en JSON-import dezelfde rijen opleveren. null -> "".
+    """
+    try:
+        data = json.loads(content.decode("utf-8-sig", errors="replace"))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Ongeldig JSON-bestand: {e}")
+
+    if isinstance(data, dict):
+        records = data.get("rows")
+        if records is None:
+            records = [data]            # losse record-dict -> één rij
+    elif isinstance(data, list):
+        records = data
+    else:
+        raise ValueError("JSON moet een object met 'rows' of een lijst van records zijn")
+
+    headers_ordered: list[str] = []
+    headers_seen: set[str] = set()
+    rows: list[dict] = []
+
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        row: dict[str, str] = {}
+        for key, raw in record.items():
+            # bool -> "True"/"False" (str(bool) matcht AFAS-XML-casing); None -> ""
+            val = "" if raw is None else _normalize_xml_value(str(raw))
+            row[key] = val
+            if key not in headers_seen:
+                headers_seen.add(key)
+                headers_ordered.append(key)
+        if any(v for v in row.values()):
+            rows.append(row)
+        if len(rows) >= max_rows:
+            break
+
+    return headers_ordered, rows
+
+
 def parse_upload(content: bytes, filename: str, ext: str) -> tuple[list, list]:
     if ext == "csv":
         return parse_csv_bytes(content, filename)
     if ext == "xml":
         return parse_xml_bytes(content)
+    if ext == "json":
+        return parse_json_bytes(content)
     try:
         import openpyxl
         wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
@@ -182,7 +229,7 @@ async def upload_and_validate(
     for upload in files:
         content = await upload.read()
         ext = upload.filename.split(".")[-1].lower()
-        if ext not in ("csv", "xlsx", "xls", "xml"):
+        if ext not in ("csv", "xlsx", "xls", "xml", "json"):
             raise HTTPException(400, f"Unsupported file type: {ext}")
         headers, rows = parse_upload(content, upload.filename, ext)
         rows = rows[:MAX_ROWS]   # cap

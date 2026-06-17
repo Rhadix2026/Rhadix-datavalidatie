@@ -80,6 +80,20 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
               color: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font)',
             }}>Dashboard</button>
           )}
+          {authUser?.role === 'RHADIX_ADMIN' && onAdmin && (
+            <button onClick={onAdmin} style={{
+              background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
+              borderRadius: 'var(--radius)', padding: '6px 14px',
+              color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)',
+            }}>Beheer</button>
+          )}
+          {authUser?.role === 'ORG_ADMIN' && onOrgAdmin && (
+            <button onClick={onOrgAdmin} style={{
+              background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
+              borderRadius: 'var(--radius)', padding: '6px 14px',
+              color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)',
+            }}>Beheer</button>
+          )}
           {onLogout && (
             <button onClick={onLogout} style={{
               background: 'transparent', border: '1px solid rgba(255,255,255,.15)',

@@ -43,6 +43,11 @@ function AppCard({ accent, accentBg, accentText, mark, laag, naam, omschrijving,
 
 export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange }) {
   const b = BRANDS[brand] || BRANDS.rhadix
+  const withBrand = (url) => {
+    if (brand !== 'suresync' || !url) return url
+    try { const u = new URL(url); u.searchParams.set('brand', 'suresync'); return u.toString() }
+    catch { return url + (url.includes('?') ? '&' : '?') + 'brand=suresync' }
+  }
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'stretch', background: 'var(--bg)', paddingTop: BANNER_HEIGHT }}>
 
@@ -96,14 +101,14 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange }) 
           <AppCard accent="var(--blue)" accentBg="var(--blue-light)" accentText="var(--blue-dark)"
             mark="U" laag="AFNEMERSKANT" naam="Rhadix Uitvraag"
             omschrijving="Gevalideerde vragen stellen aan zorgaanbieders en de antwoorden inzien, vergelijken en analyseren."
-            actie="Inloggen →" onClick={() => { window.location.href = UITVRAAG_URL }} />
+            actie="Inloggen →" onClick={() => { window.location.href = withBrand(UITVRAAG_URL) }} />
           <AppCard accent="var(--amber)" accentBg="var(--amber-light)" accentText="#854F0B"
             mark="DS" laag="BIJ DE BRON · REKENKRACHT" naam="Rhadix Datastation"
             badge={DATASTATION_ACTIVE ? undefined : "in ontwikkeling"}
             omschrijving="Het datastation berekent het antwoord lokaal (SPARQL/Fuseki) bij de zorgaanbieder."
             actie={DATASTATION_ACTIVE ? "Inloggen →" : "Binnenkort"}
             disabled={!DATASTATION_ACTIVE}
-            onClick={() => { window.location.href = DATASTATION_URL }} />
+            onClick={() => { window.location.href = withBrand(DATASTATION_URL) }} />
         </div>
       </div>
     </div>

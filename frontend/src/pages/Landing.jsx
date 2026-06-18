@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { brandLogo } from '../brand'
-import { TreeDecoration } from '../components/UI'
+import { brandLogo, currentBrand } from '../brand'
+import { TreeDecoration, ConstellationBg } from '../components/UI'
 
 function AnimatedCounter() {
   const [count, setCount] = useState(0)
@@ -111,9 +111,11 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
           flex: 1, background: 'var(--blue-hero)',
           padding: '72px 64px', display: 'flex',
           flexDirection: 'column', justifyContent: 'center',
-          position: 'relative', overflow: 'hidden',
+          position: 'relative', overflow: 'hidden', isolation: 'isolate',
         }}>
-          <TreeDecoration />
+          {currentBrand() === 'suresync'
+            ? <ConstellationBg style={{ zIndex: -1 }} />
+            : <TreeDecoration />}
           {/* Logo placeholder verwijderd — logo staat in de header */}
 
           <div style={{

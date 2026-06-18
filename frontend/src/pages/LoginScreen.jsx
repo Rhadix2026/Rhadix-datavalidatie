@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
-import { TreeDecoration } from '../components/UI'
+import { TreeDecoration, ConstellationBg } from '../components/UI'
+import { currentBrand } from '../brand'
 
 export default function LoginScreen({ onLogin, onBack }) {
   const [email,      setEmail]      = useState('')
@@ -45,7 +46,7 @@ export default function LoginScreen({ onLogin, onBack }) {
       <div style={{
         flex: 1, background: 'var(--blue-hero)',
         display: 'flex', flexDirection: 'column',
-        position: 'relative', overflow: 'hidden',
+        position: 'relative', overflow: 'hidden', isolation: 'isolate',
       }}>
 
         {/* Logo linksboven — klikbaar, terug naar rhadix.nl */}
@@ -88,8 +89,10 @@ export default function LoginScreen({ onLogin, onBack }) {
           </p>
         </div>
 
-        {/* Boom-decoratie rechtonder */}
-        <TreeDecoration />
+        {/* Decoratie rechtonder (constellatie bij SureSync, anders boom) */}
+        {currentBrand() === 'suresync'
+          ? <ConstellationBg style={{ zIndex: -1 }} />
+          : <TreeDecoration />}
       </div>
 
       {/* ── Right — login form ────────────────────────────────────────────── */}

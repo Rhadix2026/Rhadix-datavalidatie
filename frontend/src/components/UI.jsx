@@ -6,7 +6,7 @@ export function RhadixLogo({ height = 44, onHome }) {
   return (
     <a href="https://rhadix.nl" onClick={handleClick}
        style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', cursor: 'pointer' }}>
-      <img src="/rhadix-logo.jpg" alt="Rhadix"
+      <img src={brandLogo()} alt="logo"
            style={{ height, width: 'auto', objectFit: 'contain' }} />
     </a>
   )
@@ -279,6 +279,7 @@ export function GapRow({ icon, title, sub, status, color }) {
 
 // ─── IssueTable — filterbare tabel met per-rij details ────────────────────────
 import { useState as _useState } from 'react'
+import { brandLogo } from '../brand'
 
 export function IssueTable({ rows = [], truncated = false, total = 0 }) {
   const [filter, setFilter]     = _useState('')

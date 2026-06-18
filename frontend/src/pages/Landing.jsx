@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { brandLogo } from '../brand'
 import { TreeDecoration } from '../components/UI'
 
 function AnimatedCounter() {
@@ -70,7 +71,7 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
         flexShrink: 0,
       }}>
         <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-          <img src="/rhadix-logo.jpg" alt="Rhadix" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
+          <img src={brandLogo()} alt="logo" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {authUser && onDashboard && (

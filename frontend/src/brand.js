@@ -12,7 +12,9 @@ export const BRANDS = {
   suresync: {
     name: 'SureSync',
     sub: 'Databeschikbaarheid in de zorg',
-    logo: null,                   // nog geen officieel asset -> tekst-wordmerk
+    logo: '/suresync-logo-light.svg',   // officieel logo (lichte variant voor donkere balk)
+    logoLight: '/suresync-logo-light.svg',
+    logoColor: '/suresync-logo.svg',
     wordmark: 'SureSync',
   },
 }
@@ -25,4 +27,12 @@ export function getInitialBrand() {
     if (s === 'suresync' || s === 'rhadix') return s
   } catch { /* ignore */ }
   return 'rhadix'
+}
+
+// Logo voor het huidige merk (leest data-brand op <html>, fallback rhadix).
+export function brandLogo() {
+  let key = 'rhadix'
+  try { key = document.documentElement.dataset.brand || 'rhadix' } catch { /* ignore */ }
+  const b = BRANDS[key] || BRANDS.rhadix
+  return b.logo || '/rhadix-logo.jpg'
 }

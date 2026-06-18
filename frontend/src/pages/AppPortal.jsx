@@ -1,5 +1,6 @@
 import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
 import { TreeDecoration } from '../components/UI'
+import { BRANDS } from '../brand'
 
 // Omgevings-afhankelijke URL's (VITE_* overschrijft; anders prod- of staging-fallback).
 const IS_PROD = (import.meta.env.VITE_RHADIX_ENV || 'production') === 'production'
@@ -40,19 +41,30 @@ function AppCard({ accent, accentBg, accentText, mark, laag, naam, omschrijving,
   )
 }
 
-export default function AppPortal({ onLogin }) {
+export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange }) {
+  const b = BRANDS[brand] || BRANDS.rhadix
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'stretch', background: 'var(--bg)', paddingTop: BANNER_HEIGHT }}>
 
       {/* Links — branding + KIK-V-context */}
       <div style={{ flex: 1, background: 'var(--blue-hero)', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ padding: '32px 48px 0', flexShrink: 0 }}>
-          <a href="https://rhadix.nl" style={{ display: 'inline-block', textDecoration: 'none' }} title="Terug naar rhadix.nl">
-            <img src="/rhadix-logo.jpg" alt="Rhadix" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
-          </a>
+        <div style={{ padding: '32px 48px 0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {b.logo
+            ? <a href="https://rhadix.nl" style={{ display: 'inline-block', textDecoration: 'none' }} title="Terug naar rhadix.nl">
+                <img src={b.logo} alt={b.name} style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
+              </a>
+            : <span style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>{b.wordmark}</span>}
+          {import.meta.env.VITE_RHADIX_ENV !== 'production' && onBrandChange && (
+            <button onClick={() => onBrandChange(brand === 'suresync' ? 'rhadix' : 'suresync')}
+              title="White-label demo (alleen staging)" style={{
+                background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.35)',
+                borderRadius: 99, padding: '6px 14px', color: '#fff', fontSize: 12.5, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'var(--font)',
+              }}>{brand === 'suresync' ? '← Rhadix' : 'SureSync ↗'}</button>
+          )}
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 48px 90px', position: 'relative', zIndex: 1 }}>
-          <span style={{ display: 'inline-flex', alignSelf: 'flex-start', background: 'rgba(111,168,208,.25)', color: 'rgba(168,197,224,.95)', fontSize: 11, fontWeight: 700, letterSpacing: '1.5px', padding: '5px 12px', borderRadius: 99, marginBottom: 22, textTransform: 'uppercase' }}>KIK-V · federatief datastelsel</span>
+          <span style={{ display: 'inline-flex', alignSelf: 'flex-start', background: 'rgba(111,168,208,.25)', color: 'rgba(168,197,224,.95)', fontSize: 11, fontWeight: 700, letterSpacing: '1.5px', padding: '5px 12px', borderRadius: 99, marginBottom: 22, textTransform: 'uppercase' }}>{b.sub}</span>
           <h1 style={{ fontWeight: 800, fontSize: 34, color: '#fff', lineHeight: 1.2, letterSpacing: '-0.02em', marginBottom: 16, maxWidth: 460 }}>
             Eén platform, <span style={{ color: 'var(--rhadix-accent)' }}>drie applicaties</span>
           </h1>

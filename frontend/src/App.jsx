@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import EnvironmentBanner, { BANNER_HEIGHT } from './components/EnvironmentBanner'
 import { setAuthToken, clearAuthToken, login as apiLogin, getMe } from './services/api'
 import Landing                 from './pages/Landing'
+import { getInitialBrand } from './brand'
 import SelectSystems           from './pages/SelectSystems'
 import Upload                  from './pages/Upload'
 import Beschikbaarheid         from './pages/Beschikbaarheid'
@@ -37,6 +38,7 @@ import PlatformDashboard  from './pages/PlatformDashboard'
 export default function App() {
   const [step, setStep]                 = useState('login')
   const [entry, setEntry]               = useState('portal')   // 'portal' | 'login'
+  const [brand, setBrand]               = useState(getInitialBrand)   // 'rhadix' | 'suresync' (white-label, staging)
   const [authUser, setAuthUser]         = useState(null)   // { id, email, role, tenant_id, tenant_name }
   const [systems, setSystems]           = useState([])
   const [standard, setStandard]         = useState('kikv')
@@ -85,12 +87,19 @@ export default function App() {
     return () => window.removeEventListener('rhadix:unauthorized', handler)
   }, [])
 
+  // White-label merk-laag: zet data-brand op <html> zodat het palet (index.css) volgt.
+  useEffect(() => { document.documentElement.dataset.brand = brand }, [brand])
+  const changeBrand = (b) => {
+    try { sessionStorage.setItem('rhadix:brand', b) } catch { /* ignore */ }
+    setBrand(b)
+  }
+
   // ── Guard: not authenticated ──────────────────────────────────────────────
   if (!authUser) {
     if (entry === 'login') {
       return <LoginScreen onLogin={handleLogin} onBack={() => setEntry('portal')} />
     }
-    return <AppPortal onLogin={() => setEntry('login')} />
+    return <AppPortal onLogin={() => setEntry('login')} brand={brand} onBrandChange={changeBrand} />
   }
 
   const completeUpload = (result) => {

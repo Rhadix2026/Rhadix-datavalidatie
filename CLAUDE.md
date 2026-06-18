@@ -117,6 +117,7 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
+| 2026-06-18 | — | White-label merk-laag (staging-only): `brand.js` (rhadix default + suresync), `index.css` `:root[data-brand=suresync]` provisorisch teal-palet, App.jsx brand-state (URL `?brand=`/sessionStorage) zet `data-brand` op <html>, AppPortal merk-bewust logo/sub + 'SureSync'-knop (gegate op VITE_RHADIX_ENV != production). Volledig omkeerbaar; productie ongewijzigd. SureSync-kleuren/logo nog VOORLOPIG (wachten op brand guide). |
 | 2026-06-18 | v1.5.27 | RELEASE: AFAS-herkenning Werkgevers/Functies/Organigram (3 templates toegevoegd), geslacht 'X' toegestaan, en navy-palet-herstel meegenomen naar productie. 157 tests groen. |
 | 2026-06-18 | — | AFAS-import fix: 3 ontbrekende connectoren toegevoegd aan AFAS_TEMPLATES (employers/Werkgevers, functions/Functies, organisation/Organigram). Die gaven 'Bestandstype niet herkend'. Herkenning nu ook op officiële `GetConnector_Profit_*`-namen + header-signature. Velden geverifieerd tegen aangeleverde AFAS-templates (5/6 identiek; Organigram-template was foutief een kopie van Werkgevers — echte org-chart-velden gebruikt). 156 tests groen. |
 | 2026-06-17 | v1.5.26 | RELEASE: palet-regressie hersteld — productie weer navy (groen alleen op staging via data-env). |

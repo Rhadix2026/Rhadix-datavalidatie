@@ -195,3 +195,16 @@ h1, h2, h3 {
   --rhadix-accent: #52876A;
   --rhadix-sub:  #7AA890;
 }
+
+
+/* ── SureSync white-label palet (VOORLOPIG) — alleen actief als data-brand=suresync
+   gezet is (staging-demo). Staat na de staging-override zodat merk wint van omgeving. ── */
+:root[data-brand="suresync"] {
+  --blue:        #0E7C86;   /* SureSync teal (voorlopig) */
+  --blue-dark:   #0A5A62;
+  --blue-hero:   #0E7C86;
+  --blue-light:  #E6F6F7;
+  --blue-mid:    #A7DADE;
+  --rhadix-accent: #38BDC8;
+  --rhadix-sub:  #7FBEC4;
+}

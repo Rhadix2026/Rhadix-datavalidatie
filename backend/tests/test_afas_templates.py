@@ -36,3 +36,10 @@ def test_korte_nl_namen_blijven_werken():
 def test_organigram_op_headers_zonder_naam():
     # Header-signature alleen (bestandsnaam geeft geen hint)
     assert _detect_template("export_123.json", ["Unitd", "UnitDesc", "UpperUnit", "Level1"]) == "organisation"
+
+
+def test_gender_x_toegestaan():
+    from app.services.algemeen_validator import _valid_gender
+    for g in ("M", "V", "X", "x", " X ", "O"):
+        assert _valid_gender(g), f"{g!r} hoort geldig te zijn"
+    assert not _valid_gender("Q")

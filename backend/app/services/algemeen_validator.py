@@ -290,7 +290,7 @@ def _valid_number(val: str) -> bool:
     except: return False
 
 def _valid_gender(val: str) -> bool:
-    return val.strip().upper() in ('M', 'V', 'W', 'O', 'MALE', 'FEMALE', 'MAN', 'VROUW')
+    return val.strip().upper() in ('M', 'V', 'W', 'O', 'X', 'MALE', 'FEMALE', 'MAN', 'VROUW')
 
 VALIDATORS = {
     "bsn":      _valid_bsn,

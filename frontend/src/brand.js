@@ -19,6 +19,10 @@ export const BRANDS = {
   },
 }
 
+export function currentBrand() {
+  try { return document.documentElement.dataset.brand || 'rhadix' } catch { return 'rhadix' }
+}
+
 export function getInitialBrand() {
   try {
     const p = new URLSearchParams(window.location.search).get('brand')

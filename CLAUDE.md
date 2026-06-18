@@ -55,7 +55,7 @@ git checkout staging && git merge main --no-edit && git push origin staging && g
 git tag v1.5.X && git push origin v1.5.X
 ```
 
-**Huidige versie:** v1.5.26
+**Huidige versie:** v1.5.27
 
 ---
 
@@ -117,6 +117,7 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
+| 2026-06-18 | v1.5.27 | RELEASE: AFAS-herkenning Werkgevers/Functies/Organigram (3 templates toegevoegd), geslacht 'X' toegestaan, en navy-palet-herstel meegenomen naar productie. 157 tests groen. |
 | 2026-06-18 | — | AFAS-import fix: 3 ontbrekende connectoren toegevoegd aan AFAS_TEMPLATES (employers/Werkgevers, functions/Functies, organisation/Organigram). Die gaven 'Bestandstype niet herkend'. Herkenning nu ook op officiële `GetConnector_Profit_*`-namen + header-signature. Velden geverifieerd tegen aangeleverde AFAS-templates (5/6 identiek; Organigram-template was foutief een kopie van Werkgevers — echte org-chart-velden gebruikt). 156 tests groen. |
 | 2026-06-17 | v1.5.26 | RELEASE: palet-regressie hersteld — productie weer navy (groen alleen op staging via data-env). |
 | 2026-06-17 | — | Fix palet-regressie: door eerdere `-X theirs` staging->main merges was het staging-groene palet op productie beland. index.css nu omgevings-gestuurd: `:root` = navy (prod), `:root[data-env=staging]` = salie groen; main.jsx zet data-env uit VITE_RHADIX_ENV. Identiek op beide branches -> merge kan palet niet meer wisselen. |

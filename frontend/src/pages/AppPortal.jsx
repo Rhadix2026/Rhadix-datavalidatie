@@ -1,5 +1,5 @@
 import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
-import { TreeDecoration } from '../components/UI'
+import { TreeDecoration, ConstellationBg } from '../components/UI'
 import { BRANDS } from '../brand'
 
 // Omgevings-afhankelijke URL's (VITE_* overschrijft; anders prod- of staging-fallback).
@@ -53,7 +53,7 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange }) 
 
       {/* Links — branding + KIK-V-context */}
       <div style={{ flex: 1, background: 'var(--blue-hero)', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ padding: '32px 48px 0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '32px 48px 0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
           {b.logo
             ? <a href="https://rhadix.nl" style={{ display: 'inline-block', textDecoration: 'none' }} title="Terug naar rhadix.nl">
                 <img src={b.logo} alt={b.name} style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
@@ -84,7 +84,9 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange }) 
             <span style={{ fontWeight: 700, color: '#fff' }}>Zorgaanbieder</span>
           </div>
         </div>
-        <TreeDecoration opacity={0.12} style={{ position: 'absolute', bottom: -30, right: -20, transform: 'scale(6)' }} />
+        {brand === 'suresync'
+          ? <ConstellationBg />
+          : <TreeDecoration opacity={0.12} style={{ position: 'absolute', bottom: -30, right: -20, transform: 'scale(6)' }} />}
       </div>
 
       {/* Rechts — applicatiekeuze */}

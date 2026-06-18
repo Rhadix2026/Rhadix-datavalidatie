@@ -117,6 +117,7 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
+| 2026-06-18 | — | AFAS-import fix: 3 ontbrekende connectoren toegevoegd aan AFAS_TEMPLATES (employers/Werkgevers, functions/Functies, organisation/Organigram). Die gaven 'Bestandstype niet herkend'. Herkenning nu ook op officiële `GetConnector_Profit_*`-namen + header-signature. Velden geverifieerd tegen aangeleverde AFAS-templates (5/6 identiek; Organigram-template was foutief een kopie van Werkgevers — echte org-chart-velden gebruikt). 156 tests groen. |
 | 2026-06-17 | v1.5.26 | RELEASE: palet-regressie hersteld — productie weer navy (groen alleen op staging via data-env). |
 | 2026-06-17 | — | Fix palet-regressie: door eerdere `-X theirs` staging->main merges was het staging-groene palet op productie beland. index.css nu omgevings-gestuurd: `:root` = navy (prod), `:root[data-env=staging]` = salie groen; main.jsx zet data-env uit VITE_RHADIX_ENV. Identiek op beide branches -> merge kan palet niet meer wisselen. |
 | 2026-06-17 | v1.5.25 | RELEASE: Datastation-knop op productie geactiveerd -> https://datastation.rhadix.nl (Datastation kreeg eigen prod-deploy v1.0.0 + nginx-vhost 5180/8016 + Cloudflare DNS). Tevens portal staging Datastation-URL gecorrigeerd 5176->5181 (5176 was Uitvraag-prod). |

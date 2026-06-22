@@ -132,6 +132,37 @@ _ensure_admin()
 
 
 # ---------------------------------------------------------------------------
+# Borg de product-Applications (centrale toegangssturing voor het hele platform).
+# Idempotent; veilig op elke omgeving.
+# ---------------------------------------------------------------------------
+def _ensure_apps() -> None:
+    try:
+        import uuid
+        from app.database import SessionLocal
+        from app.models.auth_models import Application
+        wanted = [
+            ("datavalidatie", "Rhadix Datavalidatie", "Datakwaliteit & validatie (readiness scan).", 10),
+            ("uitvraag",      "Rhadix Uitvraag",      "Afnemerskant: gevalideerde vragen uitzetten.", 11),
+            ("datastation",   "Rhadix Datastation",   "Rekenhart: lokale SPARQL/Fuseki bij de bron.", 12),
+        ]
+        db = SessionLocal()
+        try:
+            for slug, name, desc, order in wanted:
+                if not db.query(Application).filter(Application.slug == slug).first():
+                    db.add(Application(id=uuid.uuid4(), slug=slug, name=name,
+                                       description=desc, is_active=True, sort_order=order))
+            db.commit()
+        finally:
+            db.close()
+    except Exception:
+        import traceback
+        log.error("Ensure apps failed:\n%s", traceback.format_exc())
+
+
+_ensure_apps()
+
+
+# ---------------------------------------------------------------------------
 # Borg een werkende demo-login (demo1@rhadix.nl) met app-toegang.
 # Idempotent en niet-destructief; met AUTH_RESET=0 sla je dit over.
 # ---------------------------------------------------------------------------

@@ -4,9 +4,9 @@ import { BRANDS } from '../brand'
 
 // Omgevings-afhankelijke URL's (VITE_* overschrijft; anders prod- of staging-fallback).
 const IS_PROD = (import.meta.env.VITE_RHADIX_ENV || 'production') === 'production'
-const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || (IS_PROD ? 'https://uitvraag.rhadix.nl' : 'http://46.224.224.26:5177')
+const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || (IS_PROD ? 'https://uitvraag.rhadix.nl' : 'https://uitvraag-staging.rhadix.nl')
 // Datastation: prod -> eigen domein, staging -> staging-server.
-const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || (IS_PROD ? 'https://datastation.rhadix.nl' : 'http://46.224.224.26:5181')
+const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || (IS_PROD ? 'https://datastation.rhadix.nl' : 'https://datastation-staging.rhadix.nl')
 const DATASTATION_ACTIVE = !!DATASTATION_URL
 
 function AppCard({ accent, accentBg, accentText, mark, laag, naam, omschrijving, badge, actie, onClick, disabled }) {

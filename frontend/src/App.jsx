@@ -22,6 +22,7 @@ import Stap2Resultaat          from './pages/Stap2Resultaat'
 import ReconciliationDashboard from './pages/reconciliation/ReconciliationDashboard'
 import LoginScreen        from './pages/LoginScreen'
 import AppPortal          from './pages/AppPortal'
+import PlatformLanding    from './pages/PlatformLanding'
 import AdminDashboard     from './pages/AdminDashboard'
 import OrgAdminDashboard  from './pages/OrgAdminDashboard'
 import UserDashboard      from './pages/UserDashboard'
@@ -37,7 +38,7 @@ import PlatformDashboard  from './pages/PlatformDashboard'
 
 export default function App() {
   const [step, setStep]                 = useState('login')
-  const [entry, setEntry]               = useState('portal')   // 'portal' | 'login'
+  const [entry, setEntry]               = useState('landing')  // 'landing' | 'login'
   const [brand, setBrand]               = useState(getInitialBrand)   // 'rhadix' | 'suresync' (white-label, staging)
   const [authUser, setAuthUser]         = useState(null)   // { id, email, role, tenant_id, tenant_name }
   const [systems, setSystems]           = useState([])
@@ -96,7 +97,10 @@ export default function App() {
 
   // ── Guard: not authenticated ──────────────────────────────────────────────
   if (!authUser) {
-    return <LoginScreen onLogin={handleLogin} brand={brand} onBrandChange={changeBrand} />
+    if (entry === 'login') {
+      return <LoginScreen onLogin={handleLogin} onBack={() => setEntry('landing')} brand={brand} onBrandChange={changeBrand} />
+    }
+    return <PlatformLanding onLogin={() => setEntry('login')} brand={brand} onBrandChange={changeBrand} />
   }
 
   const completeUpload = (result) => {

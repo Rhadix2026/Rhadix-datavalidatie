@@ -84,8 +84,23 @@ def verify_password(plain: str, hashed: str) -> bool:
 # andere apps met de PUBLIEKE sleutel kunnen verifiëren zonder gedeeld geheim.
 # Niet gezet => HS256 (huidig gedrag blijft werken).
 # ---------------------------------------------------------------------------
-PRIVATE_KEY = os.getenv("JWT_PRIVATE_KEY")   # PEM (RSA private)
-PUBLIC_KEY  = os.getenv("JWT_PUBLIC_KEY")    # PEM (RSA public)
+def _load_key(name: str):
+    """Lees een PEM-sleutel uit env; accepteert raw PEM óf base64 (1 regel)."""
+    v = os.getenv(name)
+    if not v:
+        return None
+    v = v.strip()
+    if "BEGIN" in v:
+        return v
+    try:
+        import base64
+        return base64.b64decode(v).decode("utf-8")
+    except Exception:
+        return v
+
+
+PRIVATE_KEY = _load_key("JWT_PRIVATE_KEY")   # PEM (RSA private) of base64
+PUBLIC_KEY  = _load_key("JWT_PUBLIC_KEY")    # PEM (RSA public) of base64
 KID         = os.getenv("JWT_KID", "suresync-id-1")
 ISSUER      = os.getenv("JWT_ISSUER", "suresync-id")
 USE_RS256   = bool(PRIVATE_KEY and PUBLIC_KEY)

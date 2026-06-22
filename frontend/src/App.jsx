@@ -71,7 +71,7 @@ export default function App() {
     setAuthToken(access_token)
     const user = await getMe()
     setAuthUser(user)
-    setStep('landing')
+    setStep('portal')   // na inloggen: kies een applicatie
   }
 
   const handleLogout = () => {
@@ -96,10 +96,7 @@ export default function App() {
 
   // ── Guard: not authenticated ──────────────────────────────────────────────
   if (!authUser) {
-    if (entry === 'login') {
-      return <LoginScreen onLogin={handleLogin} onBack={() => setEntry('portal')} />
-    }
-    return <AppPortal onLogin={() => setEntry('login')} brand={brand} onBrandChange={changeBrand} />
+    return <LoginScreen onLogin={handleLogin} brand={brand} onBrandChange={changeBrand} />
   }
 
   const completeUpload = (result) => {
@@ -221,6 +218,10 @@ export default function App() {
       <EnvironmentBanner />
       {/* Verschuif content naar beneden als de banner zichtbaar is */}
       {BANNER_HEIGHT > 0 && <div style={{ height: BANNER_HEIGHT }} />}
+
+      {step === 'portal' && (
+        <AppPortal onLogin={() => setStep('landing')} brand={brand} onBrandChange={changeBrand} />
+      )}
 
       {step === 'landing' && (
         <Landing

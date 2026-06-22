@@ -99,16 +99,16 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange }) 
           <AppCard accent="var(--green)" accentBg="var(--green-light)" accentText="#0F6E56"
             mark="DV" laag="BIJ DE BRON · DATAKWALITEIT" naam="Rhadix Datavalidatie"
             omschrijving="Pre-screening: is de datahuishouding van de zorgaanbieder klaar om gevalideerde vragen te beantwoorden?"
-            actie="Inloggen →" onClick={onLogin} />
+            actie="Openen →" onClick={onLogin} />
           <AppCard accent="var(--blue)" accentBg="var(--blue-light)" accentText="var(--blue-dark)"
             mark="U" laag="AFNEMERSKANT" naam="Rhadix Uitvraag"
             omschrijving="Gevalideerde vragen stellen aan zorgaanbieders en de antwoorden inzien, vergelijken en analyseren."
-            actie="Inloggen →" onClick={() => { window.location.href = withBrand(UITVRAAG_URL) }} />
+            actie="Openen →" onClick={() => { window.location.href = withBrand(UITVRAAG_URL) }} />
           <AppCard accent="var(--amber)" accentBg="var(--amber-light)" accentText="#854F0B"
             mark="DS" laag="BIJ DE BRON · REKENKRACHT" naam="Rhadix Datastation"
             badge={DATASTATION_ACTIVE ? undefined : "in ontwikkeling"}
             omschrijving="Het datastation berekent het antwoord lokaal (SPARQL/Fuseki) bij de zorgaanbieder."
-            actie={DATASTATION_ACTIVE ? "Inloggen →" : "Binnenkort"}
+            actie={DATASTATION_ACTIVE ? "Openen →" : "Binnenkort"}
             disabled={!DATASTATION_ACTIVE}
             onClick={() => { window.location.href = withBrand(DATASTATION_URL) }} />
         </div>

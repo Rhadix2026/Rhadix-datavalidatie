@@ -7,6 +7,7 @@ const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || (IS_PROD ? 'http
 // Datastation: prod -> eigen domein, staging -> staging-server.
 const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || (IS_PROD ? 'https://datastation.rhadix.nl' : 'http://46.224.224.26:5181')
 const DATASTATION_ACTIVE = !!DATASTATION_URL
+const CRM_URL = import.meta.env.VITE_CRM_URL || (IS_PROD ? 'https://crm.rhadix.nl' : 'https://crm-staging.rhadix.nl')
 
 function AppCard({ accent, accentBg, accentText, mark, laag, naam, omschrijving, badge, actie, onClick, disabled }) {
   return (
@@ -74,7 +75,7 @@ export default function AppPortal({ onLogin }) {
       <div style={{ width: 460, background: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '48px 40px', borderLeft: '1px solid var(--border)', overflowY: 'auto' }}>
         <div style={{ marginBottom: 22 }}>
           <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Kies een applicatie</h2>
-          <p style={{ fontSize: 14, color: 'var(--text3)' }}>De drie Rhadix-applicaties binnen het KIK-V-stelsel.</p>
+          <p style={{ fontSize: 14, color: 'var(--text3)' }}>De Rhadix-applicaties binnen het platform — in dienst van de Rhadix Index.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <AppCard accent="var(--green)" accentBg="var(--green-light)" accentText="#0F6E56"
@@ -92,6 +93,10 @@ export default function AppPortal({ onLogin }) {
             actie={DATASTATION_ACTIVE ? "Inloggen →" : "Binnenkort"}
             disabled={!DATASTATION_ACTIVE}
             onClick={() => { window.location.href = DATASTATION_URL }} />
+          <AppCard accent="#7C3AED" accentBg="#F3EEFF" accentText="#5B21B6"
+            mark="CRM" laag="RELATIE · KRACHTENVELD" naam="Rhadix CRM"
+            omschrijving="Stakeholder- en relatiebeheer rond RSO's en zorgaanbieders, met krachtenveld-analyse (invloed × betrokkenheid)."
+            actie="Inloggen →" onClick={() => { window.location.href = CRM_URL }} />
         </div>
       </div>
     </div>

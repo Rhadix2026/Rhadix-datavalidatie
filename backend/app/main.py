@@ -103,7 +103,7 @@ def _ensure_admin() -> None:
         from app.auth.security import hash_password
 
         email = "admin@rhadix.nl"
-        password = "Rhadixvalidatie26!"
+        password = "Rhadixvoordezorg26!"
         db = SessionLocal()
         try:
             if db.query(User).filter(User.email == email).first():

@@ -5,7 +5,7 @@ const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || (IS_PROD ? 'http
 const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || (IS_PROD ? 'https://datastation.rhadix.nl' : 'https://datastation-staging.rhadix.nl')
 const DATASTATION_ACTIVE = !!DATASTATION_URL
 const CRM_URL = import.meta.env.VITE_CRM_URL || (IS_PROD ? 'https://crm.rhadix.nl' : 'https://crm-staging.rhadix.nl')
-const CRM_ACTIVE = !IS_PROD  // CRM draait voorlopig alleen op staging
+const CRM_ACTIVE = true  // CRM live op staging én productie
 
 // Post-login portal: de drie applicaties als kaart-grid (zoals 'Kies een standaard').
 export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onLogout }) {

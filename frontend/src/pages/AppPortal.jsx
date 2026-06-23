@@ -1,124 +1,75 @@
-import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
-import { TreeDecoration, ConstellationBg } from '../components/UI'
-import { BRANDS, brandLogo } from '../brand'
+import { Nav, Page, PageTitle } from '../components/UI'
 
-// Omgevings-afhankelijke URL's (VITE_* overschrijft; anders prod- of staging-fallback).
 const IS_PROD = (import.meta.env.VITE_RHADIX_ENV || 'production') === 'production'
-const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || (IS_PROD ? 'https://uitvraag.rhadix.nl' : 'https://uitvraag-staging.rhadix.nl')
-// Datastation: prod -> eigen domein, staging -> staging-server.
+const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || (IS_PROD ? 'https://uitvraag.rhadix.nl'    : 'https://uitvraag-staging.rhadix.nl')
 const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || (IS_PROD ? 'https://datastation.rhadix.nl' : 'https://datastation-staging.rhadix.nl')
 const DATASTATION_ACTIVE = !!DATASTATION_URL
 
-function AppCard({ accent, accentBg, accentText, mark, laag, naam, omschrijving, badge, actie, onClick, disabled }) {
-  return (
-    <div style={{
-      border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
-      padding: '18px 20px', background: '#fff', display: 'flex', flexDirection: 'column',
-      opacity: disabled ? 0.7 : 1,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: accentBg, color: accentText,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800,
-        }}>{mark}</div>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: accent, letterSpacing: '.3px' }}>{laag}</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            {naam}
-            {badge && <span style={{ fontSize: 10, fontWeight: 700, background: accentBg, color: accentText, padding: '2px 7px', borderRadius: 999 }}>{badge}</span>}
-          </div>
-        </div>
-      </div>
-      <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text3)', lineHeight: 1.55, flex: 1 }}>{omschrijving}</p>
-      <button onClick={disabled ? undefined : onClick} disabled={disabled} style={{
-        alignSelf: 'flex-start', border: disabled ? '1px solid var(--border2)' : 'none',
-        background: disabled ? '#fff' : accent, color: disabled ? 'var(--text3)' : '#fff',
-        borderRadius: 'var(--radius)', padding: '9px 16px', fontSize: 14, fontWeight: 600,
-        fontFamily: 'var(--font)', cursor: disabled ? 'not-allowed' : 'pointer',
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-      }}>{actie}</button>
-    </div>
-  )
-}
-
+// Post-login portal: de drie applicaties als kaart-grid (zoals 'Kies een standaard').
 export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onLogout }) {
-  const b = BRANDS[brand] || BRANDS.rhadix
   const withBrand = (url) => {
     if (brand !== 'suresync' || !url) return url
     try { const u = new URL(url); u.searchParams.set('brand', 'suresync'); return u.toString() }
     catch { return url + (url.includes('?') ? '&' : '?') + 'brand=suresync' }
   }
-  const navBtn = { background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)', borderRadius: 'var(--radius)', padding: '6px 14px', color: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font)' }
+
+  const APPS = [
+    { id: 'dv', icon: '🏥', label: 'Rhadix Datavalidatie', laag: 'Bij de bron · Datakwaliteit',
+      color: '#1F9D6B', bg: '#E8F7F0', border: '#BCEAD5', actie: 'Openen →',
+      desc: 'Pre-screening: is de datahuishouding van de zorgaanbieder klaar om gevalideerde vragen te beantwoorden? Berekent de Rhadix Index.' },
+    { id: 'u', icon: '📡', label: 'Rhadix Uitvraag', laag: 'Afnemerskant',
+      color: 'var(--blue)', bg: 'var(--blue-light)', border: 'var(--blue-mid)', actie: 'Openen →',
+      desc: 'Gevalideerde vragen uitzetten aan zorgaanbieders en de antwoorden inzien, vergelijken en analyseren.' },
+    { id: 'ds', icon: '🧮', label: 'Rhadix Datastation', laag: 'Bij de bron · Rekenkracht',
+      color: '#D98324', bg: '#FDF3E3', border: '#F5D9A8', actie: DATASTATION_ACTIVE ? 'Openen →' : 'Binnenkort',
+      desc: 'Berekent het antwoord lokaal (SPARQL/Fuseki) bij de zorgaanbieder; de data blijft bij de bron.' },
+  ]
+
+  const open = (id) => {
+    if (id === 'dv') onLogin()
+    else if (id === 'u') window.location.href = withBrand(UITVRAAG_URL)
+    else if (id === 'ds' && DATASTATION_ACTIVE) window.location.href = withBrand(DATASTATION_URL)
+  }
+
+  const sureSyncToggle = (import.meta.env.VITE_RHADIX_ENV !== 'production' && onBrandChange) ? (
+    <button onClick={() => onBrandChange(brand === 'suresync' ? 'rhadix' : 'suresync')}
+      title="White-label demo (alleen staging)" style={{
+        background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.15)',
+        borderRadius: 99, padding: '6px 12px', color: 'rgba(255,255,255,.85)', fontSize: 12.5,
+        fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}>
+      {brand === 'suresync' ? '← Rhadix' : 'SureSync ↗'}</button>
+  ) : null
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', paddingTop: BANNER_HEIGHT }}>
-
-      {/* Platform-nav — Dashboard / Beheer / Terug (na inloggen) */}
-      <header style={{ background: 'var(--blue-dark)', borderBottom: '1px solid rgba(255,255,255,.12)', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 12px rgba(0,0,0,.35)', flexShrink: 0 }}>
-        <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-          <img src={brandLogo()} alt="logo" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
-        </a>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {onDashboard && <button onClick={onDashboard} style={navBtn}>Dashboard</button>}
-          {authUser?.role === 'RHADIX_ADMIN' && onAdmin && <button onClick={onAdmin} style={{ ...navBtn, fontWeight: 700 }}>Beheer</button>}
-          {authUser?.role === 'ORG_ADMIN' && onOrgAdmin && <button onClick={onOrgAdmin} style={{ ...navBtn, fontWeight: 700 }}>Beheer</button>}
-          {import.meta.env.VITE_RHADIX_ENV !== 'production' && onBrandChange && (
-            <button onClick={() => onBrandChange(brand === 'suresync' ? 'rhadix' : 'suresync')} title="White-label demo (alleen staging)" style={{ ...navBtn, borderRadius: 99, fontWeight: 700, fontSize: 12.5 }}>{brand === 'suresync' ? '← Rhadix' : 'SureSync ↗'}</button>
-          )}
-          {onLogout && <button onClick={onLogout} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,.15)', borderRadius: 'var(--radius)', padding: '6px 14px', color: 'rgba(255,255,255,.7)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font)' }}>← Terug</button>}
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+      <Nav authUser={authUser} onDashboard={onDashboard} onAdmin={onAdmin} onOrgAdmin={onOrgAdmin}
+           onLogout={onLogout} right={sureSyncToggle} />
+      <Page>
+        <PageTitle title="Kies een applicatie" sub="De Rhadix-applicaties binnen het platform — in dienst van de Rhadix Index." />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
+          {APPS.map(a => {
+            const locked = a.id === 'ds' && !DATASTATION_ACTIVE
+            return (
+              <div key={a.id} onClick={() => !locked && open(a.id)}
+                style={{ background: locked ? '#f8fafc' : '#fff', borderRadius: 'var(--radius-xl)',
+                  border: `2px solid ${locked ? '#e2e8f0' : 'var(--border)'}`, padding: '28px 24px',
+                  cursor: locked ? 'not-allowed' : 'pointer', transition: 'all .15s', opacity: locked ? 0.75 : 1 }}
+                onMouseEnter={e => { if (!locked) { e.currentTarget.style.borderColor = a.color; e.currentTarget.style.background = a.bg } }}
+                onMouseLeave={e => { if (!locked) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = '#fff' } }}>
+                <div style={{ fontSize: 34, marginBottom: 12 }}>{a.icon}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: a.color, letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 4 }}>{a.laag}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 10 }}>{a.label}</div>
+                <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 16 }}>{a.desc}</div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700,
+                  color: locked ? 'var(--text3)' : a.color, background: locked ? '#eef1f5' : a.bg,
+                  border: `1px solid ${locked ? '#e2e8f0' : a.border}`, padding: '6px 14px', borderRadius: 20 }}>
+                  {a.actie}
+                </div>
+              </div>
+            )
+          })}
         </div>
-      </header>
-
-      {/* Content — branding + applicatiekeuze */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
-
-      {/* Links — branding + KIK-V-context */}
-      <div style={{ flex: 1, background: 'var(--blue-hero)', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 48px 90px', position: 'relative', zIndex: 1 }}>
-          <span style={{ display: 'inline-flex', alignSelf: 'flex-start', background: 'rgba(111,168,208,.25)', color: 'rgba(168,197,224,.95)', fontSize: 11, fontWeight: 700, letterSpacing: '1.5px', padding: '5px 12px', borderRadius: 99, marginBottom: 22, textTransform: 'uppercase' }}>{b.sub}</span>
-          <h1 style={{ fontWeight: 800, fontSize: 34, color: '#fff', lineHeight: 1.2, letterSpacing: '-0.02em', marginBottom: 16, maxWidth: 460 }}>
-            Eén platform, <span style={{ color: 'var(--rhadix-accent)' }}>drie applicaties</span>
-          </h1>
-          <p style={{ fontSize: 15, color: 'rgba(168,197,224,.85)', lineHeight: 1.65, maxWidth: 430, marginBottom: 22 }}>
-            De data blijft bij de zorgaanbieder; alleen de gevalideerde vraag reist via het vertrouwd netwerk.
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 12.5, color: 'rgba(168,197,224,.9)' }}>
-            <span style={{ fontWeight: 700, color: '#fff' }}>Ketenpartij</span>
-            <span>→ vraag →</span>
-            <span style={{ padding: '2px 8px', border: '1px solid rgba(255,255,255,.25)', borderRadius: 99 }}>vertrouwd netwerk</span>
-            <span>→ antwoord ←</span>
-            <span style={{ fontWeight: 700, color: '#fff' }}>Zorgaanbieder</span>
-          </div>
-        </div>
-        {brand === 'suresync'
-          ? <ConstellationBg />
-          : <TreeDecoration opacity={0.12} style={{ position: 'absolute', bottom: -30, right: -20, transform: 'scale(6)' }} />}
-      </div>
-
-      {/* Rechts — applicatiekeuze */}
-      <div style={{ width: 460, background: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '48px 40px', borderLeft: '1px solid var(--border)', overflowY: 'auto' }}>
-        <div style={{ marginBottom: 22 }}>
-          <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Kies een applicatie</h2>
-          <p style={{ fontSize: 14, color: 'var(--text3)' }}>De drie Rhadix-applicaties binnen het KIK-V-stelsel.</p>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <AppCard accent="var(--green)" accentBg="var(--green-light)" accentText="#0F6E56"
-            mark="DV" laag="BIJ DE BRON · DATAKWALITEIT" naam="Rhadix Datavalidatie"
-            omschrijving="Pre-screening: is de datahuishouding van de zorgaanbieder klaar om gevalideerde vragen te beantwoorden?"
-            actie="Openen →" onClick={onLogin} />
-          <AppCard accent="var(--blue)" accentBg="var(--blue-light)" accentText="var(--blue-dark)"
-            mark="U" laag="AFNEMERSKANT" naam="Rhadix Uitvraag"
-            omschrijving="Gevalideerde vragen stellen aan zorgaanbieders en de antwoorden inzien, vergelijken en analyseren."
-            actie="Openen →" onClick={() => { window.location.href = withBrand(UITVRAAG_URL) }} />
-          <AppCard accent="var(--amber)" accentBg="var(--amber-light)" accentText="#854F0B"
-            mark="DS" laag="BIJ DE BRON · REKENKRACHT" naam="Rhadix Datastation"
-            badge={DATASTATION_ACTIVE ? undefined : "in ontwikkeling"}
-            omschrijving="Het datastation berekent het antwoord lokaal (SPARQL/Fuseki) bij de zorgaanbieder."
-            actie={DATASTATION_ACTIVE ? "Openen →" : "Binnenkort"}
-            disabled={!DATASTATION_ACTIVE}
-            onClick={() => { window.location.href = withBrand(DATASTATION_URL) }} />
-        </div>
-      </div>
-      </div>
+      </Page>
     </div>
   )
 }

@@ -109,7 +109,7 @@ export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
                 borderRadius: 'var(--radius)', padding: '5px 12px',
                 color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                 fontFamily: 'var(--font)', letterSpacing: '.03em',
-              }}>Admin</button>
+              }}>Beheer</button>
             )}
             {authUser.role === 'ORG_ADMIN' && onOrgAdmin && (
               <button onClick={onOrgAdmin} style={{

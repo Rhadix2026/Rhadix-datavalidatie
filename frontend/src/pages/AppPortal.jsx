@@ -1,6 +1,6 @@
 import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
 import { TreeDecoration, ConstellationBg } from '../components/UI'
-import { BRANDS } from '../brand'
+import { BRANDS, brandLogo } from '../brand'
 
 // Omgevings-afhankelijke URL's (VITE_* overschrijft; anders prod- of staging-fallback).
 const IS_PROD = (import.meta.env.VITE_RHADIX_ENV || 'production') === 'production'
@@ -41,33 +41,38 @@ function AppCard({ accent, accentBg, accentText, mark, laag, naam, omschrijving,
   )
 }
 
-export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange }) {
+export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onLogout }) {
   const b = BRANDS[brand] || BRANDS.rhadix
   const withBrand = (url) => {
     if (brand !== 'suresync' || !url) return url
     try { const u = new URL(url); u.searchParams.set('brand', 'suresync'); return u.toString() }
     catch { return url + (url.includes('?') ? '&' : '?') + 'brand=suresync' }
   }
+  const navBtn = { background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)', borderRadius: 'var(--radius)', padding: '6px 14px', color: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font)' }
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'stretch', background: 'var(--bg)', paddingTop: BANNER_HEIGHT }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', paddingTop: BANNER_HEIGHT }}>
+
+      {/* Platform-nav — Dashboard / Beheer / Terug (na inloggen) */}
+      <header style={{ background: 'var(--blue-dark)', borderBottom: '1px solid rgba(255,255,255,.12)', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 12px rgba(0,0,0,.35)', flexShrink: 0 }}>
+        <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <img src={brandLogo()} alt="logo" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
+        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {onDashboard && <button onClick={onDashboard} style={navBtn}>Dashboard</button>}
+          {authUser?.role === 'RHADIX_ADMIN' && onAdmin && <button onClick={onAdmin} style={{ ...navBtn, fontWeight: 700 }}>Beheer</button>}
+          {authUser?.role === 'ORG_ADMIN' && onOrgAdmin && <button onClick={onOrgAdmin} style={{ ...navBtn, fontWeight: 700 }}>Beheer</button>}
+          {import.meta.env.VITE_RHADIX_ENV !== 'production' && onBrandChange && (
+            <button onClick={() => onBrandChange(brand === 'suresync' ? 'rhadix' : 'suresync')} title="White-label demo (alleen staging)" style={{ ...navBtn, borderRadius: 99, fontWeight: 700, fontSize: 12.5 }}>{brand === 'suresync' ? '← Rhadix' : 'SureSync ↗'}</button>
+          )}
+          {onLogout && <button onClick={onLogout} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,.15)', borderRadius: 'var(--radius)', padding: '6px 14px', color: 'rgba(255,255,255,.7)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font)' }}>← Terug</button>}
+        </div>
+      </header>
+
+      {/* Content — branding + applicatiekeuze */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
 
       {/* Links — branding + KIK-V-context */}
       <div style={{ flex: 1, background: 'var(--blue-hero)', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ padding: '32px 48px 0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
-          {b.logo
-            ? <a href="https://rhadix.nl" style={{ display: 'inline-block', textDecoration: 'none' }} title="Terug naar rhadix.nl">
-                <img src={b.logo} alt={b.name} style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
-              </a>
-            : <span style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>{b.wordmark}</span>}
-          {import.meta.env.VITE_RHADIX_ENV !== 'production' && onBrandChange && (
-            <button onClick={() => onBrandChange(brand === 'suresync' ? 'rhadix' : 'suresync')}
-              title="White-label demo (alleen staging)" style={{
-                background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.35)',
-                borderRadius: 99, padding: '6px 14px', color: '#fff', fontSize: 12.5, fontWeight: 700,
-                cursor: 'pointer', fontFamily: 'var(--font)',
-              }}>{brand === 'suresync' ? '← Rhadix' : 'SureSync ↗'}</button>
-          )}
-        </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 48px 90px', position: 'relative', zIndex: 1 }}>
           <span style={{ display: 'inline-flex', alignSelf: 'flex-start', background: 'rgba(111,168,208,.25)', color: 'rgba(168,197,224,.95)', fontSize: 11, fontWeight: 700, letterSpacing: '1.5px', padding: '5px 12px', borderRadius: 99, marginBottom: 22, textTransform: 'uppercase' }}>{b.sub}</span>
           <h1 style={{ fontWeight: 800, fontSize: 34, color: '#fff', lineHeight: 1.2, letterSpacing: '-0.02em', marginBottom: 16, maxWidth: 460 }}>
@@ -112,6 +117,7 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange }) 
             disabled={!DATASTATION_ACTIVE}
             onClick={() => { window.location.href = withBrand(DATASTATION_URL) }} />
         </div>
+      </div>
       </div>
     </div>
   )

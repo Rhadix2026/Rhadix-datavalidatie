@@ -224,7 +224,15 @@ export default function App() {
       {BANNER_HEIGHT > 0 && <div style={{ height: BANNER_HEIGHT }} />}
 
       {step === 'portal' && (
-        <AppPortal onLogin={() => setStep('landing')} brand={brand} onBrandChange={changeBrand} />
+        <AppPortal
+          onLogin={() => setStep('landing')}
+          brand={brand} onBrandChange={changeBrand}
+          authUser={authUser}
+          onDashboard={() => setStep('user_dashboard')}
+          onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
+          onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
+          onLogout={handleLogout}
+        />
       )}
 
       {step === 'landing' && (

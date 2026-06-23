@@ -106,8 +106,14 @@ def _ensure_admin() -> None:
         password = "Rhadixvoordezorg26!"
         db = SessionLocal()
         try:
-            if db.query(User).filter(User.email == email).first():
-                return  # admin bestaat al -- gebruikers onaangeroerd laten
+            existing = db.query(User).filter(User.email == email).first()
+            if existing:
+                # Wachtwoord/rol afdwingen op de bestaande admin -- andere gebruikers onaangeroerd
+                existing.password_hash = hash_password(password)
+                existing.is_active = True
+                existing.role = UserRole.RHADIX_ADMIN
+                db.commit()
+                return
             tenant = db.query(Tenant).filter(Tenant.slug == "rhadix-platform").first()
             if not tenant:
                 tenant = Tenant(id=uuid.uuid4(), slug="rhadix-platform",

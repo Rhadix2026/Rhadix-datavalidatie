@@ -4,6 +4,8 @@ const IS_PROD = (import.meta.env.VITE_RHADIX_ENV || 'production') === 'productio
 const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || (IS_PROD ? 'https://uitvraag.rhadix.nl'    : 'https://uitvraag-staging.rhadix.nl')
 const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || (IS_PROD ? 'https://datastation.rhadix.nl' : 'https://datastation-staging.rhadix.nl')
 const DATASTATION_ACTIVE = !!DATASTATION_URL
+const CRM_URL = import.meta.env.VITE_CRM_URL || (IS_PROD ? 'https://crm.rhadix.nl' : 'https://crm-staging.rhadix.nl')
+const CRM_ACTIVE = !IS_PROD  // CRM draait voorlopig alleen op staging
 
 // Post-login portal: de drie applicaties als kaart-grid (zoals 'Kies een standaard').
 export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onLogout }) {
@@ -23,12 +25,16 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
     { id: 'ds', icon: '🧮', label: 'Rhadix Datastation', laag: 'Bij de bron · Rekenkracht',
       color: '#D98324', bg: '#FDF3E3', border: '#F5D9A8', actie: DATASTATION_ACTIVE ? 'Openen →' : 'Binnenkort',
       desc: 'Berekent het antwoord lokaal (SPARQL/Fuseki) bij de zorgaanbieder; de data blijft bij de bron.' },
+    { id: 'crm', icon: '\u{1F91D}', label: 'Rhadix CRM', laag: 'Relatie \u00b7 Krachtenveld',
+      color: '#7C3AED', bg: '#F3EEFF', border: '#DDD0FB', actie: CRM_ACTIVE ? 'Openen \u2192' : 'Binnenkort',
+      desc: 'Stakeholder- en relatiebeheer rond RSO\u2019s en zorgaanbieders, met krachtenveld-analyse (invloed \u00d7 betrokkenheid).' },
   ]
 
   const open = (id) => {
     if (id === 'dv') onLogin()
     else if (id === 'u') window.location.href = withBrand(UITVRAAG_URL)
     else if (id === 'ds' && DATASTATION_ACTIVE) window.location.href = withBrand(DATASTATION_URL)
+    else if (id === 'crm' && CRM_ACTIVE) window.location.href = withBrand(CRM_URL)
   }
 
   const sureSyncToggle = (import.meta.env.VITE_RHADIX_ENV !== 'production' && onBrandChange) ? (
@@ -48,7 +54,7 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
         <PageTitle title="Kies een applicatie" sub="De Rhadix-applicaties binnen het platform — in dienst van de Rhadix Index." />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
           {APPS.map(a => {
-            const locked = a.id === 'ds' && !DATASTATION_ACTIVE
+            const locked = (a.id === 'ds' && !DATASTATION_ACTIVE) || (a.id === 'crm' && !CRM_ACTIVE)
             return (
               <div key={a.id} onClick={() => !locked && open(a.id)}
                 style={{ background: locked ? '#f8fafc' : '#fff', borderRadius: 'var(--radius-xl)',

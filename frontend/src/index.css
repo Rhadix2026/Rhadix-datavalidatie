@@ -195,3 +195,16 @@ h1, h2, h3 {
   --rhadix-accent: #52876A;
   --rhadix-sub:  #7AA890;
 }
+
+
+/* ── SureSync white-label palet (uit officieel logo: violet #7344F3 + navy #101948) — alleen actief als data-brand=suresync
+   gezet is (staging-demo). Staat na de staging-override zodat merk wint van omgeving. ── */
+:root[data-brand="suresync"] {
+  --blue:        #7344F3;   /* SureSync violet (primair/CTA) */
+  --blue-dark:   #0B1233;   /* diep navy */
+  --blue-hero:   #101948;   /* SureSync navy (nav/hero) */
+  --blue-light:  #EDE9FE;   /* lichte violet-tint */
+  --blue-mid:    #C4B5FD;   /* mid violet */
+  --rhadix-accent: #7344F3; /* violet accent */
+  --rhadix-sub:  #A99BE8;   /* gedempt violet (subtitels) */
+}

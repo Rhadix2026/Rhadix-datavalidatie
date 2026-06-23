@@ -151,12 +151,15 @@ jobs:
             STAGING_DB_NAME=kikv_staging
             STAGING_FRONTEND_PORT=5175
             STAGING_BACKEND_PORT=8011
+            SSO_COOKIE_DOMAIN=.rhadix.nl
             ENVEOF
 
             # Voeg secrets toe (apart, zodat ze niet in bash history staan)
             echo "STAGING_DB_PASSWORD=${{ secrets.STAGING_DB_PASSWORD }}" >> /opt/rhadix-app/.env.staging
             echo "STAGING_LICENSE_KEY=${{ secrets.STAGING_LICENSE_KEY }}" >> /opt/rhadix-app/.env.staging
             echo "STAGING_JWT_SECRET_KEY=${{ secrets.STAGING_JWT_SECRET_KEY }}" >> /opt/rhadix-app/.env.staging
+            # Centrale identiteit (SureSync ID): RS256-privésleutel (base64). Leeg = RS256 uit.
+            echo "STAGING_JWT_PRIVATE_KEY=${{ secrets.STAGING_JWT_PRIVATE_KEY }}" >> /opt/rhadix-app/.env.staging
 
             # Beveilig het env-bestand (alleen root leesbaar)
             chmod 600 /opt/rhadix-app/.env.staging

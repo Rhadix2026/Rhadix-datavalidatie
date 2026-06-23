@@ -7,7 +7,7 @@ PATCH /api/auth/me/password — change own password
 """
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -20,12 +20,21 @@ from app.auth.brute_force import is_blocked, record_failure, record_success, sec
 from app.auth.token_blocklist import block_token
 from app.auth.dependencies import get_current_user
 from app.auth.schemas import LoginRequest, PasswordChangeRequest, TokenResponse, UserResponse
-from app.auth.security import create_access_token, hash_password, validate_password_strength, verify_password
+from app.auth.security import create_access_token, hash_password, validate_password_strength, verify_password, get_jwks, ACCESS_TOKEN_EXPIRE_MINUTES
 from app.database import get_db
 from app.models.auth_models import User, UserApplication, UserRole
 
 router = APIRouter(tags=["Auth"])
 _bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def _app_slugs_for(user, db) -> list[str]:
+    """Slugs van apps waartoe de gebruiker toegang heeft (RHADIX_ADMIN => alle actieve)."""
+    if user.role == UserRole.RHADIX_ADMIN:
+        from app.models.auth_models import Application
+        return [a.slug for a in db.query(Application).filter(Application.is_active == True).all()]
+    uas = db.query(UserApplication).filter(UserApplication.user_id == user.id).all()
+    return [ua.application.slug for ua in uas if ua.application]
 
 
 def _get_client_ip(request: Request) -> str:
@@ -37,7 +46,7 @@ def _get_client_ip(request: Request) -> str:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
+def login(body: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     """Authenticate with email + password and receive a JWT access token."""
     client_ip = _get_client_ip(request)
 
@@ -79,25 +88,31 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     user.last_login_at = datetime.now(timezone.utc)
     db.commit()
 
+    app_slugs = _app_slugs_for(user, db)
     token = create_access_token({
-        "sub":       str(user.id),
-        "role":      user.role.value,
-        "tenant_id": str(user.tenant_id),
-        "email":     user.email,
+        "sub":         str(user.id),
+        "role":        user.role.value,
+        "tenant_id":   str(user.tenant_id),
+        "tenant_name": user.tenant.name,
+        "email":       user.email,
+        "name":        user.full_name or user.email,
+        "apps":        app_slugs,
     })
+    # SSO-cookie op het gedeelde domein (alleen als SSO_COOKIE_DOMAIN gezet is,
+    # bv. ".rhadix.nl"); maakt cross-app SSO mogelijk zonder opnieuw inloggen.
+    import os as _os
+    _dom = _os.getenv("SSO_COOKIE_DOMAIN")
+    if _dom:
+        response.set_cookie("rhadix_sso", token, domain=_dom, path="/",
+                            httponly=True, secure=True, samesite="lax",
+                            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60)
     return TokenResponse(access_token=token)
 
 
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Return the profile of the currently authenticated user."""
-    if current_user.role == UserRole.RHADIX_ADMIN:
-        from app.models.auth_models import Application
-        all_apps = db.query(Application).filter(Application.is_active == True).all()
-        app_slugs = [a.slug for a in all_apps]
-    else:
-        user_apps = db.query(UserApplication).filter(UserApplication.user_id == current_user.id).all()
-        app_slugs = [ua.application.slug for ua in user_apps if ua.application]
+    app_slugs = _app_slugs_for(current_user, db)
 
     return UserResponse(
         id                 = str(current_user.id),
@@ -150,12 +165,11 @@ def logout(
     current_user: User = Depends(get_current_user),
 ):
     """Invalideer het huidige JWT token (voeg toe aan blocklist)."""
-    from jose import jwt as _jwt
-    from app.auth.security import SECRET_KEY, ALGORITHM
+    from app.auth.security import decode_access_token
     import time
 
     try:
-        payload = _jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = decode_access_token(credentials.credentials)
         exp = payload.get("exp", time.time() + 3600)
         jti = payload.get("jti") or credentials.credentials
         block_token(jti, float(exp))
@@ -164,3 +178,9 @@ def logout(
 
     audit_log(LOGOUT, request, user_id=str(current_user.id), email=current_user.email,
               tenant_id=str(current_user.tenant_id))
+
+
+@router.get("/jwks", include_in_schema=True)
+def jwks():
+    """Publieke sleutel(s) waarmee andere apps het centrale token kunnen verifiëren."""
+    return get_jwks()

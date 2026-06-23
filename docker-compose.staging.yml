@@ -45,6 +45,13 @@ services:
       JWT_SECRET_KEY:     ${STAGING_JWT_SECRET_KEY:?Stel STAGING_JWT_SECRET_KEY in als GitHub Secret}
       RHADIX_LICENSE_KEY: ${STAGING_LICENSE_KEY:?Licentiesleutel verplicht — zie .env.staging}
       RHADIX_ENV:         staging
+      # ── Centrale identiteit (SureSync ID) — RS256/SSO. Privésleutel = secret;
+      #    publieke sleutel mag committe­baar (niet geheim). RS256 staat 'aan' zodra
+      #    STAGING_JWT_PRIVATE_KEY gezet is. SSO-cookie pas met SSO_COOKIE_DOMAIN.
+      JWT_ISSUER:         suresync-id
+      JWT_PRIVATE_KEY:    ${STAGING_JWT_PRIVATE_KEY:-}
+      JWT_PUBLIC_KEY:     ${STAGING_JWT_PUBLIC_KEY:-LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUEwLzdxd2xCYTdqeTc0NG5JUHZPUgpMbjR0ZTRwbFpZOTlxUGwwaXllZGhPMGpmTUVCa1JEQU0zYjkrK0ZtTkVPN0tjc09LbEwvTjljbHJ1QkNpdlp3ClhYSUxDOXBqVVlwRGMrelgrdXE2Rk1iQitXVEFSbjBTbzgwT3A3bXFGRkZFSlFNR2tRU1dMK3dXS3Vua0tIKzcKekIwUjhMcWhqcFBsN3RJb2lsK3lGcWY5N2NxUC9oVU5sVHdGVzZZMUpXMVJWZ25kUTg0eURuV1hsNFdkcjIwagpqbUJ0L0NCeTUzYktZbkV3YXVJMVlUYWRLUU0ybFBBUmU5RmRwVzNjVXFsZXZwRmtJNFM4UnFrQzE3V0U5NGZ6Clgxb3NRcGxKZ0g5MW1MV01OVG45b3ZXY0RIbHVuN2s5T1FqZEdwZlFHSWJXeGJJRU0zN2R1MlhCanJRTHJtN0gKaFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==}
+      SSO_COOKIE_DOMAIN:  ${SSO_COOKIE_DOMAIN:-}
       FUSEKI_URL:         http://rhadix-staging-fuseki:3030
       FUSEKI_DATASET:     rhadix
       FUSEKI_USER:        admin

@@ -174,7 +174,13 @@ def parse_upload(content: bytes, filename: str, ext: str) -> tuple[list, list]:
         return parse_json_bytes(content)
     try:
         import openpyxl
-        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+        try:
+            # read_only=True gebruikt de streaming-reader die de volledige
+            # stylesheet niet inlaadt; omzeilt o.a. AFAS/Excel-exports die
+            # falen met "expected <class 'openpyxl.styles.fills.Fill'>".
+            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True, read_only=True)
+        except Exception:
+            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
         ws = wb.active
         all_rows = list(ws.iter_rows(values_only=True))
         headers = [str(c or "") for c in all_rows[0]] if all_rows else []

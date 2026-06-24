@@ -8,6 +8,7 @@ from app.services.rules import (
     CONTRACTTYPE_VALUES,
     CONTRACTTYPE_TIJDELIJK,
     VERZUIMTYPE_VALUES,
+    normalize_verzuimtype,
     ONZ_PERS, ONZ_G, ONZ_ORG, ONZ_ZORG, ONZ_FIN,
     get_field_label,
     get_allowed_values,
@@ -371,8 +372,31 @@ def is_date(val: Any) -> bool:
     return bool(re.match(r'\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}', str(val or '')))
 
 def parse_date(val: Any):
-    if not val: return None
-    m = re.match(r'(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})', str(val))
+    """Parse een datum uit meerdere formaten, zonder dag/maand te gokken.
+
+    Ondersteund (ondubbelzinnig via positie van het 4-cijferige jaar):
+      - ISO / jaar-eerst:  2026-04-22, 2026/04/22, 2026-04-22T00:00:00Z  -> jaar-maand-dag
+      - kort AFAS:         20260422 (yyyymmdd)                            -> jaar-maand-dag
+      - NL / dag-eerst:    22-04-2026, 22/04/2026, 22.04.2026            -> dag-maand-jaar
+    Het écht dubbelzinnige geval dd-mm vs mm-dd (jaar achteraan, beide <=12)
+    wordt NIET gegokt: we houden de NL-conventie (dag-eerst) aan."""
+    if not val:
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
+    # jaar-eerst (ISO, evt. met tijd): 2026-04-22 of 2026/04/22
+    m = re.match(r'(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})', s)
+    if m:
+        try: return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except: return None
+    # kort yyyymmdd (8 cijfers, AFAS Profit korte datums)
+    m = re.match(r'^(\d{4})(\d{2})(\d{2})$', s)
+    if m:
+        try: return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except: return None
+    # NL dag-eerst (jaar achteraan): 22-04-2026 / 22/04/2026 / 22.04.2026
+    m = re.match(r'(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})', s)
     if m:
         try: return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)))
         except: return None
@@ -731,7 +755,7 @@ def run_file_checks(schema_key: str, rows: list, mapping: dict) -> list:
                         ),
                     )
                     for i, r in enumerate(rows)
-                    if r.get(sv_col, "") and r.get(sv_col, "").lower().strip() not in allowed
+                    if r.get(sv_col, "") and normalize_verzuimtype(r.get(sv_col, "")) not in allowed
                 ],
                 allowed_values = _sv_av,
                 field_label    = _sv_label,
@@ -807,33 +831,70 @@ def run_file_checks(schema_key: str, rows: list, mapping: dict) -> list:
 def run_cross_checks(files_data: dict) -> list:
     cross = []
 
-    def get_set(schema_key, field):
+    MAX = 50
+
+    def _norm(v):
+        """Normaliseer personeelsnummer: trim + voorloopnullen eraf (000164 == 164)."""
+        s = str(v).strip()
+        s2 = s.lstrip("0")
+        return s2 if s2 else (s if s else "")
+
+    def get_set(schema_key, field, normalize=False):
         fd = files_data.get(schema_key)
         if not fd: return set()
         col = fd["mapping"].get(field)
         if not col: return set()
-        return set(r.get(col,"") for r in fd["rows"] if r.get(col,"") and r.get(col,"") != "99999")
+        vals = (r.get(col,"") for r in fd["rows"] if r.get(col,"") and r.get(col,"") != "99999")
+        return set(_norm(v) for v in vals) if normalize else set(vals)
 
-    def add(id_, label, severity, count, detail=None):
+    def _unknown_rows(schema_key, field, unknown_norm):
+        """Bouw uitklapbare detailrijen voor personen die niet in Medewerker staan."""
+        fd = files_data.get(schema_key)
+        col = fd["mapping"].get(field) if fd else None
+        out = []
+        if not col: return out
+        for i, r in enumerate(fd["rows"]):
+            raw = r.get(col, "")
+            if not raw or raw == "99999":
+                continue
+            if _norm(raw) in unknown_norm:
+                out.append({
+                    "rowNumber":     i + 2,
+                    "personId":      raw,
+                    "field":         "Personeelsnummer",
+                    "currentValue":  raw,
+                    "expectedValue": "Aanwezig in Medewerker-bestand",
+                    "message":       "Personeelsnummer komt niet voor in het Medewerker-bestand",
+                })
+        return out
+
+    def add(id_, label, severity, count, detail=None, rows=None):
         if count > 0:
-            cross.append({"id": id_, "label": label, "severity": severity, "count": count, "detail": detail})
+            rows = rows or []
+            cross.append({"id": id_, "label": label, "severity": severity,
+                          "count": count, "detail": detail,
+                          "rows": rows[:MAX], "truncated": len(rows) > MAX})
 
     if "medewerker" in files_data and "werkovereenkomst" in files_data:
-        med_ids = get_set("medewerker", "personeelsnummer")
-        werk_ids = get_set("werkovereenkomst", "personeelsnummer")
+        med_ids  = get_set("medewerker", "personeelsnummer", normalize=True)
+        werk_ids = get_set("werkovereenkomst", "personeelsnummer", normalize=True)
         unknown = werk_ids - med_ids
+        rows = _unknown_rows("werkovereenkomst", "personeelsnummer", unknown)
         add("werk_unknown", "Werkovereenkomst: personen niet in Medewerker", "error", len(unknown),
-            f"Nummers: {', '.join(list(unknown)[:5])}{'…' if len(unknown)>5 else ''}" if unknown else None)
+            ("Nummers: " + ", ".join(rd["personId"] for rd in rows[:10]) + ("…" if len(unknown) > 10 else "")) if unknown else None,
+            rows=rows)
         missing = med_ids - werk_ids
         add("med_no_contract", "Medewerkers zonder werkovereenkomst", "warning", len(missing),
-            f"Nummers: {', '.join(list(missing)[:5])}{'…' if len(missing)>5 else ''}" if missing else None)
+            ("Nummers: " + ", ".join(list(missing)[:10]) + ("…" if len(missing) > 10 else "")) if missing else None)
 
     if "medewerker" in files_data and "verzuim" in files_data:
-        med_ids = get_set("medewerker", "personeelsnummer")
-        verz_ids = get_set("verzuim", "personeelsnummer")
+        med_ids  = get_set("medewerker", "personeelsnummer", normalize=True)
+        verz_ids = get_set("verzuim", "personeelsnummer", normalize=True)
         unknown = verz_ids - med_ids
+        rows = _unknown_rows("verzuim", "personeelsnummer", unknown)
         add("verz_unknown", "Verzuim: personen niet in Medewerker", "error", len(unknown),
-            f"Nummers: {', '.join(list(unknown)[:5])}" if unknown else None)
+            ("Nummers: " + ", ".join(rd["personId"] for rd in rows[:10]) + ("…" if len(unknown) > 10 else "")) if unknown else None,
+            rows=rows)
 
     if "kwalificatieniveau" in files_data and "kwaliteitsgraden" in files_data:
         grades = get_set("kwaliteitsgraden", "kwaliteit")

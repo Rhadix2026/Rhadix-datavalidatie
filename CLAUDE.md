@@ -113,7 +113,11 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 ---
 
-## ⚠️ OPENSTAAND — morgen als eerste: SSO op productie afmaken
+## ✅ SSO op productie — OPGELOST (2026-06-24)
+
+Eén login over alle 4 apps werkt: token op app.rhadix.nl is **RS256** (kid suresync-id-1); uitvraag/datastation/crm geven 200 op `/api/auth/me` met het centrale token. **Oorzaak was** lege `JWT_PRIVATE_KEY` (GitHub-secret `PROD_JWT_PRIVATE_KEY` kwam leeg binnen). **Fix:** privésleutel als one-liner base64 in `/opt/rhadix-app/jwt_private.env` (persistent, chmod 600) + `deploy-production.yml` injecteert dat bestand bij elke deploy (i.p.v. de lege secret). Publieke sleutel staat als default in de 4 prod-composes. priv.pem-backup: bewaar veilig.
+
+### (historie) OPENSTAAND was: SSO op productie afmaken
 
 **Status:** CRM logt wél via SSO in, Uitvraag/Datastation/Datavalidatie nog niet.
 **Oorzaak (bevestigd op server):** op datavalidatie-prod is **`JWT_PRIVATE_KEY` leeg**
@@ -150,6 +154,7 @@ notitiebestand — token intrekken/roteren.
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
+| 2026-06-24 | — | SSO op productie werkend: RS256-token over alle 4 apps. JWT_PRIVATE_KEY was leeg (lege secret); opgelost via persistent `/opt/rhadix-app/jwt_private.env` + deploy-workflow leest dat bestand. Geverifieerd: uitvraag/datastation/crm geven 200 op /api/auth/me met centraal token. |
 | 2026-06-24 | v1.6.2/3 · u v0.7.3 · ds v1.0.3 · crm v0.1.2 | SSO-bedrading op productie uitgerold over alle 4 apps (RS256-uitgever datavalidatie + resource-apps + SSO-cookie .rhadix.nl). OPEN: JWT_PRIVATE_KEY leeg op datavalidatie-prod → token nog HS256 → alleen CRM-SSO werkt; morgen fixen (zie OPENSTAAND-sectie). Vers prod-sleutelpaar; publieke sleutel als default in 4 prod-composes. |
 | 2026-06-23 | v1.6.1 | FIX: CRM-tegel actief op prod-portal (CRM_ACTIVE=true; in v1.6.0 stond per ongeluk !IS_PROD door ongestagede sed). |
 | 2026-06-23 | v1.6.0 | RELEASE flow+marketing naar prod: gestripte Rhadix-Index-landing (PlatformLanding) + kaart-grid-portal op app.rhadix.nl; CRM als 4e tegel (crm.rhadix.nl). Marketing rhadix.nl (/var/www/rhadix/index.html): Inloggen->Rhadix platform, Probeer-knoppen weg, Klaar om te starten?. SureSync-merklaag + centrale identiteit meegekomen maar omgevings-gegated (dormant op prod). 159 tests groen. |

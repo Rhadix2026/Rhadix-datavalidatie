@@ -113,10 +113,44 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 ---
 
+## ⚠️ OPENSTAAND — morgen als eerste: SSO op productie afmaken
+
+**Status:** CRM logt wél via SSO in, Uitvraag/Datastation/Datavalidatie nog niet.
+**Oorzaak (bevestigd op server):** op datavalidatie-prod is **`JWT_PRIVATE_KEY` leeg**
+(`/opt/rhadix-app/.env.production` regel 13 = `JWT_PRIVATE_KEY=` zonder waarde; in de
+container lengte 1). `JWT_PUBLIC_KEY` staat er wél (605 tekens). Daardoor tekent de uitgever
+met **HS256** i.p.v. RS256 → de resource-apps wijzen het centrale token af (401).
+De GitHub-secret `PROD_JWT_PRIVATE_KEY` kwam bij de deploy **leeg** binnen (verkeerd/leeg opgeslagen).
+
+**Fix (kies één):**
+1. *Server-direct (snel):* op `46.224.224.26`, in `/opt/rhadix-app`:
+   `base64 < /tmp/priv.pem | tr -d '\n'` → in `.env.production` als `JWT_PRIVATE_KEY=<oneliner>` zetten
+   (regel vervangen), dan `docker compose -p <PROJ> -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate backend`.
+   (PROJ via `docker inspect <backend-container> --format '{{ index .Config.Labels "com.docker.compose.project"}}'`.)
+   Werkt alleen als `/tmp/priv.pem` er nog staat.
+2. *Vers paar:* nieuw RS256-paar genereren, privé als `JWT_PRIVATE_KEY` op de server + als secret
+   `PROD_JWT_PRIVATE_KEY`, en de **nieuwe PUBLIEK** (base64) herbakken als default
+   `JWT_PUBLIC_KEY`/`CENTRAL_JWT_PUBLIC_KEY` in de vier prod-composes → 4 mini-releases.
+3. *Durabel:* zorg dat secret `PROD_JWT_PRIVATE_KEY` (repo Rhadix-datavalidatie) de **one-liner base64**
+   is (begint met `LS0tLS1CRUdJTiBQUklW`, géén enters), dan redeploy → blijft staan bij volgende deploys.
+
+**Verificatie na fix:** login app.rhadix.nl → token-header moet `RS256` zijn → `GET /api/auth/me`
+met dat token op uitvraag/datastation/crm geeft 200 + de user (JIT).
+
+**SSO-bedrading (staat al goed):** uitgever = datavalidatie (`JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY`/
+`JWT_ISSUER=suresync-id`/`SSO_COOKIE_DOMAIN=.rhadix.nl`); resource-apps = `CENTRAL_JWT_PUBLIC_KEY`
+(prod-publieke sleutel als default in compose) + `CENTRAL_JWT_ISSUER=suresync-id`. Cookie `rhadix_sso`
+op `.rhadix.nl` wordt al gezet.
+
+**Veiligheid:** een `ghp_`-GitHub-token + admin-wachtwoorden stonden in platte tekst zichtbaar in een
+notitiebestand — token intrekken/roteren.
+
+
 ## Sessie-log
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
+| 2026-06-24 | v1.6.2/3 · u v0.7.3 · ds v1.0.3 · crm v0.1.2 | SSO-bedrading op productie uitgerold over alle 4 apps (RS256-uitgever datavalidatie + resource-apps + SSO-cookie .rhadix.nl). OPEN: JWT_PRIVATE_KEY leeg op datavalidatie-prod → token nog HS256 → alleen CRM-SSO werkt; morgen fixen (zie OPENSTAAND-sectie). Vers prod-sleutelpaar; publieke sleutel als default in 4 prod-composes. |
 | 2026-06-23 | v1.6.1 | FIX: CRM-tegel actief op prod-portal (CRM_ACTIVE=true; in v1.6.0 stond per ongeluk !IS_PROD door ongestagede sed). |
 | 2026-06-23 | v1.6.0 | RELEASE flow+marketing naar prod: gestripte Rhadix-Index-landing (PlatformLanding) + kaart-grid-portal op app.rhadix.nl; CRM als 4e tegel (crm.rhadix.nl). Marketing rhadix.nl (/var/www/rhadix/index.html): Inloggen->Rhadix platform, Probeer-knoppen weg, Klaar om te starten?. SureSync-merklaag + centrale identiteit meegekomen maar omgevings-gegated (dormant op prod). 159 tests groen. |
 | 2026-06-23 | v1.5.28/29 | Admin-wachtwoord platformbreed -> Rhadixvoordezorg26! (DV v1.5.28 + v1.5.29 _ensure_admin dwingt af op bestaande admin; Datastation v1.0.2, Uitvraag v0.7.2, CRM v0.1.1). Nieuwe app Rhadix-crm live (crm.rhadix.nl + crm-staging). nginx live-config = /etc/nginx/sites-enabled/rhadix (aparte kopie, GEEN symlink); marketing = static /var/www/rhadix. |

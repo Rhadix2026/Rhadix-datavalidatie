@@ -202,7 +202,8 @@ jobs:
             echo "DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}"               >> /opt/rhadix-app/.env.production
             echo "RHADIX_LICENSE_KEY=${{ secrets.PROD_LICENSE_KEY }}"        >> /opt/rhadix-app/.env.production
             echo "JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}"         >> /opt/rhadix-app/.env.production
-            echo "JWT_PRIVATE_KEY=${{ secrets.PROD_JWT_PRIVATE_KEY }}"     >> /opt/rhadix-app/.env.production
+            # durabele RS256-privésleutel uit persistent server-bestand (los van GitHub-secret)
+            cat /opt/rhadix-app/jwt_private.env >> /opt/rhadix-app/.env.production 2>/dev/null || true
             chmod 600 /opt/rhadix-app/.env.production
 
             # ── Login bij GHCR ────────────────────────────────────────────────

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
-from app.routers import validate, history, reference, export, reports, profiles
+from app.routers import validate, history, reference, export, reports, profiles, tasks
 from app.routers.admin import router as admin_router
 from app.routers.org import router as org_router
 from app.routers.dashboard import router as dashboard_router
@@ -284,6 +284,7 @@ app.include_router(admin_router,      prefix="/api/admin",         tags=["Admin"
 app.include_router(org_router,        prefix="/api/org",           tags=["Org"])
 
 # ── Dashboard (alle rollen, met per-endpoint autorisatie) ─────────────────────
+app.include_router(tasks.router,      prefix="/api/tasks",         tags=["Tasks"])
 app.include_router(dashboard_router)
 
 

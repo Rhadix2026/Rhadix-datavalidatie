@@ -26,6 +26,7 @@ import PlatformLanding    from './pages/PlatformLanding'
 import AdminDashboard     from './pages/AdminDashboard'
 import OrgAdminDashboard  from './pages/OrgAdminDashboard'
 import UserDashboard      from './pages/UserDashboard'
+import Taken             from './pages/Taken'
 import OrgDashboard       from './pages/OrgDashboard'
 import PlatformDashboard  from './pages/PlatformDashboard'
 
@@ -238,6 +239,7 @@ export default function App() {
       {step === 'landing' && (
         <Landing
           onStart={() => setStep('systems')}
+          onTasks={() => setStep('tasks')}
           onProfiles={() => openProfiles('landing')}
           onReconciliation={canReconciliation ? () => setStep('reconciliation') : null}
           onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
@@ -260,6 +262,10 @@ export default function App() {
 
       {step === 'admin' && (
         <AdminDashboard onBack={() => setStep('landing')} />
+      )}
+
+      {step === 'tasks' && (
+        <Taken authUser={authUser} onBack={() => setStep('landing')} />
       )}
 
       {step === 'org_admin' && (
@@ -325,6 +331,7 @@ export default function App() {
           onProfiles={() => openProfiles('dashboard')}
           onReconciliation={canReconciliation ? () => setStep('reconciliation') : null}
           onHome={() => setStep('landing')}
+          authUser={authUser}
         />
       )}
       {step === 'stap2_resultaat' && (

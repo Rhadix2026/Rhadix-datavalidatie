@@ -23,6 +23,7 @@ if config.config_file_name is not None:
 # ruff: noqa: F401
 import app.models.auth_models   # noqa: registers Tenant, User
 import app.models.models        # noqa: registers ValidationRun
+import app.models.task_models   # noqa: registers Task
 
 from app.database import Base
 target_metadata = Base.metadata

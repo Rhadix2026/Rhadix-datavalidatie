@@ -87,6 +87,23 @@ def _run_migrations() -> None:
 
 _run_migrations()
 
+# ---------------------------------------------------------------------------
+# Vangnet: borg dat de tasks-tabel bestaat, los van Alembic.
+# (Alembic-fouten worden hierboven afgevangen; mocht migratie 0004 niet zijn
+#  toegepast, dan maken we de tabel hier idempotent aan — net als andere apps.)
+# ---------------------------------------------------------------------------
+def _ensure_tasks_table() -> None:
+    try:
+        from app.database import engine
+        from app.models.task_models import Task
+        Task.__table__.create(bind=engine, checkfirst=True)
+        log.info("tasks-tabel geborgd (checkfirst).")
+    except Exception:
+        import traceback
+        log.error("Kon tasks-tabel niet borgen:\n%s", traceback.format_exc())
+
+_ensure_tasks_table()
+
 
 # ---------------------------------------------------------------------------
 # Borg dat de vaste RHADIX_ADMIN in elke omgeving bestaat.

@@ -201,6 +201,9 @@ jobs:
             echo "RHADIX_LICENSE_KEY=${{ secrets.PROD_LICENSE_KEY }}"        >> /opt/rhadix-app/.env.production
             echo "JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}"         >> /opt/rhadix-app/.env.production
             chmod 600 /opt/rhadix-app/.env.production
+            if [ -f /opt/rhadix-app/mail.env ]; then
+              cat /opt/rhadix-app/mail.env >> /opt/rhadix-app/.env.production
+            fi
 
             # ── Login bij GHCR ────────────────────────────────────────────────
             echo "${{ secrets.GITHUB_TOKEN }}" | \

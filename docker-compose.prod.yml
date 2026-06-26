@@ -39,6 +39,15 @@ services:
       FUSEKI_DATASET:      rhadix
       FUSEKI_USER:         admin
       FUSEKI_PASSWORD:     ${FUSEKI_PASSWORD:-rhadix-prod-admin}
+      # E-mail (taaknotificaties) — standaard uit; waarden uit /opt/rhadix-app/mail.env
+      MAIL_ENABLED:    ${MAIL_ENABLED:-false}
+      SMTP_HOST:       ${SMTP_HOST:-}
+      SMTP_PORT:       ${SMTP_PORT:-587}
+      SMTP_USER:       ${SMTP_USER:-}
+      SMTP_PASSWORD:   ${SMTP_PASSWORD:-}
+      SMTP_FROM:       ${SMTP_FROM:-noreply@rhadix.nl}
+      SMTP_FROM_NAME:  ${SMTP_FROM_NAME:-Rhadix}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
     volumes:
       - rhadix_profiles:/app/data/profiles
     ports:

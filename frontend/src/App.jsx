@@ -388,6 +388,7 @@ export default function App() {
           onNewScan={startNewScan}
           onBack={() => setStep('landing')}
           onHome={() => setStep('landing')}
+          authUser={authUser}
         />
       )}
 

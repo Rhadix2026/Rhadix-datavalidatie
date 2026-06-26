@@ -1,3 +1,4 @@
+import { MaakTakenButton } from '../components/TaskUI'
 import { useState } from 'react'
 import { Nav, NavBack, NavLink, Page } from '../components/UI'
 
@@ -286,7 +287,7 @@ function BenchmarkSection({ benchmark }) {
   )
 }
 
-export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack }) {
+export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack, authUser }) {
   const [showBenchmark, setShowBenchmark] = useState(false)
   if (!results) return null
   const { file_results = [], summary = {}, benchmark = null } = results
@@ -339,6 +340,22 @@ export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack }
             </div>
           </div>
         </div>
+
+        {authUser && file_results.some(r => (r.issues||[]).length > 0) && (
+          <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <MaakTakenButton
+              buttonLabel="✓ Maak taken van bevindingen"
+              sourceType="afas_validatie"
+              sourceRef={results?.run_id || null}
+              items={file_results.flatMap(r => (r.issues || []).map(iss => ({
+                title: iss.message,
+                source_label: `${r.label || r.filename || 'bestand'}${iss.count ? ' — ' + iss.count + '×' : ''}`,
+                priority: iss.severity === 'error' ? 'HOOG' : 'NORMAAL',
+              })))}
+            />
+            <span style={{ fontSize: 13, color: 'var(--text3)' }}>Zet bevindingen om in taken en wijs ze toe aan een collega.</span>
+          </div>
+        )}
 
         {/* Per bestand */}
         {file_results.map((result, i) => (

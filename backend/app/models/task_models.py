@@ -44,8 +44,8 @@ class Task(Base):
     title       = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
 
-    status      = Column(Enum(TaskStatus,    name="task_status"),   nullable=False, default=TaskStatus.OPEN)
-    priority    = Column(Enum(TaskPriority,  name="task_priority"), nullable=False, default=TaskPriority.NORMAAL)
+    status      = Column(Enum(TaskStatus,    name="task_status",   native_enum=False), nullable=False, default=TaskStatus.OPEN)
+    priority    = Column(Enum(TaskPriority,  name="task_priority", native_enum=False), nullable=False, default=TaskPriority.NORMAAL)
     due_date    = Column(DateTime(timezone=True), nullable=True)
 
     # Toewijzing — binnen dezelfde tenant (afgedwongen in de router)

@@ -26,6 +26,7 @@ from app.auth.dependencies import get_current_user
 from app.database import get_db
 from app.models.auth_models import User, UserRole
 from app.models.task_models import Task, TaskStatus, TaskPriority
+from app.services import mailer
 
 router = APIRouter(tags=["Tasks"])
 
@@ -85,6 +86,36 @@ def _serialize(t: Task) -> dict:
         "completed_at":  t.completed_at.isoformat() if t.completed_at else None,
     }
 
+
+
+
+def _notify_assignment(db, task, actor):
+    """Mail de assignee bij toewijzing aan iemand anders dan de actor (guarded)."""
+    try:
+        if not task.assignee_id or task.assignee_id == actor.id:
+            return
+        a = db.query(User).filter(User.id == task.assignee_id).first()
+        if a and a.email:
+            mailer.notify_task_assigned(a.email, _name(a), _name(actor), task.title)
+    except Exception:
+        import logging; logging.getLogger('rhadix.mail').exception('notify_assignment faalde')
+
+
+def _notify_bulk(db, tasks, actor):
+    """Eén samenvattingsmail per assignee (≠ actor) voor bulk-aanmaak."""
+    try:
+        from collections import Counter
+        counts = Counter(t.assignee_id for t in tasks if t.assignee_id and t.assignee_id != actor.id)
+        for aid, n in counts.items():
+            a = db.query(User).filter(User.id == aid).first()
+            if a and a.email:
+                if n == 1:
+                    one = next(t for t in tasks if t.assignee_id == aid)
+                    mailer.notify_task_assigned(a.email, _name(a), _name(actor), one.title)
+                else:
+                    mailer.notify_tasks_assigned(a.email, _name(a), _name(actor), n)
+    except Exception:
+        import logging; logging.getLogger('rhadix.mail').exception('notify_bulk faalde')
 
 # ─── schemas ──────────────────────────────────────────────────────────────────
 
@@ -211,6 +242,7 @@ def _create_one(db, user, data: TaskCreate, default_assignee=None,
 def create_task(body: TaskCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     t = _create_one(db, user, body)
     db.commit(); db.refresh(t)
+    _notify_assignment(db, t, user)
     return _serialize(t)
 
 
@@ -227,6 +259,7 @@ def create_tasks_bulk(body: TaskBulkCreate, db: Session = Depends(get_db),
     db.commit()
     for t in created:
         db.refresh(t)
+    _notify_bulk(db, created, user)
     return {"created": len(created), "tasks": [_serialize(t) for t in created]}
 
 
@@ -256,6 +289,7 @@ def update_task(task_id: str, body: TaskPatch, db: Session = Depends(get_db),
         t.priority = TaskPriority(p)
     if body.due_date is not None:
         t.due_date = _parse_dt(body.due_date)
+    _old_assignee = t.assignee_id
     if body.assignee_id is not None:
         t.assignee_id = _validate_assignee(db, _uuid(body.assignee_id, "assignee_id"), user.tenant_id)
     if body.status is not None:
@@ -266,6 +300,8 @@ def update_task(task_id: str, body: TaskPatch, db: Session = Depends(get_db),
         t.completed_at = datetime.now(timezone.utc) if st == "KLAAR" else None
 
     db.commit(); db.refresh(t)
+    if t.assignee_id and t.assignee_id != _old_assignee:
+        _notify_assignment(db, t, user)
     return _serialize(t)
 
 

@@ -78,3 +78,37 @@ class TestBulk:
         emails = {u["email"] for u in users}
         assert "collega@tenant-a.nl" in emails
         assert "user@tenant-b.nl" not in emails
+
+
+# ── E-mailnotificatie bij toewijzing ───────────────────────────────────────────
+from app.services import mailer
+
+class TestMailNotifications:
+    def test_mailer_disabled_is_noop(self, monkeypatch):
+        monkeypatch.delenv("MAIL_ENABLED", raising=False)
+        assert mailer.mail_enabled() is False
+        assert mailer.send_email("x@y.nl", "test", "<p>hi</p>") is False
+
+    def test_no_mail_when_assigned_to_self(self, client, user_org_user, token_org_user, monkeypatch):
+        calls = []
+        monkeypatch.setattr(mailer, "send_email", lambda *a, **k: calls.append(a) or True)
+        client.post("/api/tasks", json={"title": "eigen taak", "assignee_id": str(user_org_user.id)},
+                    headers=auth(token_org_user))
+        assert calls == []   # geen mail naar jezelf
+
+    def test_mail_on_assignment_to_other(self, client, user_org_admin, token_org_admin, user_a2, monkeypatch):
+        sent = []
+        monkeypatch.setattr(mailer, "send_email", lambda to, subject, html, text=None: sent.append((to, subject)) or True)
+        client.post("/api/tasks", json={"title": "controleer X", "assignee_id": str(user_a2.id)},
+                    headers=auth(token_org_admin))
+        assert len(sent) == 1
+        assert sent[0][0] == "collega@tenant-a.nl"
+        assert "controleer X" in sent[0][1]
+
+    def test_bulk_sends_one_summary(self, client, user_org_admin, token_org_admin, user_a2, monkeypatch):
+        sent = []
+        monkeypatch.setattr(mailer, "send_email", lambda to, subject, html, text=None: sent.append((to, subject)) or True)
+        client.post("/api/tasks/bulk", json={"items": [{"title": f"f{i}"} for i in range(4)],
+                    "assignee_id": str(user_a2.id)}, headers=auth(token_org_admin))
+        assert len(sent) == 1                       # één samenvatting, niet 4
+        assert "4 nieuwe taken" in sent[0][1]

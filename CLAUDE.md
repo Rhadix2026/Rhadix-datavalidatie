@@ -113,57 +113,12 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 
 ---
 
-## ✅ SSO op productie — OPGELOST (2026-06-24)
-
-Eén login over alle 4 apps werkt: token op app.rhadix.nl is **RS256** (kid suresync-id-1); uitvraag/datastation/crm geven 200 op `/api/auth/me` met het centrale token. **Oorzaak was** lege `JWT_PRIVATE_KEY` (GitHub-secret `PROD_JWT_PRIVATE_KEY` kwam leeg binnen). **Fix:** privésleutel als one-liner base64 in `/opt/rhadix-app/jwt_private.env` (persistent, chmod 600) + `deploy-production.yml` injecteert dat bestand bij elke deploy (i.p.v. de lege secret). Publieke sleutel staat als default in de 4 prod-composes. priv.pem-backup: bewaar veilig.
-
-### (historie) OPENSTAAND was: SSO op productie afmaken
-
-**Status:** CRM logt wél via SSO in, Uitvraag/Datastation/Datavalidatie nog niet.
-**Oorzaak (bevestigd op server):** op datavalidatie-prod is **`JWT_PRIVATE_KEY` leeg**
-(`/opt/rhadix-app/.env.production` regel 13 = `JWT_PRIVATE_KEY=` zonder waarde; in de
-container lengte 1). `JWT_PUBLIC_KEY` staat er wél (605 tekens). Daardoor tekent de uitgever
-met **HS256** i.p.v. RS256 → de resource-apps wijzen het centrale token af (401).
-De GitHub-secret `PROD_JWT_PRIVATE_KEY` kwam bij de deploy **leeg** binnen (verkeerd/leeg opgeslagen).
-
-**Fix (kies één):**
-1. *Server-direct (snel):* op `46.224.224.26`, in `/opt/rhadix-app`:
-   `base64 < /tmp/priv.pem | tr -d '\n'` → in `.env.production` als `JWT_PRIVATE_KEY=<oneliner>` zetten
-   (regel vervangen), dan `docker compose -p <PROJ> -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate backend`.
-   (PROJ via `docker inspect <backend-container> --format '{{ index .Config.Labels "com.docker.compose.project"}}'`.)
-   Werkt alleen als `/tmp/priv.pem` er nog staat.
-2. *Vers paar:* nieuw RS256-paar genereren, privé als `JWT_PRIVATE_KEY` op de server + als secret
-   `PROD_JWT_PRIVATE_KEY`, en de **nieuwe PUBLIEK** (base64) herbakken als default
-   `JWT_PUBLIC_KEY`/`CENTRAL_JWT_PUBLIC_KEY` in de vier prod-composes → 4 mini-releases.
-3. *Durabel:* zorg dat secret `PROD_JWT_PRIVATE_KEY` (repo Rhadix-datavalidatie) de **one-liner base64**
-   is (begint met `LS0tLS1CRUdJTiBQUklW`, géén enters), dan redeploy → blijft staan bij volgende deploys.
-
-**Verificatie na fix:** login app.rhadix.nl → token-header moet `RS256` zijn → `GET /api/auth/me`
-met dat token op uitvraag/datastation/crm geeft 200 + de user (JIT).
-
-**SSO-bedrading (staat al goed):** uitgever = datavalidatie (`JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY`/
-`JWT_ISSUER=suresync-id`/`SSO_COOKIE_DOMAIN=.rhadix.nl`); resource-apps = `CENTRAL_JWT_PUBLIC_KEY`
-(prod-publieke sleutel als default in compose) + `CENTRAL_JWT_ISSUER=suresync-id`. Cookie `rhadix_sso`
-op `.rhadix.nl` wordt al gezet.
-
-**Veiligheid:** een `ghp_`-GitHub-token + admin-wachtwoorden stonden in platte tekst zichtbaar in een
-notitiebestand — token intrekken/roteren.
-
-
 ## Sessie-log
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
-| 2026-06-24 | — | SSO op productie werkend: RS256-token over alle 4 apps. JWT_PRIVATE_KEY was leeg (lege secret); opgelost via persistent `/opt/rhadix-app/jwt_private.env` + deploy-workflow leest dat bestand. Geverifieerd: uitvraag/datastation/crm geven 200 op /api/auth/me met centraal token. |
-| 2026-06-24 | v1.6.2/3 · u v0.7.3 · ds v1.0.3 · crm v0.1.2 | SSO-bedrading op productie uitgerold over alle 4 apps (RS256-uitgever datavalidatie + resource-apps + SSO-cookie .rhadix.nl). OPEN: JWT_PRIVATE_KEY leeg op datavalidatie-prod → token nog HS256 → alleen CRM-SSO werkt; morgen fixen (zie OPENSTAAND-sectie). Vers prod-sleutelpaar; publieke sleutel als default in 4 prod-composes. |
-| 2026-06-23 | v1.6.1 | FIX: CRM-tegel actief op prod-portal (CRM_ACTIVE=true; in v1.6.0 stond per ongeluk !IS_PROD door ongestagede sed). |
-| 2026-06-23 | v1.6.0 | RELEASE flow+marketing naar prod: gestripte Rhadix-Index-landing (PlatformLanding) + kaart-grid-portal op app.rhadix.nl; CRM als 4e tegel (crm.rhadix.nl). Marketing rhadix.nl (/var/www/rhadix/index.html): Inloggen->Rhadix platform, Probeer-knoppen weg, Klaar om te starten?. SureSync-merklaag + centrale identiteit meegekomen maar omgevings-gegated (dormant op prod). 159 tests groen. |
-| 2026-06-23 | v1.5.28/29 | Admin-wachtwoord platformbreed -> Rhadixvoordezorg26! (DV v1.5.28 + v1.5.29 _ensure_admin dwingt af op bestaande admin; Datastation v1.0.2, Uitvraag v0.7.2, CRM v0.1.1). Nieuwe app Rhadix-crm live (crm.rhadix.nl + crm-staging). nginx live-config = /etc/nginx/sites-enabled/rhadix (aparte kopie, GEEN symlink); marketing = static /var/www/rhadix. |
-| 2026-06-23 | — | Platform-flow conform 'wijzigingen flow.docx': scherm 1 = gestripte Datavalidatie-landing (hero + Rhadix Index-teller, alleen Inloggen, geen scan/reconciliatie/stappen); scherm 2 = portal als kaart-grid (3 app-tegels) met gedeelde Nav Dashboard/Beheer (Nav-knop 'Admin'->'Beheer'). OPEN: via Beheer moet admin org-beheerders+gebruikers toevoegen en apps koppelen via de licentiemodule — wacht op spec van Rene's collega. Alles op staging. |
-| 2026-06-19 | — | Platform-flow: 'Rhadix platform'-entree = PlatformLanding met de **Rhadix Index** centraal + de drie applicaties 'in dienst van de index' + Inloggen. Na inloggen → portal (AppPortal) in Validatie-stijl met **Dashboard/Beheer/Terug**-nav. Marketingsite-CTA's vereenvoudigd naar 'Rhadix platform'. Unified identity (SureSync ID, RS256/JWKS/SSO) staat actief op staging (app-/uitvraag-/datastation-staging.rhadix.nl). Alles staging. |
-| 2026-06-18 | — | Fase 1 stap 1b+1c: Uitvraag+Datastation accepteren centraal SureSync ID-token (RS256 via CENTRAL_JWT_PUBLIC_KEY of cookie) met JIT-provisioning + rol-mapping; lokale login blijft fallback. Centraal: product-Applications (datavalidatie/uitvraag/datastation) idempotent geseed (`_ensure_apps`) voor centrale toegangssturing. Identiteit brand-agnostisch (Rhadix+SureSync). Aanzetten = RSA-sleutels in env + gedeeld domein (*.rhadix.nl). Suites groen. |
-| 2026-06-18 | — | Fase 1 centrale identiteit (SureSync ID), stap 1: token SSO-klaar gemaakt. Verrijkte claims (tenant_name, name, email, apps, iss). RS256/JWKS **optioneel** (env JWT_PRIVATE_KEY/JWT_PUBLIC_KEY; anders HS256 — bestaand gedrag intact), nieuw endpoint GET /api/auth/jwks. SSO-cookie 'rhadix_sso' op gedeeld domein als SSO_COOKIE_DOMAIN gezet is (bv. .rhadix.nl). Alles additief; 159 tests groen. Activeren = RSA-sleutels + SSO_COOKIE_DOMAIN in deploy-env zetten. |
-| 2026-06-18 | — | White-label merk-laag (staging-only): `brand.js` (rhadix default + suresync), `index.css` `:root[data-brand=suresync]` provisorisch teal-palet, App.jsx brand-state (URL `?brand=`/sessionStorage) zet `data-brand` op <html>, AppPortal merk-bewust logo/sub + 'SureSync'-knop (gegate op VITE_RHADIX_ENV != production). Volledig omkeerbaar; productie ongewijzigd. SureSync-kleuren/logo nog VOORLOPIG (wachten op brand guide). |
+| 2026-06-26 | — | TAKEN/WORKFLOW-MODULE + e-mailnotificaties (staging, Datavalidatie). Generieke, app-onafhankelijke takenlijst op gebruikersniveau: nieuwe `tasks`-tabel (tenant-gescoped; assignee/created_by→users; status/prioriteit/deadline; source_type/ref/label voor koppeling AFAS/CRM). `/api/tasks` router (lijst mine/created/all, summary-badge, assignable-users, create, bulk, patch, delete) — toewijzen alleen binnen eigen organisatie; ORG_ADMIN ziet via tabblad 'Hele organisatie' alles binnen de tenant, gewone gebruiker alleen eigen toegewezen/aangemaakt; strikt tenant-gescoped (ook RHADIX_ADMIN). Frontend: 'Mijn taken'-widget + knop op Landing (alleen ingelogd), volwaardige takenpagina, en herbruikbare 'Maak taken van bevindingen'-knop op AFAS-resultaat (Algemeen + KIK-V; bulk → taken, errors=prioriteit Hoog). E-MAIL: generieke env-gestuurde SMTP-mailer (`app/services/mailer.py`, default UIT), toewijzingsmail bij create/bulk/herverdeling (alleen naar een ander; dataminimaal: enkel taaktitel + toewijzer + inloglink, géén zorgdata). Leverancier **Scaleway Transactional Email** (EU-soeverein/Parijs, ISO 27001, AVG-DPA) — rhadix.nl geverifieerd (SPF/DKIM/MX in Cloudflare; bestaande strikte DMARC behouden). Mail-config via persistent `/opt/rhadix-app/mail.env` (door deploy-workflow ingelezen, overleeft redeploys; compose geeft MAIL_*/SMTP_*/PUBLIC_BASE_URL door aan backend). Fixes onderweg: tasks-tabel ontbrak (Alembic-migratie stil mislukt → startup-vangnet `_ensure_tasks_table` checkfirst); enum→native_enum=False (Postgres 500 bij insert); compose-projectnaam `-p rhadix-staging` nodig bij handmatige `up`. 179 tests groen. Mail getest: komt binnen. TODO: prod-activatie (zelfde mail.env met prod PUBLIC_BASE_URL) en module porten naar CRM. |
+| 2026-06-26 | — | CRM-dataverrijking VOLTOOID (staging): alle 17 RSO's + 152 VVT-aanbieders verrijkt met website/plaats/KvK/gepubliceerde e-mail + bestuurders (raad van bestuur/directie) als contactpersoon. Totaal 293 contactpersonen met bron-URL en zekerheid (202 Hoog / 49 Middel / 41 Laag). Discipline: uitsluitend openbare bronnen (eigen bestuurspagina's > vakmedia), géén afgeleide e-mails, géén gokwerk, NULL waar niets gevonden. 151/152 VVT met website ('Lante' = geen bron, vermoedelijk typefout in bronlijst). Geladen via API (PATCH org + POST contactpersonen, idempotent). Datakwaliteit-flags vastgelegd in `bron_opmerking`/`opmerking`: vermoedelijke dubbelingen over regio's (Thebe, TanteLouise, Zorgwaard, Lelie zorggroep, Zorgspectrum Het Zand, IJsselheem=Woonzorgconcern IJsselheem, ZGR=Zorggroep Raalte), vermoedelijk geen VVT (MediReva, ONS welzijn, WijZijn Traverse Groep), bestuurder bewust NULL bij vacature/niet-openbaar (Daelzicht, Joris Zorg, Lunet, Ananz, Zorg in Oktober, De Posten, Radar), Cicero-naam 'Midden-Limburg' onjuist (Brunssum). Topaz-regel (E. Kalbfleisch) gecorrigeerd na constatering overstap naar De Zorgcirkel. Verificatie-overzicht: `Rhadix_CRM_verificatielijst.xlsx`. NB: verrijking staat in de staging-DB (data, niet in git). |
 | 2026-06-18 | v1.5.27 | RELEASE: AFAS-herkenning Werkgevers/Functies/Organigram (3 templates toegevoegd), geslacht 'X' toegestaan, en navy-palet-herstel meegenomen naar productie. 157 tests groen. |
 | 2026-06-18 | — | AFAS-import fix: 3 ontbrekende connectoren toegevoegd aan AFAS_TEMPLATES (employers/Werkgevers, functions/Functies, organisation/Organigram). Die gaven 'Bestandstype niet herkend'. Herkenning nu ook op officiële `GetConnector_Profit_*`-namen + header-signature. Velden geverifieerd tegen aangeleverde AFAS-templates (5/6 identiek; Organigram-template was foutief een kopie van Werkgevers — echte org-chart-velden gebruikt). 156 tests groen. |
 | 2026-06-17 | v1.5.26 | RELEASE: palet-regressie hersteld — productie weer navy (groen alleen op staging via data-env). |

@@ -64,7 +64,7 @@ services:
       SMTP_PASSWORD:   ${SMTP_PASSWORD:-}
       SMTP_FROM:       ${SMTP_FROM:-noreply@rhadix.nl}
       SMTP_FROM_NAME:  ${SMTP_FROM_NAME:-Rhadix}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://app-staging.rhadix.nl}
     volumes:
       - rhadix_staging_profiles:/app/data/profiles
     ports:

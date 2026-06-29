@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
-from app.routers import validate, history, reference, export, reports, profiles
+from app.routers import validate, history, reference, export, reports, profiles, tasks
 from app.routers.admin import router as admin_router
 from app.routers.org import router as org_router
 from app.routers.dashboard import router as dashboard_router
@@ -86,6 +86,23 @@ def _run_migrations() -> None:
 
 
 _run_migrations()
+
+# ---------------------------------------------------------------------------
+# Vangnet: borg dat de tasks-tabel bestaat, los van Alembic.
+# (Alembic-fouten worden hierboven afgevangen; mocht migratie 0004 niet zijn
+#  toegepast, dan maken we de tabel hier idempotent aan — net als andere apps.)
+# ---------------------------------------------------------------------------
+def _ensure_tasks_table() -> None:
+    try:
+        from app.database import engine
+        from app.models.task_models import Task
+        Task.__table__.create(bind=engine, checkfirst=True)
+        log.info("tasks-tabel geborgd (checkfirst).")
+    except Exception:
+        import traceback
+        log.error("Kon tasks-tabel niet borgen:\n%s", traceback.format_exc())
+
+_ensure_tasks_table()
 
 
 # ---------------------------------------------------------------------------
@@ -285,6 +302,7 @@ app.include_router(admin_router,      prefix="/api/admin",         tags=["Admin"
 app.include_router(org_router,        prefix="/api/org",           tags=["Org"])
 
 # ── Dashboard (alle rollen, met per-endpoint autorisatie) ─────────────────────
+app.include_router(tasks.router,      prefix="/api/tasks",         tags=["Tasks"])
 app.include_router(dashboard_router)
 
 

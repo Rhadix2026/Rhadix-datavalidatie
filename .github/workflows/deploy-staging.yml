@@ -163,6 +163,10 @@ jobs:
 
             # Beveilig het env-bestand (alleen root leesbaar)
             chmod 600 /opt/rhadix-app/.env.staging
+            # ── Optioneel: persistent mail-config (Scaleway SMTP) toevoegen ──
+            if [ -f /opt/rhadix-app/mail.env ]; then
+              cat /opt/rhadix-app/mail.env >> /opt/rhadix-app/.env.staging
+            fi
 
             # ── Login bij GHCR ──────────────────────────────────────────────────
             echo "${{ secrets.GITHUB_TOKEN }}" | \

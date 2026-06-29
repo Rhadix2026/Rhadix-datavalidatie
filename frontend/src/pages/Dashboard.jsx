@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { Nav, NavLink, Page, BtnPrimary, ProgressBar, StatusBadge, StatusIcon, ExpandableIssueRow, GapRow } from '../components/UI'
+import { MaakTakenButton } from '../components/TaskUI'
 
 // ── Rhadix Index uitleg ───────────────────────────────────────────────────────
 function RhadixUitleg({ score1, score2, radixIndex }) {
@@ -140,7 +141,7 @@ function domainStatus(domain, results) {
 
 const DOT_COLORS = { red: 'var(--red)', amber: 'var(--amber)', green: 'var(--green)' }
 
-export default function Dashboard({ results, scanHistory = [], step1Completed, step2Completed, onNewScan, onAdvies, onBeschikbaarheidsRapport, onKikvRapport, onManagementRapport, onConceptMapping, onActuality, onTraceability, onProfiles, onReconciliation, onHome }) {
+export default function Dashboard({ results, scanHistory = [], step1Completed, step2Completed, onNewScan, onAdvies, onBeschikbaarheidsRapport, onKikvRapport, onManagementRapport, onConceptMapping, onActuality, onTraceability, onProfiles, onReconciliation, onHome, authUser }) {
   const [activeDomain, setActiveDomain] = useState('Werkovereenkomst')
 
   // Guard: toon nooit placeholder-data als er geen actief scanresultaat is
@@ -465,6 +466,20 @@ export default function Dashboard({ results, scanHistory = [], step1Completed, s
               )}
             </div>
 
+            {authUser && [...errorIssues, ...warningIssues].length > 0 && (
+              <div style={{ margin: '6px 0 14px' }}>
+                <MaakTakenButton
+                  buttonLabel="✓ Maak taken van bevindingen"
+                  sourceType="afas_validatie"
+                  sourceRef={results?.run_id || null}
+                  items={[...errorIssues, ...warningIssues].map(iss => ({
+                    title: iss.label,
+                    source_label: `${activeDomainDef?.label || activeDomain}${iss.detail ? ' — ' + iss.detail : (iss.count ? ' — ' + iss.count + ' rijen' : '')}`,
+                    priority: iss.severity === 'error' ? 'HOOG' : 'NORMAAL',
+                  }))}
+                />
+              </div>
+            )}
             <BtnPrimary onClick={() => onAdvies(activeDomain)} style={{ width: '100%', justifyContent: 'center', padding: '11px' }}>
               Bekijk advies
             </BtnPrimary>

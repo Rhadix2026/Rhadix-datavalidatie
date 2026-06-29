@@ -205,6 +205,9 @@ jobs:
             # durabele RS256-privésleutel uit persistent server-bestand (los van GitHub-secret)
             cat /opt/rhadix-app/jwt_private.env >> /opt/rhadix-app/.env.production 2>/dev/null || true
             chmod 600 /opt/rhadix-app/.env.production
+            if [ -f /opt/rhadix-app/mail.env ]; then
+              cat /opt/rhadix-app/mail.env >> /opt/rhadix-app/.env.production
+            fi
 
             # ── Login bij GHCR ────────────────────────────────────────────────
             echo "${{ secrets.GITHUB_TOKEN }}" | \

@@ -19,6 +19,7 @@ from app.models.auth_models import (   # noqa: registers auth tables
     Application, License, TenantApplication, UserApplication,
 )
 from app.models.models import ValidationRun                # noqa: registers validation_runs
+from app.models.task_models import Task                    # noqa: registers tasks
 from app.auth.security import hash_password
 
 # ---------------------------------------------------------------------------
@@ -83,6 +84,7 @@ def clean_db():
         s.execute(text("DELETE FROM user_applications"))
         s.execute(text("DELETE FROM tenant_applications"))
         s.execute(text("DELETE FROM licenses"))
+        s.execute(text("DELETE FROM tasks"))
         s.execute(text("DELETE FROM validation_runs"))
         s.execute(text("DELETE FROM users"))
         s.execute(text("DELETE FROM tenants"))

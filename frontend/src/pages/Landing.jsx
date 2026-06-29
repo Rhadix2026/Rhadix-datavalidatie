@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { brandLogo, currentBrand } from '../brand'
 import { TreeDecoration, ConstellationBg } from '../components/UI'
+import { MijnTakenWidget } from '../components/TaskUI'
 
 function AnimatedCounter() {
   const [count, setCount] = useState(0)
@@ -55,7 +56,7 @@ function AnimatedCounter() {
   )
 }
 
-export default function Landing({ onStart, onProfiles, onReconciliation,
+export default function Landing({ onStart, onProfiles, onReconciliation, onTasks,
                                   onAdmin, onOrgAdmin,
                                   onDashboard, onOrgDashboard, onPlatformDashboard,
                                   authUser, onLogout }) {
@@ -74,6 +75,13 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
           <img src={brandLogo()} alt="logo" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {authUser && onTasks && (
+            <button onClick={onTasks} style={{
+              background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
+              borderRadius: 'var(--radius)', padding: '6px 14px',
+              color: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font)',
+            }}>✓ Mijn taken</button>
+          )}
           {authUser && onDashboard && (
             <button onClick={onDashboard} style={{
               background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
@@ -169,6 +177,8 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
           display: 'flex', flexDirection: 'column', justifyContent: 'center',
           borderLeft: '1px solid var(--border)',
         }}>
+          {authUser && onTasks && <MijnTakenWidget onOpen={onTasks} />}
+
           <AnimatedCounter />
 
           <div style={{

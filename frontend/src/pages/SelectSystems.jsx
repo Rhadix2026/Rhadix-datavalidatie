@@ -1,20 +1,19 @@
 import { Nav, NavBack, Page, PageTitle } from '../components/UI'
 
-// ── Bronnen voor de samengevoegde Datavalidatie-flow ──────────────────────────
-// Elke bron bepaalt de fase-1 standaard (geen verkeerde-route-keuze meer).
-// systemId koppelt aan de source-parameter in Upload (SYSTEM_TO_SOURCE).
+// ── Bronsystemen voor de samengevoegde Datavalidatie-flow ─────────────────────
+// De bron bepaalt de fase-1 validatie; de benchmark (KIK-V/ZIB) volgt in fase 2.
+// Reactief bijgehouden: nieuw formaat/export -> eerst analyseren + import/export
+// aanpassen, dan toevoegen.
 const SOURCES = [
-  { id: 'afas',     systemId: 'afas_hrm',     standard: 'algemeen', label: 'AFAS Profit', vendor: 'AFAS Software',
-    formats: 'XML / JSON', domain: 'Personeel (HR)', icon: '🏢', color: 'var(--blue)', bg: 'var(--blue-light)', border: 'var(--blue-mid)' },
-  { id: 'ons',      systemId: 'nedap_ons',     standard: 'algemeen', label: 'Nedap ONS', vendor: 'Nedap',
-    formats: 'CSV', domain: 'Personeel (HR)', icon: '📊', color: '#0ea5e9', bg: '#e0f2fe', border: '#bae6fd' },
-  { id: 'kikv_csv', systemId: 'kikv_csv',      standard: 'kikv',     label: 'KIK-V CSV', vendor: 'KIK-V-format',
-    formats: 'CSV', domain: 'Personeel (HR)', icon: '🏥', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-  { id: 'epd_ecd',  systemId: 'chipsoft_hix',  standard: 'zib',      label: 'EPD / ECD', vendor: 'ChipSoft · Epic · …',
-    formats: 'XML', domain: 'Klinisch (ZIB)', icon: '💊', color: '#059669', bg: '#f0fdf4', border: '#bbf7d0' },
+  { id: 'afas_hrm',  systemId: 'afas_hrm',        standard: 'algemeen', label: 'AFAS Profit HRM',       vendor: 'AFAS Software', formats: 'XML / JSON', domain: 'Personeel (HR)', benchmark: 'KIK-V',        color: 'var(--blue)', bg: 'var(--blue-light)', border: 'var(--blue-mid)' },
+  { id: 'ons',       systemId: 'nedap_ons',       standard: 'algemeen', label: 'Nedap/ONS',             vendor: 'Nedap',         formats: 'CSV',        domain: 'HR + klinisch', benchmark: 'KIK-V / ZIB',  color: '#0ea5e9', bg: '#e0f2fe', border: '#bae6fd' },
+  { id: 'exact',     systemId: 'exact_fin',       standard: 'algemeen', label: 'Exact Financial',       vendor: 'Exact Software',formats: 'n.t.b.',     domain: 'Financieel',    benchmark: 'KIK-V',        color: '#10b981', bg: '#ecfdf5', border: '#bbf7d0' },
+  { id: 'afas_fin',  systemId: 'afas_profit_fin', standard: 'algemeen', label: 'AFAS Profit Financieel',vendor: 'AFAS Software', formats: 'XML / JSON', domain: 'Financieel',    benchmark: 'KIK-V',        color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
+  { id: 'visma',     systemId: 'visma_puur',      standard: 'algemeen', label: 'Visma PUUR',            vendor: 'Visma',         formats: 'n.t.b.',     domain: 'Personeel (HR)', benchmark: 'KIK-V',       color: '#8b5cf6', bg: '#f5f3ff', border: '#ddd6fe' },
+  { id: 'chipsoft',  systemId: 'chipsoft_hix',    standard: 'zib',      label: 'ChipSoft HiX',          vendor: 'ChipSoft',      formats: 'XML',        domain: 'Klinisch',      benchmark: 'ZIB',          color: '#059669', bg: '#f0fdf4', border: '#bbf7d0' },
+  { id: 'epic',      systemId: 'epic',            standard: 'zib',      label: 'Epic',                  vendor: 'Epic',          formats: 'XML',        domain: 'Klinisch',      benchmark: 'ZIB',          color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
 ]
 
-// Slug per standard — moet matchen met de in de DB geseede app-slugs
 const STANDARD_SLUGS = { kikv: 'kikv-validator', zib: 'zib-validator', algemeen: 'algemeen-validator' }
 
 export default function SelectSystems({ onNext, onBack, authUser }) {
@@ -30,7 +29,6 @@ export default function SelectSystems({ onNext, onBack, authUser }) {
       alert('U heeft geen toegang tot deze module. Neem contact op met uw organisatiebeheerder.')
       return
     }
-    // Door naar upload; de bron bepaalt de fase-1 standaard
     onNext([src.systemId], src.standard)
   }
 
@@ -40,10 +38,10 @@ export default function SelectSystems({ onNext, onBack, authUser }) {
       <Page>
         <PageTitle
           title="Datavalidatie — kies je bron"
-          sub="Upload je export en geef de bron op. Wij herkennen het formaat en doen eerst een generieke validatie; daarna kun je benchmarken tegen KIK-V of de ZIB's."
+          sub="Kies het bronsysteem waaruit je data afkomstig is. Wij doen eerst een generieke validatie; daarna kun je benchmarken tegen KIK-V of de ZIB's."
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 22 }}>
           {SOURCES.map(src => {
             const locked = !hasAppAccess(src.standard)
             return (
@@ -52,28 +50,30 @@ export default function SelectSystems({ onNext, onBack, authUser }) {
                 onClick={() => choose(src)}
                 style={{
                   background: locked ? '#f8fafc' : '#fff', borderRadius: 'var(--radius-xl)',
-                  border: `2px solid ${locked ? '#e2e8f0' : 'var(--border)'}`, padding: '24px 22px',
+                  border: `2px solid ${locked ? '#e2e8f0' : 'var(--border)'}`, padding: '20px 20px',
                   cursor: locked ? 'not-allowed' : 'pointer', transition: 'all .15s', opacity: locked ? 0.7 : 1,
                   position: 'relative',
                 }}
                 onMouseEnter={e => { if (!locked) { e.currentTarget.style.borderColor = src.color; e.currentTarget.style.background = src.bg } }}
                 onMouseLeave={e => { if (!locked) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = '#fff' } }}
               >
-                {locked && <div style={{ position: 'absolute', top: 14, right: 16, fontSize: 16, opacity: 0.5 }} title="Geen toegang">🔒</div>}
-                <div style={{ fontSize: 32, marginBottom: 10 }}>{src.icon}</div>
-                <div style={{ fontSize: 19, fontWeight: 800, color: locked ? 'var(--text3)' : src.color, letterSpacing: '-0.02em', marginBottom: 2 }}>{src.label}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text3)', marginBottom: 12 }}>{src.vendor}</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: src.color, background: src.bg, border: `1px solid ${src.border}`, padding: '4px 10px', borderRadius: 20 }}>{src.formats}</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text3)', background: 'var(--bg2, #f1f5f9)', border: '1px solid var(--border)', padding: '4px 10px', borderRadius: 20 }}>{src.domain}</span>
+                {locked && <div style={{ position: 'absolute', top: 12, right: 14, fontSize: 15, opacity: 0.5 }} title="Geen toegang">🔒</div>}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 17, fontWeight: 800, color: locked ? 'var(--text3)' : src.color, letterSpacing: '-0.02em' }}>{src.label}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text4)' }}>{src.vendor}</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 12 }}>{src.domain}</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: src.color, background: src.bg, border: `1px solid ${src.border}`, padding: '3px 9px', borderRadius: 20 }}>{src.formats}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', background: '#f1f5f9', border: '1px solid var(--border)', padding: '3px 9px', borderRadius: 20 }}>benchmark: {src.benchmark}</span>
                 </div>
               </div>
             )
           })}
         </div>
 
-        <div style={{ fontSize: 13, color: 'var(--text3)', lineHeight: 1.5 }}>
-          Staat je bron er niet bij? De benchmark tegen KIK-V en de ZIB's komt na de eerste validatie beschikbaar, afhankelijk van de bron.
+        <div style={{ fontSize: 12, color: 'var(--text3)', lineHeight: 1.5 }}>
+          Bron of formaat staat er niet bij? We voegen die toe nadat we de export hebben geanalyseerd en op het Rhadix-model hebben gematcht.
         </div>
       </Page>
     </div>

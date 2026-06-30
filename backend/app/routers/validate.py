@@ -574,3 +574,40 @@ async def upload_and_validate(
         "indicator_results":   use_case_result.get("indicator_results", []),
         "rdf_graph_triples":   use_case_result.get("graph_triples", 0),
     }
+
+
+@router.post("/benchmark")
+async def benchmark(
+    standard: str = Form(...),                 # "kikv" | "zib"
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user),
+):
+    """Fase 2 — benchmark de (gecachte) fase-1 data tegen een gekozen standaard.
+
+    Geen her-upload nodig: de genormaliseerde fase-1 data is bewaard bij de
+    gebruiker (run_cache). Draait het gekozen profiel (KIK-V of ZIB) en geeft
+    het conformiteitsresultaat terug.
+    """
+    ukey = str(current_user.id) if current_user else None
+    cached = run_cache.get_current(ukey) if ukey else None
+    if not cached or not cached.get("files"):
+        raise HTTPException(400, "Geen fase-1 data gevonden — voer eerst een validatie uit.")
+
+    files = cached["files"]
+    std = (standard or "").lower().strip()
+
+    if std == "zib":
+        result = validate_zib([{"filename": f["filename"], "rows": f["rows"]} for f in files])
+        return {**result, "benchmark_standard": "zib", "source": cached.get("source")}
+
+    if std == "kikv":
+        files_input = [{
+            "filename":   f["filename"],
+            "schema_key": detect_schema(f["filename"], f["headers"]),
+            "headers":    f["headers"],
+            "rows":       f["rows"],
+        } for f in files]
+        result = validate_files(files_input)
+        return {**result, "benchmark_standard": "kikv", "source": cached.get("source")}
+
+    raise HTTPException(400, f"Onbekende benchmark-standaard: {standard!r}")

@@ -27,6 +27,7 @@ relational_validation(files_data, field_rules)
 """
 from __future__ import annotations
 import re
+from app.services.dataquality import is_date
 from datetime import datetime
 from typing import Optional
 
@@ -38,8 +39,6 @@ XSD_DATE   = "http://www.w3.org/2001/XMLSchema#date"
 XSD_STRING = "http://www.w3.org/2001/XMLSchema#string"
 XSD_INT    = "http://www.w3.org/2001/XMLSchema#integer"
 XSD_DEC    = "http://www.w3.org/2001/XMLSchema#decimal"
-
-_DATE_FMTS = ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y")
 
 # ─── Foreign-key relationships between schemas ────────────────────────────────
 # (child_schema, child_field, parent_schema, parent_field)
@@ -56,22 +55,12 @@ def _build_valid_concept_set(concept_uri: str) -> set[str]:
     return set(get_subclasses(concept_uri)) | {concept_uri}
 
 
-def _parse_date(val: str) -> bool:
-    for fmt in _DATE_FMTS:
-        try:
-            datetime.strptime(val.strip(), fmt)
-            return True
-        except ValueError:
-            continue
-    return False
-
-
 def _check_range(val: str, range_uri: str) -> bool:
     """Validate a string value against an XSD range constraint."""
     if not range_uri or not val.strip():
         return True  # empty or no constraint → not a range violation
     if range_uri == XSD_DATE:
-        return _parse_date(val)
+        return is_date(val)
     if range_uri in (XSD_INT,):
         return val.strip().lstrip("-").isdigit()
     if range_uri == XSD_DEC:

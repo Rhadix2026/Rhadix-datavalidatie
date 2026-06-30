@@ -8,6 +8,7 @@ import re
 from typing import Any
 
 from app.services.dataquality import is_date
+from app.services.rules import normalize_verzuimtype, VERZUIMTYPE_VALUES
 
 # ── AFAS Profit veldtemplates ──────────────────────────────────────────────────
 # Elke file-type heeft verplichte velden (required) en optionele velden (optional)
@@ -77,7 +78,7 @@ AFAS_TEMPLATES: dict[str, dict] = {
         "required": {
             "EmployeeId":    "id",
             "StartDate":     "date",
-            "AbsenceTypeId": "text",
+            "AbsenceTypeId": "verzuimtype",
         },
         "optional": {
             "BSN":          "bsn",
@@ -298,6 +299,7 @@ VALIDATORS = {
     "number":   _valid_number,
     "gender":   _valid_gender,
     "id":       lambda v: bool(v.strip()),
+    "verzuimtype": lambda v: normalize_verzuimtype(v) in VERZUIMTYPE_VALUES,
     "text":     lambda v: bool(v.strip()),
     "phone":    lambda v: bool(re.sub(r'\D', '', v)),
 }

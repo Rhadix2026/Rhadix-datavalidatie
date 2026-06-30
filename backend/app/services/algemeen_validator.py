@@ -421,7 +421,10 @@ def validate_algemeen(files_input: list[dict]) -> dict:
             field_total = 0
 
             for idx, row in enumerate(rows):
-                val = (row.get(field) or "").strip()
+                raw = row.get(field)
+                # JSON-bronnen (AFAS GetConnector) leveren numerieke/boolean waarden
+                # als float/int/bool; coerce naar string zodat formaatvalidatie niet crasht.
+                val = ("" if raw is None else str(raw)).strip()
                 if not val:
                     continue
                 field_total += 1

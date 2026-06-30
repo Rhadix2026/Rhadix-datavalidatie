@@ -11,6 +11,7 @@ zodat de frontend hetzelfde Dashboard/Beschikbaarheid kan tonen.
 import re
 from typing import Any
 from app.services.zib_rules import ZIB_FIELD_RULES, detect_zib_schema
+from app.services.dataquality import is_date
 from app.services.prescan import (
     detect_format, validate_format,
     prescan_columns, prescan_quality_stats,
@@ -20,9 +21,6 @@ from app.services.prescan import (
 
 def _normalize(val: Any) -> str:
     return str(val or "").strip().lower()
-
-def _is_date_like(val: Any) -> bool:
-    return bool(re.match(r"\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}", str(val or "")))
 
 def _bsn_elfproef(val: str) -> bool:
     """Valideert een BSN via de elfproef."""
@@ -91,7 +89,7 @@ def _validate_value(field: str, value: Any, rules: dict) -> list[str]:
             issues.append(f"BSN «{val_str}» is ongeldig (elfproef mislukt)")
 
     elif vtype == "date":
-        if not _is_date_like(val_str):
+        if not is_date(val_str):
             issues.append(f"Waarde «{val_str}» is geen geldige datum (verwacht dd/mm/yyyy)")
 
     elif vtype == "code":

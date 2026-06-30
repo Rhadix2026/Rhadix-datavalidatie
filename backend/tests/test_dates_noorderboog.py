@@ -32,3 +32,26 @@ def test_parse_date_preserves_intervals():
     # parse_date blijft bruikbaar voor duur/overlap-checks
     assert parse_date("2026-01-10") < parse_date("2026-02-01")
     assert parse_date("10-01-2026") == parse_date("2026-01-10")
+
+
+def test_zib_uses_shared_is_date():
+    # ZIB-datumcheck (_is_date_like) is ingevouwen -> accepteert nu ook AFAS ISO
+    from app.services import zib_validator
+    assert zib_validator.is_date("1980-05-12")
+    assert zib_validator.is_date("19800512")
+    assert not zib_validator.is_date("2026-02-30")
+
+
+def test_owl_uses_shared_is_date():
+    from app.services import owl_validator
+    assert owl_validator.is_date("2026-01-15")
+    assert not owl_validator.is_date("2026-13-40")
+
+
+def test_algemeen_verzuimtype_codelist():
+    # TB-006: Algemeen valideert nu de verzuimsoort (AbsenceTypeId) tegen de codelijst
+    from app.services.algemeen_validator import VALIDATORS
+    from app.services.rules import VERZUIMTYPE_VALUES
+    v = VALIDATORS["verzuimtype"]
+    assert v(VERZUIMTYPE_VALUES[0])            # bekende KIK-V-waarde
+    assert not v("zzzz-bestaat-niet")          # onbekend -> afgekeurd

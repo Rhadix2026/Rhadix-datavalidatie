@@ -1,5 +1,7 @@
 import { Nav, NavBack, Page, PageTitle } from '../components/UI'
 
+const _taakBtn = { background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.2)', borderRadius:'var(--radius)', padding:'5px 12px', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'var(--font)', letterSpacing:'.03em' }
+
 // ── Bronsystemen voor de samengevoegde Datavalidatie-flow ─────────────────────
 // De bron bepaalt de fase-1 validatie; de benchmark (KIK-V/ZIB) volgt in fase 2.
 // Reactief bijgehouden: nieuw formaat/export -> eerst analyseren + import/export
@@ -16,7 +18,7 @@ const SOURCES = [
 
 const STANDARD_SLUGS = { kikv: 'kikv-validator', zib: 'zib-validator', algemeen: 'algemeen-validator' }
 
-export default function SelectSystems({ onNext, onBack, authUser }) {
+export default function SelectSystems({ onNext, onBack, authUser, onTasks, onDashboard, onAdmin, onOrgAdmin, onOrgDashboard, onPlatformDashboard, onLogout }) {
   const hasAppAccess = (std) => {
     if (!authUser) return true
     const slug = STANDARD_SLUGS[std]
@@ -34,7 +36,19 @@ export default function SelectSystems({ onNext, onBack, authUser }) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Nav right={<NavBack onClick={onBack} />} />
+      <Nav
+        right={<>
+          {onTasks && <button onClick={onTasks} style={_taakBtn}>✓ Mijn taken</button>}
+          <NavBack onClick={onBack} />
+        </>}
+        authUser={authUser}
+        onLogout={onLogout}
+        onDashboard={onDashboard}
+        onAdmin={onAdmin}
+        onOrgAdmin={onOrgAdmin}
+        onOrgDashboard={onOrgDashboard}
+        onPlatformDashboard={onPlatformDashboard}
+      />
       <Page>
         <PageTitle
           title="Datavalidatie — kies je bron"

@@ -21,7 +21,9 @@ export default function BenchmarkBar({ result }) {
   const [err, setErr] = useState(null)
   if (!result) return null
 
-  const stds = (result.source && SOURCE_BENCHMARKS[result.source]) || STD_BENCHMARKS[result.standard] || ['kikv']
+  const stds = result.standard === 'zib' ? ['zib']
+    : result.standard === 'kikv' ? ['kikv']
+    : (result.source && SOURCE_BENCHMARKS[result.source]) || ['kikv']
 
   async function go(std) {
     setBusy(std); setErr(null)

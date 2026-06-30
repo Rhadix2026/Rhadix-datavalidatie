@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Nav, NavLink, Page, BtnPrimary, ProgressBar, StatusBadge, ExpandableIssueRow, GapRow, NavBack , TruncationWarning } from '../components/UI'
+import BenchmarkBar from '../components/BenchmarkBar'
 
 const ZIB_DOMAINS = [
   { key: 'patient',           icon: '🧑',  label: 'Patiënt / Cliënt',  schema: 'patient',           zib: 'nl.zorg.Patient' },
@@ -198,14 +199,6 @@ export default function ZibDashboard({ results, onNewScan, onActuality, onTracea
               </div>
             )
           })}
-            {onProfiles && (
-              <button
-                onClick={onProfiles}
-                style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
-              >
-                📋 KIK-V Profielimport
-              </button>
-            )}
         </div>
 
         {/* Per-schema scores (Rhadix Index per ZIB) */}
@@ -252,6 +245,9 @@ export default function ZibDashboard({ results, onNewScan, onActuality, onTracea
             )
           })}
         </div>
+
+        {/* Fase 2 — benchmark */}
+        <BenchmarkBar result={results} />
 
         {/* Domeinen + detail */}
         <div className="domain-grid">

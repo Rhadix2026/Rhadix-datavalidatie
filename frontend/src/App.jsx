@@ -59,7 +59,7 @@ export default function App() {
 
   // Vanwaar we terugkeren naar het actuality-dashboard
   const [actualityBackStep, setActualityBackStep] = useState('dashboard')
-  const [profilesBackStep, setProfilesBackStep]   = useState('landing')
+  const [profilesBackStep, setProfilesBackStep]   = useState('systems')
   const [readinessMatrix, setReadinessMatrix]       = useState(null)
   const [readinessProfile, setReadinessProfile]     = useState(null)
 
@@ -123,7 +123,7 @@ export default function App() {
   }
 
   const safeGoToDashboard = () => {
-    if (!scanSessionActive) { setStep('landing'); return }
+    if (!scanSessionActive) { setStep('systems'); return }
     setStep2Completed(true)
     setStep('stap2_resultaat')
   }
@@ -226,7 +226,7 @@ export default function App() {
 
       {step === 'portal' && (
         <AppPortal
-          onLogin={() => setStep('landing')}
+          onLogin={() => setStep('systems')}
           brand={brand} onBrandChange={changeBrand}
           authUser={authUser}
           onDashboard={() => setStep('user_dashboard')}
@@ -236,40 +236,17 @@ export default function App() {
         />
       )}
 
-      {step === 'landing' && (
-        <Landing
-          onStart={() => setStep('systems')}
-          onTasks={() => setStep('tasks')}
-          onProfiles={() => openProfiles('landing')}
-          onReconciliation={canReconciliation ? () => setStep('reconciliation') : null}
-          onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
-          onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
-          onDashboard={() => setStep('user_dashboard')}
-          onOrgDashboard={
-            (authUser?.role === 'ORG_ADMIN' || authUser?.role === 'RHADIX_ADMIN')
-              ? () => setStep('org_dashboard')
-              : null
-          }
-          onPlatformDashboard={
-            authUser?.role === 'RHADIX_ADMIN'
-              ? () => setStep('platform_dashboard')
-              : null
-          }
-          authUser={authUser}
-          onLogout={handleLogout}
-        />
-      )}
 
       {step === 'admin' && (
-        <AdminDashboard onBack={() => setStep('landing')} />
+        <AdminDashboard onBack={() => setStep('systems')} />
       )}
 
       {step === 'tasks' && (
-        <Taken authUser={authUser} onBack={() => setStep('landing')} />
+        <Taken authUser={authUser} onBack={() => setStep('systems')} />
       )}
 
       {step === 'org_admin' && (
-        <OrgAdminDashboard onBack={() => setStep('landing')} authUser={authUser} />
+        <OrgAdminDashboard onBack={() => setStep('systems')} authUser={authUser} />
       )}
 
       {step === 'systems' && (
@@ -280,8 +257,15 @@ export default function App() {
             setStandard(std || 'kikv')
             setStep('upload')
           }}
-          onBack={() => setStep('landing')}
+          onBack={() => setStep('portal')}
           authUser={authUser}
+          onTasks={() => setStep('tasks')}
+          onDashboard={() => setStep('user_dashboard')}
+          onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
+          onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
+          onOrgDashboard={(authUser?.role === 'ORG_ADMIN' || authUser?.role === 'RHADIX_ADMIN') ? () => setStep('org_dashboard') : null}
+          onPlatformDashboard={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('platform_dashboard') : null}
+          onLogout={handleLogout}
         />
       )}
 
@@ -330,7 +314,7 @@ export default function App() {
           onTraceability={() => openTraceability('dashboard')}
           onProfiles={() => openProfiles('dashboard')}
           onReconciliation={canReconciliation ? () => setStep('reconciliation') : null}
-          onHome={() => setStep('landing')}
+          onHome={() => setStep('systems')}
           authUser={authUser}
         />
       )}
@@ -369,7 +353,7 @@ export default function App() {
           onActieplan={addActie}
           onGotoActieplan={() => setStep('actieplan')}
           onBack={() => setStep('dashboard')}
-          onHome={() => setStep('landing')}
+          onHome={() => setStep('systems')}
         />
       )}
       {step === 'actieplan' && (
@@ -386,8 +370,8 @@ export default function App() {
         <AlgemeenDashboard
           results={activeScanResult}
           onNewScan={startNewScan}
-          onBack={() => setStep('landing')}
-          onHome={() => setStep('landing')}
+          onBack={() => setStep('systems')}
+          onHome={() => setStep('systems')}
           authUser={authUser}
         />
       )}
@@ -400,8 +384,8 @@ export default function App() {
           onActuality={() => openActuality('zib_dashboard')}
           onTraceability={() => openTraceability('zib_dashboard')}
           onProfiles={() => openProfiles('zib_dashboard')}
-          onBack={() => setStep('landing')}
-          onHome={() => setStep('landing')}
+          onBack={() => setStep('systems')}
+          onHome={() => setStep('systems')}
         />
       )}
 
@@ -441,14 +425,14 @@ export default function App() {
       {/* ── Phase 3 Dashboards ── */}
       {step === 'user_dashboard' && (
         <UserDashboard
-          onBack={() => setStep('landing')}
+          onBack={() => setStep('systems')}
           authUser={authUser}
         />
       )}
 
       {step === 'org_dashboard' && (
         <OrgDashboard
-          onBack={() => setStep('landing')}
+          onBack={() => setStep('systems')}
           authUser={authUser}
           tenantId={dashboardTenantId || undefined}
         />
@@ -456,7 +440,7 @@ export default function App() {
 
       {step === 'platform_dashboard' && (
         <PlatformDashboard
-          onBack={() => setStep('landing')}
+          onBack={() => setStep('systems')}
           onOrgDrilldown={(tenantId, tenantName) => {
             setDashboardTenantId(tenantId)
             setDashboardTenantName(tenantName)
@@ -468,7 +452,7 @@ export default function App() {
       {/* ── Reconciliation Engine ── */}
       {step === 'reconciliation' && (
         <ReconciliationDashboard
-          onBack={() => setStep('landing')}
+          onBack={() => setStep('systems')}
         />
       )}
 

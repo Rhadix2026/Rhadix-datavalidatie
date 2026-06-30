@@ -55,7 +55,7 @@ git checkout staging && git merge main --no-edit && git push origin staging && g
 git tag v1.5.X && git push origin v1.5.X
 ```
 
-**Huidige versie:** v1.7.0
+**Huidige versie:** v1.7.2
 
 ---
 
@@ -154,6 +154,7 @@ notitiebestand — token intrekken/roteren.
 
 | Datum | Versie | Wijziging |
 |-------|--------|-----------|
+| 2026-06-30 | v1.7.2 | RELEASE-voorbereiding: Stap 0 doelarchitectuur naar productie. Bevat de gedeelde datum-primitief `dataquality.py` (één `is_date`/`parse_date` over KIK-V/Algemeen/ZIB/OWL), de zichtbare+verhoogde rij-cap (RHADIX_MAX_ROWS, default 100000, met TruncationWarning-banner) en de verzuimsoort-codelijst in Algemeen. Lost Noorderboog TB-002/004/006/007 structureel op. 188 tests groen. Tag v1.7.2 -> prod-deploy via GitHub Actions (handmatige goedkeuring). |
 | 2026-06-30 | — | STAP 0 COMPLEET op staging. Slice 3: ZIB (`_is_date_like`) en OWL (`_parse_date`/`_DATE_FMTS`) ingevouwen in de gedeelde `dataquality.is_date` — datumlogica nu in ÉÉN module over alle vier de sporen (KIK-V, Algemeen, ZIB, OWL). Algemeen kreeg een `verzuimtype`-validator (hergebruikt `rules.normalize_verzuimtype`+`VERZUIMTYPE_VALUES`); AbsenceTypeId wordt nu tegen de codelijst gevalideerd -> gewijzigde/onbekende verzuimsoort wordt gesignaleerd (Noorderboog TB-006). 3 nieuwe tests; suite 188 groen. Hiermee zijn ALLE Noorderboog-bevindingen TB-002/004/006/007 structureel opgelost en is Laag 1 (gedeelde primitieven) van de doelarchitectuur neergezet. Alles op staging-branch; nog niet op main/prod. TODO: testen op staging -> daarna release naar prod (nieuwe tag) als akkoord. Aandachtspunt: AFAS_VERZUIM_*_MAP uitbreiden zodra onbekende-maar-echte AFAS-codes opduiken (voorkomt false positives op verzuimsoort). |
 | 2026-06-30 | — | STAP 0 slice 2 (staging): rij-cap zichtbaar + verhoogd (Noorderboog TB-002/004). MAX_ROWS configureerbaar via RHADIX_MAX_ROWS (2000 -> default 100000) zodat normale HR-exports (3105/11561 rijen) niet meer stil worden afgekapt. Parsers geven nu de échte totaalcount terug (3-tuple); upload-endpoint zet een `truncation`-blok in de response; frontend toont een TruncationWarning-banner (X van Y rijen verwerkt) op de dashboards. Suite 185 groen, frontend-build schoon. Staat op staging. Resteert van Stap 0: ZIB/_is_date_like + OWL/_parse_date invouwen in dataquality; verzuimsoort-codelijst in Algemeen (TB-006). |
 | 2026-06-30 | — | STAP 0 doelarchitectuur gestart (staging). Eerste slice: gedeelde validatie-primitief `app/services/dataquality.py` met één `parse_date`/`is_date`. KIK-V (`validator.py`) en Algemeen (`algemeen_validator._valid_date`) gebruiken die nu — datumlogica niet meer gedupliceerd. Lost Noorderboog TB-007 structureel op: is_date accepteert jaar-eerst/ISO + kort yyyymmdd (KIK-V keurde alle AFAS-datums onterecht af), en geldigheid = echte kalenderdatum (Algemeen miste niet-bestaande datum als 2026-02-30). 5 nieuwe tests; suite 184 groen. Staat op staging-branch (nog niet op main). VOLGENDE slices Stap 0: rij-cap (MAX_ROWS=2000) zichtbaar/luid maken (TB-002/004), ZIB `_is_date_like` + OWL `_parse_date` invouwen in dataquality, verzuimsoort-codelijst in Algemeen (TB-006). |

@@ -44,6 +44,13 @@ function UploadProgress({ step }) {
   )
 }
 
+// Map het gekozen bronsysteem op de bron-parameter voor de fase-1 validatie
+const SYSTEM_TO_SOURCE = {
+  afas_hrm: 'afas', afas_profit_fin: 'afas',
+  nedap_ons: 'ons',
+  chipsoft_hix: 'epd_ecd', epic: 'epd_ecd',
+}
+
 export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
   const [files, setFiles]       = useState([])
   const [dragging, setDragging] = useState(false)
@@ -73,7 +80,8 @@ export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
     )
 
     try {
-      const result = await uploadFiles(files, `Scan — ${systems.join(', ')}`, standard)
+      const source = (systems || []).map(id => SYSTEM_TO_SOURCE[id]).find(Boolean) || null
+      const result = await uploadFiles(files, `Scan — ${systems.join(', ')}`, standard, 30, source)
       stepTimers.current.forEach(clearTimeout)
       setScanStep(SCAN_STEPS.length - 1)
       setTimeout(() => onNext(result), 300)

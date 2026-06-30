@@ -53,12 +53,13 @@ export async function getMe() {
 // Validation
 // ---------------------------------------------------------------------------
 
-export async function uploadFiles(files, label = '', standard = 'kikv', maxAgeDays = 30) {
+export async function uploadFiles(files, label = '', standard = 'kikv', maxAgeDays = 30, source = null) {
   const form = new FormData()
   files.forEach(f => form.append('files', f))
   if (label) form.append('label', label)
   form.append('standard', standard)
   form.append('max_age_days', String(maxAgeDays))
+  if (source) form.append('source', source)
   const res = await apiFetch(`${BASE}/validate/upload`, { method: 'POST', body: form })
   if (!res.ok) throw new Error(await res.text())
   return res.json()

@@ -7,6 +7,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.services.dataquality import is_date
+
 # ── AFAS Profit veldtemplates ──────────────────────────────────────────────────
 # Elke file-type heeft verplichte velden (required) en optionele velden (optional)
 # met bijbehorend type voor formaatvalidatie.
@@ -271,13 +273,9 @@ def _valid_bsn(val: str) -> bool:
     return total % 11 == 0
 
 def _valid_date(val: str) -> bool:
-    val = val.strip()
-    patterns = [
-        r'^\d{4}-\d{2}-\d{2}$',          # yyyy-mm-dd
-        r'^\d{2}-\d{2}-\d{4}$',          # dd-mm-yyyy
-        r'^\d{2}/\d{2}/\d{4}$',          # dd/mm/yyyy
-    ]
-    return any(re.match(p, val) for p in patterns)
+    # Gedeelde primitief: zelfde formaten als de parser + kalendergeldigheid
+    # (Stap 0 doelarchitectuur; lost Noorderboog TB-007 op).
+    return is_date(val)
 
 def _valid_email(val: str) -> bool:
     return bool(re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', val.strip()))

@@ -207,6 +207,24 @@ export function PageTitle({ title, sub, badge }) {
 }
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
+export function TruncationWarning({ truncation = [] }) {
+  if (!truncation || !truncation.length) return null
+  return (
+    <div style={{
+      background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8,
+      padding: '12px 16px', margin: '0 0 18px', color: '#991b1b', fontSize: 14,
+    }}>
+      <b>⚠️ Let op: niet alle rijen zijn verwerkt.</b> Eén of meer bestanden zijn afgekapt op de
+      maximale verwerkingsgrootte — de validatie-uitkomst is daardoor niet volledig:
+      <ul style={{ margin: '6px 0 0', paddingLeft: 20 }}>
+        {truncation.map((t, i) => (
+          <li key={i}><b>{t.filename}</b>: {t.verwerkt} van {t.totaal} rijen verwerkt</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export function Card({ children, style = {}, onClick }) {
   return (
     <div onClick={onClick} style={{

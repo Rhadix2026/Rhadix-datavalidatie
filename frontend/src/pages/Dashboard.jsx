@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Nav, NavLink, Page, BtnPrimary, ProgressBar, StatusBadge, StatusIcon, ExpandableIssueRow, GapRow } from '../components/UI'
+import { Nav, NavLink, Page, BtnPrimary, ProgressBar, StatusBadge, StatusIcon, ExpandableIssueRow, GapRow , TruncationWarning } from '../components/UI'
 import { MaakTakenButton } from '../components/TaskUI'
 
 // ── Rhadix Index uitleg ───────────────────────────────────────────────────────
@@ -150,6 +150,7 @@ export default function Dashboard({ results, scanHistory = [], step1Completed, s
       <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
         <Nav onHome={onHome} right={<NavLink onClick={onNewScan}>Nieuwe scan</NavLink>} />
         <Page>
+        <TruncationWarning truncation={results.truncation} />
           <div style={{ textAlign: 'center', padding: '80px 24px' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
             <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Geen actief scanresultaat</h2>

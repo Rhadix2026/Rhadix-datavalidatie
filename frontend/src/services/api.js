@@ -49,6 +49,45 @@ export async function getMe() {
   return res.json()
 }
 
+
+// ── Wachtwoord-reset / uitnodiging / e-mailverificatie ──────────────────────
+function _detail(text) {
+  try { return JSON.parse(text)?.detail || text } catch { return text }
+}
+
+export async function forgotPassword(email) {
+  // Antwoordt altijd 204 (geen account-enumeratie); fouten negeren we bewust niet.
+  const res = await fetch(`${BASE}/auth/forgot-password`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) throw new Error(_detail(await res.text()))
+}
+
+export async function resetPassword(token, newPassword) {
+  const res = await fetch(`${BASE}/auth/reset-password`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  })
+  if (!res.ok) throw new Error(_detail(await res.text()))
+}
+
+export async function setPasswordInvite(token, password) {
+  const res = await fetch(`${BASE}/auth/set-password`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  })
+  if (!res.ok) throw new Error(_detail(await res.text()))
+}
+
+export async function verifyEmail(token) {
+  const res = await fetch(`${BASE}/auth/verify-email`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+  if (!res.ok) throw new Error(_detail(await res.text()))
+}
+
 // ---------------------------------------------------------------------------
 // Validation
 // ---------------------------------------------------------------------------

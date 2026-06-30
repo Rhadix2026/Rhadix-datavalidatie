@@ -104,6 +104,23 @@ def _ensure_tasks_table() -> None:
 
 _ensure_tasks_table()
 
+def _ensure_auth_tokens() -> None:
+    """Borg de auth_tokens-tabel + users.email_verified (checkfirst/idempotent)."""
+    try:
+        from app.database import engine
+        from app.models.auth_models import AuthToken
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT true"
+            )
+        AuthToken.__table__.create(bind=engine, checkfirst=True)
+        log.info("auth_tokens-tabel + email_verified geborgd.")
+    except Exception:
+        import traceback
+        log.error("Kon auth_tokens/email_verified niet borgen:\n%s", traceback.format_exc())
+
+_ensure_auth_tokens()
+
 
 # ---------------------------------------------------------------------------
 # Borg dat de vaste RHADIX_ADMIN in elke omgeving bestaat.

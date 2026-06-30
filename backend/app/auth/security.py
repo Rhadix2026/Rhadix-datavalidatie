@@ -138,3 +138,23 @@ def get_jwks() -> dict:
     k = jwk.construct(PUBLIC_KEY, "RS256").to_dict()
     k.update({"use": "sig", "alg": "RS256", "kid": KID})
     return {"keys": [k]}
+
+
+# ---------------------------------------------------------------------------
+# E-mail action tokens (wachtwoord-reset / uitnodiging / verificatie)
+# ---------------------------------------------------------------------------
+import hashlib
+import secrets
+
+
+def generate_url_token() -> tuple[str, str]:
+    """Genereer een willekeurig URL-veilig token. Returns (raw, sha256_hex).
+
+    Alleen de hash wordt opgeslagen; de raw-waarde gaat uitsluitend in de e-maillink.
+    """
+    raw = secrets.token_urlsafe(32)
+    return raw, hash_url_token(raw)
+
+
+def hash_url_token(raw: str) -> str:
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()

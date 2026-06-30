@@ -53,6 +53,7 @@ class User(Base):
     full_name      = Column(String(255), nullable=True)
     role           = Column(Enum(UserRole), nullable=False, default=UserRole.ORG_USER)
     is_active      = Column(Boolean, default=True, nullable=False)
+    email_verified = Column(Boolean, default=True, nullable=False)   # bestaande users gelden als geverifieerd
     last_login_at  = Column(DateTime(timezone=True), nullable=True)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -145,3 +146,25 @@ class UserApplication(Base):
     application        = relationship("Application",       back_populates="user_applications")
     tenant_application = relationship("TenantApplication", back_populates="user_applications")
     assigned_by        = relationship("User", foreign_keys=[assigned_by_id])
+
+
+# ── Auth-tokens (wachtwoord-reset / uitnodiging / e-mailverificatie) ───────────
+
+class AuthToken(Base):
+    """Eenmalig, kortlevend token voor wachtwoord-reset, uitnodiging of e-mailverificatie.
+
+    Alleen de SHA-256-hash van het token wordt opgeslagen (nooit het token zelf),
+    zodat een database-lek geen bruikbare links oplevert. Eenmalig: used_at wordt
+    gezet zodra het token is verzilverd.
+    """
+    __tablename__ = "auth_tokens"
+
+    id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id    = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    purpose    = Column(String(20), nullable=False)            # 'reset' | 'invite' | 'verify'
+    token_hash = Column(String(64), nullable=False, index=True)  # sha256 hex
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at    = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")

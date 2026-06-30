@@ -156,10 +156,11 @@ def list_tenant_users(
 
 
 class AdminCreateUserRequest(BaseModel):
-    email:     str
-    password:  str
-    full_name: Optional[str] = None
-    role:      str = "ORG_USER"
+    email:       str
+    password:    Optional[str] = None       # leeg laten i.c.m. send_invite=True
+    full_name:   Optional[str] = None
+    role:        str = "ORG_USER"
+    send_invite: bool = False               # True => uitnodigingsmail i.p.v. wachtwoord
 
 
 @router.post("/tenants/{tenant_id}/users", status_code=201)
@@ -176,29 +177,50 @@ def admin_create_user(
     if db.query(User).filter(User.email == body.email.lower()).first():
         raise HTTPException(400, f"Email '{body.email}' is already in use")
     try:
-        validate_password_strength(body.password)
-    except ValueError as exc:
-        raise HTTPException(422, str(exc))
-    try:
         role = UserRole(body.role)
     except ValueError:
         raise HTTPException(422, f"Invalid role: {body.role}")
 
+    invite = bool(body.send_invite or not body.password)
+    if not invite:
+        try:
+            validate_password_strength(body.password)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc))
+
     user = User(
-        id            = uuid.uuid4(),
-        tenant_id     = tid,
-        email         = body.email.lower().strip(),
-        password_hash = hash_password(body.password),
-        full_name     = body.full_name,
-        role          = role,
-        is_active     = True,
+        id             = uuid.uuid4(),
+        tenant_id      = tid,
+        email          = body.email.lower().strip(),
+        password_hash  = None if invite else hash_password(body.password),
+        full_name      = body.full_name,
+        role           = role,
+        is_active      = True,
+        email_verified = not invite,         # uitgenodigde users verifiëren bij activatie
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     audit_log(USER_CREATED, user_id=str(user.id), email=user.email,
-              tenant_id=str(tid), role=role.value, created_by="RHADIX_ADMIN")
-    return {"id": str(user.id), "email": user.email, "role": user.role.value}
+              tenant_id=str(tid), role=role.value, created_by="RHADIX_ADMIN",
+              method="invite" if invite else "password")
+
+    invited = False
+    if invite:
+        from datetime import timedelta
+        from app.auth.router import issue_token, action_link, INVITE_TTL_DAYS
+        from app.services import mailer
+        from app.audit import INVITE_SENT
+        raw = issue_token(db, user, "invite", timedelta(days=INVITE_TTL_DAYS))
+        try:
+            invited = mailer.send_invite(user.email, user.full_name, "Je Rhadix-beheerder",
+                                         action_link("invite", raw), INVITE_TTL_DAYS)
+        except Exception:
+            import logging; logging.getLogger("rhadix.mail").exception("invite-mail faalde")
+        audit_log(INVITE_SENT, user_id=str(user.id), email=user.email, tenant_id=str(tid))
+
+    return {"id": str(user.id), "email": user.email, "role": user.role.value,
+            "invited": invite, "invite_email_sent": invited}
 
 
 class AdminUpdateUserRequest(BaseModel):

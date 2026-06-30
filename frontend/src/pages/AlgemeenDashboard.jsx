@@ -160,7 +160,7 @@ function ConceptRow({ c }) {
         <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
           {c.afas_attr
             ? <>Bronveld: <code style={{ background: '#f3f4f6', padding: '1px 6px', borderRadius: 4 }}>{c.afas_attr}</code></>
-            : <span style={{ fontStyle: 'italic' }}>Geen bronveld in referentieontwerp v6.0</span>}
+            : <span style={{ fontStyle: 'italic' }}>Geen bronveld in KIK-V-referentieontwerp v6.0</span>}
           {c.transform && <span> · bewerking: {c.transform}</span>}
         </div>
         {c.status === 'covered' && c.present_in?.length > 0 && (
@@ -211,9 +211,9 @@ function BenchmarkSection({ benchmark }) {
   if (!benchmark.applicable) {
     return (
       <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-xl)', padding: 18, marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>Benchmark niet beschikbaar</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>KIK-V-benchmark niet beschikbaar</div>
         <div style={{ fontSize: 13, color: 'var(--text2)' }}>
-          Het referentieontwerp is specifiek voor AFAS Profit HRM. Er zijn geen AFAS-bestanden in deze scan herkend,
+          Het KIK-V-referentieontwerp is specifiek voor AFAS Profit HRM. Er zijn geen AFAS-bestanden in deze scan herkend,
           dus er valt niets te benchmarken.
         </div>
       </div>
@@ -228,7 +228,7 @@ function BenchmarkSection({ benchmark }) {
       {/* Kop */}
       <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: '18px 20px', marginBottom: 16 }}>
         <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600, marginBottom: 6 }}>
-          📐 Benchmark tegen {reference.title || 'referentieontwerp'}
+          📐 Benchmark tegen KIK-V — {reference.title || 'referentieontwerp'}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap' }}>
           <div>
@@ -251,7 +251,7 @@ function BenchmarkSection({ benchmark }) {
           </div>
         </div>
         <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 10 }}>
-          {reference.leverancier} {reference.source_system} · referentieontwerp v{reference.version} · vergeleken met: {afas_files.join(', ')}
+          {reference.leverancier} {reference.source_system} · KIK-V-referentieontwerp v{reference.version} · vergeleken met: {afas_files.join(', ')}
         </div>
       </div>
 
@@ -262,7 +262,7 @@ function BenchmarkSection({ benchmark }) {
       {extra_fields.length > 0 && (
         <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: '14px 18px', marginBottom: 12 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>
-            Aangeleverd maar niet in het referentieontwerp ({extra_fields.length})
+            Aangeleverd maar niet in het KIK-V-referentieontwerp ({extra_fields.length})
           </div>
           <div style={{ fontSize: 12, color: 'var(--text3)' }}>{extra_fields.join(', ')}</div>
         </div>

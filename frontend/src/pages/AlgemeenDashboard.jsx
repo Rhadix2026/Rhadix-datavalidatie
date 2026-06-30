@@ -363,6 +363,9 @@ export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack, 
           <FileCard key={i} result={result} />
         ))}
 
+        {/* Fase 2 — benchmark tegen een standaard */}
+        <BenchmarkBar result={results} />
+
         {/* Benchmark tegen referentieontwerp */}
         {benchmark && (
           <div style={{ marginTop: 8, marginBottom: 8 }}>

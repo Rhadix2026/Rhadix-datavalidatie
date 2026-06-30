@@ -65,6 +65,15 @@ export async function uploadFiles(files, label = '', standard = 'kikv', maxAgeDa
   return res.json()
 }
 
+export async function runBenchmark(standard) {
+  const form = new FormData()
+  form.append('standard', standard)
+  const res = await apiFetch(`${BASE}/validate/benchmark`, { method: 'POST', body: form })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+
 // ---------------------------------------------------------------------------
 // History
 // ---------------------------------------------------------------------------

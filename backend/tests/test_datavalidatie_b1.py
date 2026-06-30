@@ -24,3 +24,12 @@ def test_run_cache_overschrijft_en_clear():
     assert run_cache.get_current("u1")["source"] == "ons"
     run_cache.clear("u1")
     assert run_cache.get_current("u1") is None
+
+
+def test_route_vangnet_zib_csv_niet_door_algemeen():
+    # ZIB-CSV: algemeen herkent niets, ZIB wel -> vangnet zou naar 'zib' schakelen
+    from app.services.zib_rules import detect_zib_schema
+    from app.services.algemeen_validator import _detect_template
+    headers = ["BSN", "Voornaam", "Achternaam", "Geboortedatum", "Geslacht"]
+    assert _detect_template("patient.csv", headers) is None
+    assert detect_zib_schema("patient.csv") == "patient"

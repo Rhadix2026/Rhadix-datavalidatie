@@ -16,7 +16,7 @@ from app.services.validator import validate_files, detect_schema, auto_map, KIKV
 from app.services.concept_validator import validate_concept_mapping
 from app.services.zib_validator import validate_zib
 from app.services.zib_rules import detect_zib_schema
-from app.services.algemeen_validator import validate_algemeen
+from app.services.algemeen_validator import validate_algemeen, _detect_template
 from app.services.algemeen_benchmark import benchmark_against_reference
 from app.services.actuality_validator import validate_actuality, detect_date_fields, get_kikv_norm_for_schema
 from app.services.traceability import enrich_file_result, collect_all_issues
@@ -271,6 +271,19 @@ async def upload_and_validate(
     except Exception:
         pass
 
+    # Vangnet: herkent de gekozen route geen enkel bestand, val terug op de juiste validator
+    def _count_recognized(std):
+        if std == "zib":
+            return sum(1 for p in parsed if detect_zib_schema(p["filename"]))
+        if std == "kikv":
+            return sum(1 for p in parsed if detect_schema(p["filename"], p["headers"]))
+        return sum(1 for p in parsed if _detect_template(p["filename"], p["headers"]))
+    if parsed and _count_recognized(standard) == 0:
+        for _alt in ("zib", "kikv", "algemeen"):
+            if _alt != standard and _count_recognized(_alt) > 0:
+                standard = _alt
+                break
+
     # ── Actualiteit (altijd, voor alle bestanden) ─────────────────────────────
     actuality_results = []
     for p in parsed:
@@ -319,7 +332,7 @@ async def upload_and_validate(
             created_at = str(run.created_at)
         except Exception:
             pass
-        return {**result, "truncation": truncation_warnings, "source": source, "run_id": run_id, "created_at": created_at,
+        return {**result, "truncation": truncation_warnings, "source": source, "standard": standard, "run_id": run_id, "created_at": created_at,
                 "label": label or "Algemeen-scan", "benchmark": benchmark}
 
     # ── ZIB-pad ───────────────────────────────────────────────────────────────
@@ -391,7 +404,7 @@ async def upload_and_validate(
 
         return {
             **result,
-        "truncation": truncation_warnings, "source": source,
+        "truncation": truncation_warnings, "source": source, "standard": standard,
             "run_id":      run_id,
             "created_at":  created_at,
             "concept_mapping": [],
@@ -540,7 +553,7 @@ async def upload_and_validate(
 
     return {
         **result,
-        "truncation": truncation_warnings, "source": source,
+        "truncation": truncation_warnings, "source": source, "standard": standard,
         "run_id":          run_id,
         "created_at":      created_at,
         "concept_mapping": concept_results,

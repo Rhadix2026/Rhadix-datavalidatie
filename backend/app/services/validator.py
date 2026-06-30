@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from app.services.prescan import prescan_columns
+from app.services.dataquality import is_date, parse_date
 from app.services.rules import (
     FIELD_RULES,
     CONTRACTTYPE_VALUES,
@@ -367,40 +368,6 @@ KIKV_FIELDS_REFERENCE = [
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 def normalize(s: str) -> str:
     return re.sub(r'[\s_\-\.]', '', str(s or '').lower())
-
-def is_date(val: Any) -> bool:
-    return bool(re.match(r'\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}', str(val or '')))
-
-def parse_date(val: Any):
-    """Parse een datum uit meerdere formaten, zonder dag/maand te gokken.
-
-    Ondersteund (ondubbelzinnig via positie van het 4-cijferige jaar):
-      - ISO / jaar-eerst:  2026-04-22, 2026/04/22, 2026-04-22T00:00:00Z  -> jaar-maand-dag
-      - kort AFAS:         20260422 (yyyymmdd)                            -> jaar-maand-dag
-      - NL / dag-eerst:    22-04-2026, 22/04/2026, 22.04.2026            -> dag-maand-jaar
-    Het écht dubbelzinnige geval dd-mm vs mm-dd (jaar achteraan, beide <=12)
-    wordt NIET gegokt: we houden de NL-conventie (dag-eerst) aan."""
-    if not val:
-        return None
-    s = str(val).strip()
-    if not s:
-        return None
-    # jaar-eerst (ISO, evt. met tijd): 2026-04-22 of 2026/04/22
-    m = re.match(r'(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})', s)
-    if m:
-        try: return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        except: return None
-    # kort yyyymmdd (8 cijfers, AFAS Profit korte datums)
-    m = re.match(r'^(\d{4})(\d{2})(\d{2})$', s)
-    if m:
-        try: return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        except: return None
-    # NL dag-eerst (jaar achteraan): 22-04-2026 / 22/04/2026 / 22.04.2026
-    m = re.match(r'(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})', s)
-    if m:
-        try: return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)))
-        except: return None
-    return None
 
 def auto_map(headers: list, aliases: dict) -> dict:
     """

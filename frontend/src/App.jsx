@@ -113,9 +113,10 @@ export default function App() {
       { run_id: result.run_id, label: result.label ?? 'Scan', created_at: result.created_at },
       ...prev,
     ])
-    if (standard === 'zib') {
+    const _std = result.standard || standard
+    if (_std === 'zib') {
       setStep('zib_dashboard')
-    } else if (standard === 'algemeen') {
+    } else if (_std === 'algemeen') {
       setStep('algemeen_dashboard')
     } else {
       setStep('beschikbaarheid')

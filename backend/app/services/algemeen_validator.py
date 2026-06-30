@@ -338,17 +338,17 @@ def _detect_template(filename: str, headers: list[str]) -> str | None:
         return best_key
 
     # 3. Fallback (legacy)
-    if {"bsn", "employeeid"} & header_low:
+    if {"bsn", "employeeid"} <= header_low:
         return "employees"
-    if {"hoursperweek", "startdate", "employeeid"} & header_low:
+    if {"hoursperweek", "startdate", "employeeid"} <= header_low:
         return "timetable"
-    if {"absencetypeid", "startdate"} & header_low:
+    if {"absencetypeid", "startdate"} <= header_low:
         return "illness"
-    if {"identificationno", "dateofbirth"} & header_low:
+    if {"identificationno", "dateofbirth"} <= header_low:
         return "ons_employees"
-    if {"contractid", "employeeobjectid"} & header_low:
+    if {"contractid", "employeeobjectid"} <= header_low:
         return "ons_contracts"
-    if {"employeeobjectid", "begindatetime"} & header_low:
+    if {"employeeobjectid", "begindatetime"} <= header_low:
         return "ons_absence"
 
     return None

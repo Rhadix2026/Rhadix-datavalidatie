@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.auth.dependencies import get_optional_user, require_app_access
 from app.database import get_db
+from app.services import run_cache
 from app.models.auth_models import Application, TenantApplication, User, UserApplication
 from app.models.models import ValidationRun
 from app.services.validator import validate_files, detect_schema, auto_map, KIKV_REFERENCE
@@ -203,6 +204,7 @@ async def upload_and_validate(
     files: List[UploadFile] = File(...),
     label: Optional[str] = Form(None),
     standard: Optional[str] = Form("kikv"),   # "kikv" | "zib" | "algemeen"
+    source: Optional[str] = Form(None),       # bron: "afas" | "ons" | "kikv_csv" | "epd_ecd"
     max_age_days: Optional[int] = Form(30),   # drempel voor actualiteitscheck
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_user),
@@ -212,6 +214,14 @@ async def upload_and_validate(
     Voegt altijd 'actuality' toe aan de response.
     """
     standard = (standard or "kikv").lower().strip()
+
+    # Bron-gestuurde flow: de opgegeven bron bepaalt de fase-1 standaard
+    SOURCE_TO_STANDARD = {"afas": "algemeen", "ons": "algemeen",
+                          "kikv_csv": "kikv", "kikv": "kikv",
+                          "epd_ecd": "zib", "zib": "zib"}
+    if source:
+        source = source.lower().strip()
+        standard = SOURCE_TO_STANDARD.get(source, standard)
 
     # ── Phase 2 app-level access check ──────────────────────────────────────
     # Authenticated users must have the relevant application assigned.
@@ -251,6 +261,15 @@ async def upload_and_validate(
                 "totaal":   total,
             })
         parsed.append({"filename": upload.filename, "headers": headers, "rows": rows})
+
+    # Bewaar fase-1 data voor een eventuele benchmark (overschrijft de vorige = cache wissen bij nieuwe scan)
+    try:
+        _ukey = str(current_user.id) if current_user else None
+        if _ukey:
+            run_cache.set_current(_ukey, source,
+                [{"filename": p["filename"], "headers": p["headers"], "rows": p["rows"]} for p in parsed])
+    except Exception:
+        pass
 
     # ── Actualiteit (altijd, voor alle bestanden) ─────────────────────────────
     actuality_results = []
@@ -300,7 +319,7 @@ async def upload_and_validate(
             created_at = str(run.created_at)
         except Exception:
             pass
-        return {**result, "truncation": truncation_warnings, "run_id": run_id, "created_at": created_at,
+        return {**result, "truncation": truncation_warnings, "source": source, "run_id": run_id, "created_at": created_at,
                 "label": label or "Algemeen-scan", "benchmark": benchmark}
 
     # ── ZIB-pad ───────────────────────────────────────────────────────────────
@@ -372,7 +391,7 @@ async def upload_and_validate(
 
         return {
             **result,
-        "truncation": truncation_warnings,
+        "truncation": truncation_warnings, "source": source,
             "run_id":      run_id,
             "created_at":  created_at,
             "concept_mapping": [],
@@ -521,7 +540,7 @@ async def upload_and_validate(
 
     return {
         **result,
-        "truncation": truncation_warnings,
+        "truncation": truncation_warnings, "source": source,
         "run_id":          run_id,
         "created_at":      created_at,
         "concept_mapping": concept_results,

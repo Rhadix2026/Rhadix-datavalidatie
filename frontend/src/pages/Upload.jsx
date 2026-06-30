@@ -48,6 +48,7 @@ function UploadProgress({ step }) {
 const SYSTEM_TO_SOURCE = {
   afas_hrm: 'afas', afas_profit_fin: 'afas',
   nedap_ons: 'ons',
+  kikv_csv: 'kikv_csv',
   chipsoft_hix: 'epd_ecd', epic: 'epd_ecd',
 }
 

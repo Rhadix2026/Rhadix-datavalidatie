@@ -1,4 +1,5 @@
 import { Nav, Page, PageTitle } from '../components/UI'
+import { MijnTakenWidget } from '../components/TaskUI'
 
 const IS_PROD = (import.meta.env.VITE_RHADIX_ENV || 'production') === 'production'
 const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || (IS_PROD ? 'https://uitvraag.rhadix.nl'    : 'https://uitvraag-staging.rhadix.nl')
@@ -8,7 +9,7 @@ const CRM_URL = import.meta.env.VITE_CRM_URL || (IS_PROD ? 'https://crm.rhadix.n
 const CRM_ACTIVE = true  // CRM live op staging én productie
 
 // Post-login portal: de drie applicaties als kaart-grid (zoals 'Kies een standaard').
-export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onLogout }) {
+export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onLogout, onTasks }) {
   const withBrand = (url) => {
     if (brand !== 'suresync' || !url) return url
     try { const u = new URL(url); u.searchParams.set('brand', 'suresync'); return u.toString() }
@@ -52,6 +53,9 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
            onLogout={onLogout} right={sureSyncToggle} />
       <Page>
         <PageTitle title="Kies een applicatie" sub="De Rhadix-applicaties binnen het platform — in dienst van de Rhadix Index." />
+        {authUser && onTasks && (
+          <div style={{ marginBottom: 20 }}><MijnTakenWidget onOpen={onTasks} /></div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
           {APPS.map(a => {
             const locked = (a.id === 'ds' && !DATASTATION_ACTIVE) || (a.id === 'crm' && !CRM_ACTIVE)

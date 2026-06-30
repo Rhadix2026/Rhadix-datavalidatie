@@ -229,6 +229,7 @@ export default function App() {
           onLogin={() => setStep('systems')}
           brand={brand} onBrandChange={changeBrand}
           authUser={authUser}
+          onTasks={() => setStep('tasks')}
           onDashboard={() => setStep('user_dashboard')}
           onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
           onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
@@ -242,7 +243,7 @@ export default function App() {
       )}
 
       {step === 'tasks' && (
-        <Taken authUser={authUser} onBack={() => setStep('systems')} />
+        <Taken authUser={authUser} onBack={() => setStep('portal')} />
       )}
 
       {step === 'org_admin' && (
@@ -259,7 +260,6 @@ export default function App() {
           }}
           onBack={() => setStep('portal')}
           authUser={authUser}
-          onTasks={() => setStep('tasks')}
           onDashboard={() => setStep('user_dashboard')}
           onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
           onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}

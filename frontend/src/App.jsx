@@ -21,6 +21,7 @@ import { Advies, Actieplan }   from './pages/Advies'
 import Stap2Resultaat          from './pages/Stap2Resultaat'
 import ReconciliationDashboard from './pages/reconciliation/ReconciliationDashboard'
 import LoginScreen        from './pages/LoginScreen'
+import AuthAction         from './pages/AuthAction'
 import AppPortal          from './pages/AppPortal'
 import PlatformLanding    from './pages/PlatformLanding'
 import AdminDashboard     from './pages/AdminDashboard'
@@ -42,6 +43,14 @@ export default function App() {
   const [entry, setEntry]               = useState('landing')  // 'landing' | 'login'
   const [brand, setBrand]               = useState(getInitialBrand)   // 'rhadix' | 'suresync' (white-label, staging)
   const [authUser, setAuthUser]         = useState(null)   // { id, email, role, tenant_id, tenant_name }
+  const [authAction, setAuthAction]     = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search)
+      const action = p.get('action'), token = p.get('token')
+      if (token && ['reset', 'invite', 'verify'].includes(action)) return { action, token }
+    } catch { /* ignore */ }
+    return null
+  })
   const [systems, setSystems]           = useState([])
   const [standard, setStandard]         = useState('kikv')
   const [scanKey, setScanKey]           = useState(0)
@@ -76,6 +85,12 @@ export default function App() {
     setStep('portal')   // na inloggen: kies een applicatie
   }
 
+  const clearAuthAction = () => {
+    try { window.history.replaceState({}, '', window.location.pathname) } catch { /* ignore */ }
+    setAuthAction(null)
+    setEntry('login')
+  }
+
   const handleLogout = () => {
     clearAuthToken()
     setAuthUser(null)
@@ -94,6 +109,11 @@ export default function App() {
   const changeBrand = (b) => {
     try { sessionStorage.setItem('rhadix:brand', b) } catch { /* ignore */ }
     setBrand(b)
+  }
+
+  // ── Auth-actie via e-maillink (reset/invite/verify): vóór alles, ook indien uitgelogd ──
+  if (authAction) {
+    return <AuthAction action={authAction.action} token={authAction.token} onDone={clearAuthAction} />
   }
 
   // ── Guard: not authenticated ──────────────────────────────────────────────

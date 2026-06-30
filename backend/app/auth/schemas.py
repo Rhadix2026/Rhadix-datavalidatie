@@ -46,6 +46,24 @@ class PasswordChangeRequest(BaseModel):
         return v
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class SetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
 # ── Application — Phase 2 ─────────────────────────────────────────────────────
 
 class ApplicationResponse(BaseModel):

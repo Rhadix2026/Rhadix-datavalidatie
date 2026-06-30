@@ -5,7 +5,8 @@ POST /api/auth/login        — email + password → JWT
 GET  /api/auth/me           — current user profile
 PATCH /api/auth/me/password — change own password
 """
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -14,15 +15,23 @@ from sqlalchemy.orm import Session
 from app.audit import (
     LOGIN_BLOCKED, LOGIN_FAILURE, LOGIN_SUCCESS, LOGOUT,
     PASSWORD_CHANGED, PASSWORD_CHANGE_FAILED,
+    PASSWORD_RESET_REQUESTED, PASSWORD_RESET, INVITE_ACCEPTED, EMAIL_VERIFIED,
     audit_log,
 )
 from app.auth.brute_force import is_blocked, record_failure, record_success, seconds_until_unblocked
 from app.auth.token_blocklist import block_token
 from app.auth.dependencies import get_current_user
-from app.auth.schemas import LoginRequest, PasswordChangeRequest, TokenResponse, UserResponse
-from app.auth.security import create_access_token, hash_password, validate_password_strength, verify_password, get_jwks, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.auth.schemas import (
+    LoginRequest, PasswordChangeRequest, TokenResponse, UserResponse,
+    ForgotPasswordRequest, ResetPasswordRequest, SetPasswordRequest, VerifyEmailRequest,
+)
+from app.auth.security import (
+    create_access_token, hash_password, validate_password_strength, verify_password,
+    get_jwks, ACCESS_TOKEN_EXPIRE_MINUTES, generate_url_token, hash_url_token,
+)
 from app.database import get_db
-from app.models.auth_models import User, UserApplication, UserRole
+from app.models.auth_models import User, UserApplication, UserRole, AuthToken
+from app.services import mailer
 
 router = APIRouter(tags=["Auth"])
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -156,6 +165,10 @@ def change_password(
         email=current_user.email,
         tenant_id=str(current_user.tenant_id),
     )
+    try:
+        mailer.send_password_changed(current_user.email, current_user.full_name)
+    except Exception:
+        import logging; logging.getLogger("rhadix.mail").exception("password-changed mail faalde")
 
 
 @router.post("/logout", status_code=204)
@@ -184,3 +197,134 @@ def logout(
 def jwks():
     """Publieke sleutel(s) waarmee andere apps het centrale token kunnen verifiëren."""
     return get_jwks()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Wachtwoord-reset / uitnodiging / e-mailverificatie  (publiek, token-gebaseerd)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+RESET_TTL_MIN    = int(os.getenv("AUTH_RESET_TTL_MIN", "60"))
+INVITE_TTL_DAYS  = int(os.getenv("AUTH_INVITE_TTL_DAYS", "7"))
+VERIFY_TTL_HOURS = int(os.getenv("AUTH_VERIFY_TTL_HOURS", "24"))
+
+
+def _public_base() -> str:
+    return (os.getenv("PUBLIC_BASE_URL", "") or "").rstrip("/")
+
+
+def issue_token(db: Session, user: User, purpose: str, ttl: timedelta) -> str:
+    """Maak een eenmalig token aan, bewaar alleen de hash, retourneer de raw-waarde.
+
+    Eerdere ongebruikte tokens met hetzelfde doel worden ingetrokken (verwijderd),
+    zodat er per gebruiker hooguit één geldige link per doel bestaat.
+    """
+    db.query(AuthToken).filter(
+        AuthToken.user_id == user.id,
+        AuthToken.purpose == purpose,
+        AuthToken.used_at.is_(None),
+    ).delete(synchronize_session=False)
+    raw, h = generate_url_token()
+    db.add(AuthToken(
+        user_id=user.id, purpose=purpose, token_hash=h,
+        expires_at=datetime.now(timezone.utc) + ttl,
+    ))
+    db.commit()
+    return raw
+
+
+def action_link(action: str, raw: str) -> str:
+    base = _public_base()
+    return f"{base}/?action={action}&token={raw}"
+
+
+def consume_token(db: Session, raw: str, purpose: str) -> User | None:
+    """Valideer + verzilver een token. Retourneer de bijbehorende user of None."""
+    if not raw:
+        return None
+    tok = db.query(AuthToken).filter(
+        AuthToken.token_hash == hash_url_token(raw),
+        AuthToken.purpose == purpose,
+        AuthToken.used_at.is_(None),
+    ).first()
+    if not tok:
+        return None
+    now = datetime.now(timezone.utc)
+    exp = tok.expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp < now:
+        return None
+    user = db.query(User).filter(User.id == tok.user_id).first()
+    if not user:
+        return None
+    tok.used_at = now
+    db.commit()
+    return user
+
+
+@router.post("/forgot-password", status_code=204)
+def forgot_password(body: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    """Vraag een wachtwoord-resetlink aan. Antwoordt altijd 204 (geen account-enumeratie)."""
+    email = (body.email or "").lower().strip()
+    user = db.query(User).filter(User.email == email, User.is_active == True).first()
+    if user:
+        raw = issue_token(db, user, "reset", timedelta(minutes=RESET_TTL_MIN))
+        try:
+            mailer.send_password_reset(user.email, user.full_name, action_link("reset", raw), RESET_TTL_MIN)
+        except Exception:
+            import logging; logging.getLogger("rhadix.mail").exception("reset-mail faalde")
+        audit_log(PASSWORD_RESET_REQUESTED, request, user_id=str(user.id), email=user.email,
+                  tenant_id=str(user.tenant_id))
+    # Geen onderscheid naar de client of het adres bestaat.
+    return Response(status_code=204)
+
+
+@router.post("/reset-password", status_code=204)
+def reset_password(body: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    """Stel een nieuw wachtwoord in met een geldig reset-token."""
+    user = consume_token(db, body.token, "reset")
+    if not user:
+        raise HTTPException(status_code=400, detail="De link is ongeldig of verlopen. Vraag een nieuwe aan.")
+    try:
+        validate_password_strength(body.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    user.password_hash = hash_password(body.new_password)
+    user.email_verified = True
+    db.commit()
+    audit_log(PASSWORD_RESET, request, user_id=str(user.id), email=user.email, tenant_id=str(user.tenant_id))
+    try:
+        mailer.send_password_changed(user.email, user.full_name)
+    except Exception:
+        import logging; logging.getLogger("rhadix.mail").exception("password-changed mail faalde")
+    return Response(status_code=204)
+
+
+@router.post("/set-password", status_code=204)
+def set_password(body: SetPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    """Stel het eerste wachtwoord in via een uitnodigingslink (activeert het account)."""
+    user = consume_token(db, body.token, "invite")
+    if not user:
+        raise HTTPException(status_code=400, detail="De uitnodiging is ongeldig of verlopen. Vraag je beheerder om een nieuwe.")
+    try:
+        validate_password_strength(body.password)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    user.password_hash = hash_password(body.password)
+    user.is_active = True
+    user.email_verified = True
+    db.commit()
+    audit_log(INVITE_ACCEPTED, request, user_id=str(user.id), email=user.email, tenant_id=str(user.tenant_id))
+    return Response(status_code=204)
+
+
+@router.post("/verify-email", status_code=204)
+def verify_email(body: VerifyEmailRequest, request: Request, db: Session = Depends(get_db)):
+    """Bevestig een e-mailadres met een verificatie-token."""
+    user = consume_token(db, body.token, "verify")
+    if not user:
+        raise HTTPException(status_code=400, detail="De verificatielink is ongeldig of verlopen.")
+    user.email_verified = True
+    db.commit()
+    audit_log(EMAIL_VERIFIED, request, user_id=str(user.id), email=user.email, tenant_id=str(user.tenant_id))
+    return Response(status_code=204)

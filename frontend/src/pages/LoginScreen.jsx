@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
 import { TreeDecoration, ConstellationBg } from '../components/UI'
 import { currentBrand, brandLogo } from '../brand'
+import { forgotPassword } from '../services/api'
 
 export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrandChange }) {
   const [email,      setEmail]      = useState('')
@@ -9,6 +10,16 @@ export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrand
   const [loading,    setLoading]    = useState(false)
   const [error,      setError]      = useState('')
   const [showForgot, setShowForgot] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSent,  setForgotSent]  = useState(false)
+  const [forgotBusy,  setForgotBusy]  = useState(false)
+
+  async function submitForgot(e) {
+    e.preventDefault()
+    setForgotBusy(true)
+    try { await forgotPassword((forgotEmail || email).trim()) } catch { /* geen enumeratie tonen */ }
+    finally { setForgotBusy(false); setForgotSent(true) }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -185,12 +196,32 @@ export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrand
 
           {showForgot && (
             <div style={{
-              padding: '12px 14px', background: '#eff6ff',
+              padding: '14px 16px', background: '#eff6ff',
               border: '1px solid #bfdbfe', borderRadius: 'var(--radius)',
               fontSize: 13, color: '#1d4ed8', lineHeight: 1.55,
             }}>
-              <strong>Wachtwoord vergeten?</strong><br />
-              Neem contact op met de beheerder van uw organisatie. Uw beheerder kan via het beheerpaneel een nieuw wachtwoord voor u instellen.
+              {forgotSent ? (
+                <span>Als <strong>{(forgotEmail || email).trim() || 'dit adres'}</strong> bij ons bekend is, ontvang je een e-mail met een link om je wachtwoord opnieuw in te stellen. Check ook je spamfolder.</span>
+              ) : (
+                <>
+                  <strong>Wachtwoord vergeten?</strong>
+                  <p style={{ margin: '4px 0 10px', color: '#1e40af' }}>Vul je e-mailadres in; je ontvangt een resetlink per e-mail.</p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="email"
+                      value={forgotEmail || email}
+                      onChange={e => setForgotEmail(e.target.value)}
+                      placeholder="naam@organisatie.nl"
+                      style={{ ...inputStyle, flex: 1, padding: '8px 12px' }}
+                    />
+                    <button type="button" onClick={submitForgot} disabled={forgotBusy}
+                      style={{ background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 'var(--radius)',
+                        padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: forgotBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                      {forgotBusy ? 'Bezig…' : 'Verstuur link'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

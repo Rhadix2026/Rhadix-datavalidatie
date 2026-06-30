@@ -1,6 +1,7 @@
 import { MaakTakenButton } from '../components/TaskUI'
 import { useState } from 'react'
 import { Nav, NavBack, NavLink, Page , TruncationWarning } from '../components/UI'
+import BenchmarkBar from '../components/BenchmarkBar'
 
 function ScoreBadge({ value, size = 'md' }) {
   const color = value >= 85 ? '#059669' : value >= 65 ? 'var(--blue)' : value >= 50 ? '#f59e0b' : '#ef4444'

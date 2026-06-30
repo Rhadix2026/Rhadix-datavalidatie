@@ -127,6 +127,9 @@ _ensure_auth_tokens()
 # Niet-destructief: bestaande gebruikers blijven onaangeroerd; de admin wordt
 # alleen aangemaakt als die nog niet bestaat. Met AUTH_RESET=0 sla je dit over.
 # ---------------------------------------------------------------------------
+_LEGACY_ADMIN_EMAIL = "admin@rhadix.nl"
+
+
 def _ensure_admin() -> None:
     if os.getenv("AUTH_RESET", "1").lower() in ("0", "false", "no"):
         return
@@ -136,18 +139,36 @@ def _ensure_admin() -> None:
         from app.models.auth_models import Tenant, User, UserRole
         from app.auth.security import hash_password
 
-        email = "admin@rhadix.nl"
-        password = "Rhadixvoordezorg26!"
+        # Configureerbaar admin-adres (env). Default = het legacy-adres, zodat
+        # bestaande omgevingen ongewijzigd blijven. Zet RHADIX_ADMIN_EMAIL naar een
+        # echt adres om de platform-admin daarheen te laten verwijzen.
+        email = (os.getenv("RHADIX_ADMIN_EMAIL") or _LEGACY_ADMIN_EMAIL).lower().strip()
+        password = os.getenv("RHADIX_ADMIN_PASSWORD") or "Rhadixvoordezorg26!"
         db = SessionLocal()
         try:
             existing = db.query(User).filter(User.email == email).first()
+
+            # Niet-destructieve migratie: als het doeladres nog niet bestaat maar het
+            # oude admin@rhadix.nl wel, hernoem dat account (behoudt id/rol/app-toegang)
+            # i.p.v. een tweede admin aan te maken.
+            if not existing and email != _LEGACY_ADMIN_EMAIL:
+                legacy = db.query(User).filter(User.email == _LEGACY_ADMIN_EMAIL).first()
+                if legacy:
+                    legacy.email = email
+                    existing = legacy
+                    log.info("Admin hernoemd van %s naar %s.", _LEGACY_ADMIN_EMAIL, email)
+
             if existing:
-                # Wachtwoord/rol afdwingen op de bestaande admin -- andere gebruikers onaangeroerd
-                existing.password_hash = hash_password(password)
+                # Rol/actief/geverifieerd afdwingen; andere gebruikers onaangeroerd.
                 existing.is_active = True
                 existing.role = UserRole.RHADIX_ADMIN
+                existing.email_verified = True
+                # Wachtwoord alleen (her)zetten als het ontbreekt of expliciet via env meegegeven.
+                if not existing.password_hash or os.getenv("RHADIX_ADMIN_PASSWORD"):
+                    existing.password_hash = hash_password(password)
                 db.commit()
                 return
+
             tenant = db.query(Tenant).filter(Tenant.slug == "rhadix-platform").first()
             if not tenant:
                 tenant = Tenant(id=uuid.uuid4(), slug="rhadix-platform",
@@ -157,7 +178,7 @@ def _ensure_admin() -> None:
             db.add(User(
                 id=uuid.uuid4(), tenant_id=tenant.id, email=email,
                 password_hash=hash_password(password), full_name="Rhadix Admin",
-                role=UserRole.RHADIX_ADMIN, is_active=True,
+                role=UserRole.RHADIX_ADMIN, is_active=True, email_verified=True,
             ))
             db.commit()
             log.info("Admin %s ensured.", email)

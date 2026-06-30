@@ -48,6 +48,9 @@ def send_email(to: str, subject: str, html: str, text: str | None = None) -> boo
     msg["Subject"] = subject
     msg["From"]    = formataddr((name, sender))
     msg["To"]      = to
+    reply_to = os.getenv("SMTP_REPLY_TO")   # bv. support@rhadix.nl (zodra die postbus bestaat)
+    if reply_to:
+        msg["Reply-To"] = reply_to
     msg.set_content(text or _html_to_text(html))
     msg.add_alternative(html, subtype="html")
 

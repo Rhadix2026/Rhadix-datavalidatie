@@ -52,6 +52,13 @@ services:
       SMTP_FROM:       ${SMTP_FROM:-noreply@rhadix.nl}
       SMTP_FROM_NAME:  ${SMTP_FROM_NAME:-Rhadix}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://app.rhadix.nl}
+      # ── Platform-admin + auth-mail (optioneel; uit .env / mail.env) ──
+      RHADIX_ADMIN_EMAIL:    ${RHADIX_ADMIN_EMAIL:-}
+      RHADIX_ADMIN_PASSWORD: ${RHADIX_ADMIN_PASSWORD:-}
+      SMTP_REPLY_TO:         ${SMTP_REPLY_TO:-}
+      AUTH_RESET_TTL_MIN:    ${AUTH_RESET_TTL_MIN:-60}
+      AUTH_INVITE_TTL_DAYS:  ${AUTH_INVITE_TTL_DAYS:-7}
+      AUTH_VERIFY_TTL_HOURS: ${AUTH_VERIFY_TTL_HOURS:-24}
     volumes:
       - rhadix_profiles:/app/data/profiles
     ports:

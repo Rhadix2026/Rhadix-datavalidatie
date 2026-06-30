@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Nav, NavLink, Page, BtnPrimary, ProgressBar, StatusBadge, ExpandableIssueRow, GapRow, NavBack } from '../components/UI'
+import { Nav, NavLink, Page, BtnPrimary, ProgressBar, StatusBadge, ExpandableIssueRow, GapRow, NavBack , TruncationWarning } from '../components/UI'
 
 const ZIB_DOMAINS = [
   { key: 'patient',           icon: '🧑',  label: 'Patiënt / Cliënt',  schema: 'patient',           zib: 'nl.zorg.Patient' },
@@ -108,6 +108,7 @@ export default function ZibDashboard({ results, onNewScan, onActuality, onTracea
 
       <Page>
         {/* Header */}
+        <TruncationWarning truncation={results.truncation} />
         <div style={{ marginBottom: 20 }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,

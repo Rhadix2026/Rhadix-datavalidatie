@@ -194,13 +194,20 @@ jobs:
             DB_NAME=kikv_validator
             FRONTEND_PORT=5174
             BACKEND_PORT=8010
+            SSO_COOKIE_DOMAIN=.rhadix.nl
+            JWT_ISSUER=suresync-id
             ENVEOF
 
             echo "RHADIX_VERSION=$VERSION"                                    >> /opt/rhadix-app/.env.production
             echo "DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}"               >> /opt/rhadix-app/.env.production
             echo "RHADIX_LICENSE_KEY=${{ secrets.PROD_LICENSE_KEY }}"        >> /opt/rhadix-app/.env.production
             echo "JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}"         >> /opt/rhadix-app/.env.production
+            # durabele RS256-privésleutel uit persistent server-bestand (los van GitHub-secret)
+            cat /opt/rhadix-app/jwt_private.env >> /opt/rhadix-app/.env.production 2>/dev/null || true
             chmod 600 /opt/rhadix-app/.env.production
+            if [ -f /opt/rhadix-app/mail.env ]; then
+              cat /opt/rhadix-app/mail.env >> /opt/rhadix-app/.env.production
+            fi
 
             # ── Login bij GHCR ────────────────────────────────────────────────
             echo "${{ secrets.GITHUB_TOKEN }}" | \

@@ -444,3 +444,58 @@ export async function adminUpdateUser(userId, data) {
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+// ---------------------------------------------------------------------------
+// Taken / workflow (generieke module)
+// ---------------------------------------------------------------------------
+
+export async function listTasks({ scope = 'mine', status = '', assigneeId = '' } = {}) {
+  const qs = new URLSearchParams({ scope })
+  if (status) qs.set('status', status)
+  if (assigneeId) qs.set('assignee_id', assigneeId)
+  const res = await apiFetch(`${BASE}/tasks?${qs.toString()}`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function taskSummary() {
+  const res = await apiFetch(`${BASE}/tasks/summary`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function assignableUsers() {
+  const res = await apiFetch(`${BASE}/tasks/assignable-users`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function createTask(body) {
+  const res = await apiFetch(`${BASE}/tasks`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function createTasksBulk(body) {
+  const res = await apiFetch(`${BASE}/tasks/bulk`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function updateTask(id, body) {
+  const res = await apiFetch(`${BASE}/tasks/${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function deleteTask(id) {
+  const res = await apiFetch(`${BASE}/tasks/${id}`, { method: 'DELETE' })
+  if (!res.ok && res.status !== 204) throw new Error(await res.text())
+  return true
+}

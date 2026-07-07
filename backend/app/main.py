@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
-from app.routers import validate, history, reference, export, reports, profiles
+from app.routers import validate, history, reference, export, reports, profiles, tasks
 from app.routers.admin import router as admin_router
 from app.routers.org import router as org_router
 from app.routers.dashboard import router as dashboard_router
@@ -87,39 +87,168 @@ def _run_migrations() -> None:
 
 _run_migrations()
 
+# ---------------------------------------------------------------------------
+# Vangnet: borg dat de tasks-tabel bestaat, los van Alembic.
+# (Alembic-fouten worden hierboven afgevangen; mocht migratie 0004 niet zijn
+#  toegepast, dan maken we de tabel hier idempotent aan — net als andere apps.)
+# ---------------------------------------------------------------------------
+def _ensure_tasks_table() -> None:
+    try:
+        from app.database import engine
+        from app.models.task_models import Task
+        Task.__table__.create(bind=engine, checkfirst=True)
+        log.info("tasks-tabel geborgd (checkfirst).")
+    except Exception:
+        import traceback
+        log.error("Kon tasks-tabel niet borgen:\n%s", traceback.format_exc())
 
-def _reset_single_admin() -> None:
-    """Tijdelijke testopzet: verwijder alle gebruikers en zet één vaste
-    RHADIX_ADMIN neer. Inloggegevens in de app gebakken; AUTH_RESET=0 slaat dit over."""
+_ensure_tasks_table()
+
+
+# ---------------------------------------------------------------------------
+# Borg dat de vaste RHADIX_ADMIN in elke omgeving bestaat.
+# Niet-destructief: bestaande gebruikers blijven onaangeroerd; de admin wordt
+# alleen aangemaakt als die nog niet bestaat. Met AUTH_RESET=0 sla je dit over.
+# ---------------------------------------------------------------------------
+def _ensure_admin() -> None:
     if os.getenv("AUTH_RESET", "1").lower() in ("0", "false", "no"):
         return
     try:
         import uuid
-        from sqlalchemy import text
         from app.database import SessionLocal
         from app.models.auth_models import Tenant, User, UserRole
         from app.auth.security import hash_password
-        email = "admin@rhadix.nl"; password = "Rhadixvalidatie26!"
+
+        email = "admin@rhadix.nl"
+        password = "Rhadixvoordezorg26!"
         db = SessionLocal()
         try:
-            db.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
-            db.commit()
+            existing = db.query(User).filter(User.email == email).first()
+            if existing:
+                # Wachtwoord/rol afdwingen op de bestaande admin -- andere gebruikers onaangeroerd
+                existing.password_hash = hash_password(password)
+                existing.is_active = True
+                existing.role = UserRole.RHADIX_ADMIN
+                db.commit()
+                return
             tenant = db.query(Tenant).filter(Tenant.slug == "rhadix-platform").first()
             if not tenant:
-                tenant = Tenant(id=uuid.uuid4(), slug="rhadix-platform", name="Rhadix Platform", is_active=True)
-                db.add(tenant); db.flush()
-            db.add(User(id=uuid.uuid4(), tenant_id=tenant.id, email=email,
-                        password_hash=hash_password(password), full_name="Rhadix Admin",
-                        role=UserRole.RHADIX_ADMIN, is_active=True))
+                tenant = Tenant(id=uuid.uuid4(), slug="rhadix-platform",
+                                name="Rhadix Platform", is_active=True)
+                db.add(tenant)
+                db.flush()
+            db.add(User(
+                id=uuid.uuid4(), tenant_id=tenant.id, email=email,
+                password_hash=hash_password(password), full_name="Rhadix Admin",
+                role=UserRole.RHADIX_ADMIN, is_active=True,
+            ))
             db.commit()
-            log.info("Auth reset: single admin %s ready.", email)
+            log.info("Admin %s ensured.", email)
         finally:
             db.close()
     except Exception:
-        import traceback; log.error("Auth reset failed:\n%s", traceback.format_exc())
+        import traceback
+        log.error("Ensure admin failed:\n%s", traceback.format_exc())
 
 
-_reset_single_admin()
+_ensure_admin()
+
+
+# ---------------------------------------------------------------------------
+# Borg de product-Applications (centrale toegangssturing voor het hele platform).
+# Idempotent; veilig op elke omgeving.
+# ---------------------------------------------------------------------------
+def _ensure_apps() -> None:
+    try:
+        import uuid
+        from app.database import SessionLocal
+        from app.models.auth_models import Application
+        wanted = [
+            ("datavalidatie", "Rhadix Datavalidatie", "Datakwaliteit & validatie (readiness scan).", 10),
+            ("uitvraag",      "Rhadix Uitvraag",      "Afnemerskant: gevalideerde vragen uitzetten.", 11),
+            ("datastation",   "Rhadix Datastation",   "Rekenhart: lokale SPARQL/Fuseki bij de bron.", 12),
+        ]
+        db = SessionLocal()
+        try:
+            for slug, name, desc, order in wanted:
+                if not db.query(Application).filter(Application.slug == slug).first():
+                    db.add(Application(id=uuid.uuid4(), slug=slug, name=name,
+                                       description=desc, is_active=True, sort_order=order))
+            db.commit()
+        finally:
+            db.close()
+    except Exception:
+        import traceback
+        log.error("Ensure apps failed:\n%s", traceback.format_exc())
+
+
+_ensure_apps()
+
+
+# ---------------------------------------------------------------------------
+# Borg een werkende demo-login (demo1@rhadix.nl) met app-toegang.
+# Idempotent en niet-destructief; met AUTH_RESET=0 sla je dit over.
+# ---------------------------------------------------------------------------
+def _ensure_demo_user() -> None:
+    # DEMO_SEED expliciet wint; anders standaard alleen op staging seeden.
+    _demo = os.getenv("DEMO_SEED")
+    if _demo is not None:
+        if _demo.lower() in ("0", "false", "no"):
+            return
+    elif os.getenv("RHADIX_ENV", "").lower() != "staging":
+        return
+    try:
+        import uuid
+        from app.database import SessionLocal
+        from app.models.auth_models import (Tenant, User, UserRole,
+                                            Application, TenantApplication, UserApplication)
+        from app.auth.security import hash_password
+
+        email = "demo1@rhadix.nl"
+        password = "Demogebruiker1!"
+        db = SessionLocal()
+        try:
+            tenant = db.query(Tenant).filter(Tenant.slug == "rhadix-demo").first()
+            if not tenant:
+                tenant = Tenant(id=uuid.uuid4(), slug="rhadix-demo",
+                                name="Rhadix Demo", is_active=True)
+                db.add(tenant)
+                db.flush()
+            user = db.query(User).filter(User.email == email).first()
+            if not user:
+                user = User(id=uuid.uuid4(), tenant_id=tenant.id, email=email,
+                            password_hash=hash_password(password),
+                            full_name="Demo Gebruiker",
+                            role=UserRole.ORG_ADMIN, is_active=True)
+                db.add(user)
+                db.flush()
+            # App-toegang voor alle actieve applicaties (idempotent).
+            for app_row in db.query(Application).filter(Application.is_active == True).all():
+                ta = db.query(TenantApplication).filter(
+                    TenantApplication.tenant_id == tenant.id,
+                    TenantApplication.application_id == app_row.id).first()
+                if not ta:
+                    ta = TenantApplication(id=uuid.uuid4(), tenant_id=tenant.id,
+                                           application_id=app_row.id)
+                    db.add(ta)
+                    db.flush()
+                ua = db.query(UserApplication).filter(
+                    UserApplication.user_id == user.id,
+                    UserApplication.application_id == app_row.id).first()
+                if not ua:
+                    db.add(UserApplication(id=uuid.uuid4(), user_id=user.id,
+                                           application_id=app_row.id,
+                                           tenant_application_id=ta.id))
+            db.commit()
+            log.info("Demo-user %s geborgd met app-toegang.", email)
+        finally:
+            db.close()
+    except Exception:
+        import traceback
+        log.error("Ensure demo user failed:\n%s", traceback.format_exc())
+
+
+_ensure_demo_user()
 
 # ---------------------------------------------------------------------------
 # FastAPI application
@@ -173,6 +302,7 @@ app.include_router(admin_router,      prefix="/api/admin",         tags=["Admin"
 app.include_router(org_router,        prefix="/api/org",           tags=["Org"])
 
 # ── Dashboard (alle rollen, met per-endpoint autorisatie) ─────────────────────
+app.include_router(tasks.router,      prefix="/api/tasks",         tags=["Tasks"])
 app.include_router(dashboard_router)
 
 

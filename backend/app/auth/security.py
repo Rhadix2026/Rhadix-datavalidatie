@@ -79,20 +79,62 @@ def verify_password(plain: str, hashed: str) -> bool:
 # JWT helpers
 # ---------------------------------------------------------------------------
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a signed JWT access token.
+# ---------------------------------------------------------------------------
+# RS256 (optioneel) — centrale identiteit (SureSync ID) tekent asymmetrisch, zodat
+# andere apps met de PUBLIEKE sleutel kunnen verifiëren zonder gedeeld geheim.
+# Niet gezet => HS256 (huidig gedrag blijft werken).
+# ---------------------------------------------------------------------------
+def _load_key(name: str):
+    """Lees een PEM-sleutel uit env; accepteert raw PEM óf base64 (1 regel)."""
+    v = os.getenv(name)
+    if not v:
+        return None
+    v = v.strip()
+    if "BEGIN" in v:
+        return v
+    try:
+        import base64
+        return base64.b64decode(v).decode("utf-8")
+    except Exception:
+        return v
 
-    The ``data`` dict is copied and an ``exp`` claim is added.
-    Caller should pass at least ``{"sub": str(user.id), "role": user.role, "tenant_id": str(user.tenant_id)}``.
-    """
+
+PRIVATE_KEY = _load_key("JWT_PRIVATE_KEY")   # PEM (RSA private) of base64
+PUBLIC_KEY  = _load_key("JWT_PUBLIC_KEY")    # PEM (RSA public) of base64
+KID         = os.getenv("JWT_KID", "suresync-id-1")
+ISSUER      = os.getenv("JWT_ISSUER", "suresync-id")
+USE_RS256   = bool(PRIVATE_KEY and PUBLIC_KEY)
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create a signed JWT access token (RS256 als sleutels gezet zijn, anders HS256)."""
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     to_encode["exp"] = expire
+    to_encode.setdefault("iss", ISSUER)
+    if USE_RS256:
+        return jwt.encode(to_encode, PRIVATE_KEY, algorithm="RS256", headers={"kid": KID})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def decode_access_token(token: str) -> dict:
-    """Decode and validate a JWT; raises JWTError on failure."""
-    return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    """Decode/valideer een JWT; ondersteunt RS256 (centrale sleutel) én HS256."""
+    try:
+        alg = jwt.get_unverified_header(token).get("alg")
+    except Exception:
+        alg = ALGORITHM
+    if alg == "RS256" and PUBLIC_KEY:
+        return jwt.decode(token, PUBLIC_KEY, algorithms=["RS256"], options={"verify_aud": False})
+    return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_aud": False})
+
+
+def get_jwks() -> dict:
+    """JWKS met de publieke sleutel (leeg als RS256 niet geconfigureerd is)."""
+    if not PUBLIC_KEY:
+        return {"keys": []}
+    from jose import jwk
+    k = jwk.construct(PUBLIC_KEY, "RS256").to_dict()
+    k.update({"use": "sig", "alg": "RS256", "kid": KID})
+    return {"keys": [k]}

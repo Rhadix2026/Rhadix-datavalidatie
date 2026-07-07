@@ -46,7 +46,7 @@
 
 :root {
   /* ── Rhadix brand palette ───────────────────────────── */
-  --blue:        #1A2847;   /* Rhadix navy – primary       */
+  --blue:        #1A2847;   /* Rhadix navy – primary (productie) */
   --blue-dark:   #0F1A30;   /* deep navy                   */
   --blue-hero:   #1A2847;   /* hero / nav background       */
   --blue-light:  #E8F2FA;   /* very light blue tint        */
@@ -181,4 +181,30 @@ h1, h2, h3 {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+
+/* ── Staging-palet (salie groen) — alleen als de app met VITE_RHADIX_ENV=staging
+   is gebouwd; productie blijft navy. Voorkomt dat een merge het palet wisselt. ── */
+:root[data-env="staging"] {
+  --blue:        #2A4A38;
+  --blue-dark:   #1A3025;
+  --blue-hero:   #2A4A38;
+  --blue-light:  #EBF5EF;
+  --blue-mid:    #BAD4C2;
+  --rhadix-accent: #52876A;
+  --rhadix-sub:  #7AA890;
+}
+
+
+/* ── SureSync white-label palet (uit officieel logo: violet #7344F3 + navy #101948) — alleen actief als data-brand=suresync
+   gezet is (staging-demo). Staat na de staging-override zodat merk wint van omgeving. ── */
+:root[data-brand="suresync"] {
+  --blue:        #7344F3;   /* SureSync violet (primair/CTA) */
+  --blue-dark:   #0B1233;   /* diep navy */
+  --blue-hero:   #101948;   /* SureSync navy (nav/hero) */
+  --blue-light:  #EDE9FE;   /* lichte violet-tint */
+  --blue-mid:    #C4B5FD;   /* mid violet */
+  --rhadix-accent: #7344F3; /* violet accent */
+  --rhadix-sub:  #A99BE8;   /* gedempt violet (subtitels) */
 }

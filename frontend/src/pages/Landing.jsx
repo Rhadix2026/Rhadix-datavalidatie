@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { TreeDecoration } from '../components/UI'
+import { brandLogo, currentBrand } from '../brand'
+import { TreeDecoration, ConstellationBg } from '../components/UI'
+import { MijnTakenWidget } from '../components/TaskUI'
 
 function AnimatedCounter() {
   const [count, setCount] = useState(0)
@@ -54,7 +56,7 @@ function AnimatedCounter() {
   )
 }
 
-export default function Landing({ onStart, onProfiles, onReconciliation,
+export default function Landing({ onStart, onProfiles, onReconciliation, onTasks,
                                   onAdmin, onOrgAdmin,
                                   onDashboard, onOrgDashboard, onPlatformDashboard,
                                   authUser, onLogout }) {
@@ -70,15 +72,36 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
         flexShrink: 0,
       }}>
         <a href="https://rhadix.nl" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-          <img src="/rhadix-logo.jpg" alt="Rhadix" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
+          <img src={brandLogo()} alt="logo" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {authUser && onTasks && (
+            <button onClick={onTasks} style={{
+              background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
+              borderRadius: 'var(--radius)', padding: '6px 14px',
+              color: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font)',
+            }}>✓ Mijn taken</button>
+          )}
           {authUser && onDashboard && (
             <button onClick={onDashboard} style={{
               background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
               borderRadius: 'var(--radius)', padding: '6px 14px',
               color: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font)',
             }}>Dashboard</button>
+          )}
+          {authUser?.role === 'RHADIX_ADMIN' && onAdmin && (
+            <button onClick={onAdmin} style={{
+              background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
+              borderRadius: 'var(--radius)', padding: '6px 14px',
+              color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)',
+            }}>Beheer</button>
+          )}
+          {authUser?.role === 'ORG_ADMIN' && onOrgAdmin && (
+            <button onClick={onOrgAdmin} style={{
+              background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
+              borderRadius: 'var(--radius)', padding: '6px 14px',
+              color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)',
+            }}>Beheer</button>
           )}
           {onLogout && (
             <button onClick={onLogout} style={{
@@ -96,9 +119,11 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
           flex: 1, background: 'var(--blue-hero)',
           padding: '72px 64px', display: 'flex',
           flexDirection: 'column', justifyContent: 'center',
-          position: 'relative', overflow: 'hidden',
+          position: 'relative', overflow: 'hidden', isolation: 'isolate',
         }}>
-          <TreeDecoration />
+          {currentBrand() === 'suresync'
+            ? <ConstellationBg style={{ zIndex: -1 }} />
+            : <TreeDecoration />}
           {/* Logo placeholder verwijderd — logo staat in de header */}
 
           <div style={{
@@ -152,6 +177,8 @@ export default function Landing({ onStart, onProfiles, onReconciliation,
           display: 'flex', flexDirection: 'column', justifyContent: 'center',
           borderLeft: '1px solid var(--border)',
         }}>
+          {authUser && onTasks && <MijnTakenWidget onOpen={onTasks} />}
+
           <AnimatedCounter />
 
           <div style={{

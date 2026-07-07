@@ -7,6 +7,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.services.dataquality import is_date
+from app.services.rules import normalize_verzuimtype, VERZUIMTYPE_VALUES
+
 # ── AFAS Profit veldtemplates ──────────────────────────────────────────────────
 # Elke file-type heeft verplichte velden (required) en optionele velden (optional)
 # met bijbehorend type voor formaatvalidatie.
@@ -75,7 +78,7 @@ AFAS_TEMPLATES: dict[str, dict] = {
         "required": {
             "EmployeeId":    "id",
             "StartDate":     "date",
-            "AbsenceTypeId": "text",
+            "AbsenceTypeId": "verzuimtype",
         },
         "optional": {
             "BSN":          "bsn",
@@ -83,6 +86,70 @@ AFAS_TEMPLATES: dict[str, dict] = {
             "Presence":     "number",
             "ReasonId":     "text",
             "ReportDate":   "date",
+        },
+    },
+    "employers": {
+        "label": "AFAS Werkgevers",
+        "icon": "🏢",
+        "color": "#0891b2",
+        "source": "afas",
+        "detect": ["profit_employers", "profit_employer", "employers", "werkgever"],
+        "header_signature": {"employerid", "organisationid", "addressline1"},
+        "required": {
+            "EmployerId":     "id",
+            "Name":           "text",
+        },
+        "optional": {
+            "OrganisationId": "id",
+            "AddressLine1":   "text",
+            "AddressLine3":   "text",
+            "AddressLine4":   "text",
+            "DimAx1":         "text",
+            "DimAx2":         "text",
+            "DimAx3":         "text",
+            "DimAx4":         "text",
+            "DimAx5":         "text",
+            "UnitId":         "number",
+        },
+    },
+    "functions": {
+        "label": "AFAS Functies",
+        "icon": "🧩",
+        "color": "#7c3aed",
+        "source": "afas",
+        "detect": ["profit_functions", "profit_function", "functies", "functie"],
+        "header_signature": {"functionid", "functiondesc", "functiontype"},
+        "required": {
+            "FunctionId":   "id",
+            "FunctionDesc": "text",
+        },
+        "optional": {
+            "Employer":     "id",
+            "Blocked":      "text",
+            "FunctionType": "text",
+        },
+    },
+    "organisation": {
+        "label": "AFAS Organigram",
+        "icon": "🗂️",
+        "color": "#d97706",
+        "source": "afas",
+        "detect": ["profit_organizationchart", "organizationchart", "organigram"],
+        "header_signature": {"unitdesc", "upperunit", "level1"},
+        "required": {
+            "Unitd":    "id",
+            "UnitDesc": "text",
+        },
+        "optional": {
+            "Level":     "text",
+            "Manager":   "text",
+            "UpperUnit": "id",
+            "Level0":    "text",
+            "Level1":    "text",
+            "Level2":    "text",
+            "Level3":    "text",
+            "StartDate": "date",
+            "EndDate":   "date",
         },
     },
 }
@@ -207,13 +274,9 @@ def _valid_bsn(val: str) -> bool:
     return total % 11 == 0
 
 def _valid_date(val: str) -> bool:
-    val = val.strip()
-    patterns = [
-        r'^\d{4}-\d{2}-\d{2}$',          # yyyy-mm-dd
-        r'^\d{2}-\d{2}-\d{4}$',          # dd-mm-yyyy
-        r'^\d{2}/\d{2}/\d{4}$',          # dd/mm/yyyy
-    ]
-    return any(re.match(p, val) for p in patterns)
+    # Gedeelde primitief: zelfde formaten als de parser + kalendergeldigheid
+    # (Stap 0 doelarchitectuur; lost Noorderboog TB-007 op).
+    return is_date(val)
 
 def _valid_email(val: str) -> bool:
     return bool(re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', val.strip()))
@@ -226,7 +289,7 @@ def _valid_number(val: str) -> bool:
     except: return False
 
 def _valid_gender(val: str) -> bool:
-    return val.strip().upper() in ('M', 'V', 'W', 'O', 'MALE', 'FEMALE', 'MAN', 'VROUW')
+    return val.strip().upper() in ('M', 'V', 'W', 'O', 'X', 'MALE', 'FEMALE', 'MAN', 'VROUW')
 
 VALIDATORS = {
     "bsn":      _valid_bsn,
@@ -236,6 +299,7 @@ VALIDATORS = {
     "number":   _valid_number,
     "gender":   _valid_gender,
     "id":       lambda v: bool(v.strip()),
+    "verzuimtype": lambda v: normalize_verzuimtype(v) in VERZUIMTYPE_VALUES,
     "text":     lambda v: bool(v.strip()),
     "phone":    lambda v: bool(re.sub(r'\D', '', v)),
 }

@@ -3,6 +3,7 @@ import csv
 import json
 import xml.etree.ElementTree as ET
 import re
+import os
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -23,7 +24,7 @@ from app.services.sparql_validator import validate_use_cases
 
 router = APIRouter()
 
-MAX_ROWS = 2000  # cap per bestand om timeouts te voorkomen
+MAX_ROWS = int(os.getenv("RHADIX_MAX_ROWS", "100000"))  # harde bovengrens per bestand; ruim hoog zodat normale HR-exports niet stilletjes worden afgekapt
 
 # Mapping from 'standard' form-param to Application slug
 _STANDARD_TO_APP_SLUG = {
@@ -65,13 +66,14 @@ def parse_csv_bytes(content: bytes, filename: str, max_rows: int = MAX_ROWS) -> 
     reader = csv.DictReader(io.StringIO(text), delimiter=delim)
     headers = reader.fieldnames or []
     rows = []
+    total = 0
     for row in reader:
         clean = {k.strip('"').strip(): v.strip('"').strip() for k, v in row.items() if k}
         if any(v for v in clean.values()):
-            rows.append(clean)
-        if len(rows) >= max_rows:
-            break
-    return list(headers), rows
+            total += 1
+            if len(rows) < max_rows:
+                rows.append(clean)
+    return list(headers), rows, total
 
 
 def _normalize_xml_value(val: str) -> str:
@@ -93,35 +95,96 @@ def parse_xml_bytes(content: bytes, max_rows: int = MAX_ROWS) -> tuple[list, lis
     except ET.ParseError as e:
         raise ValueError(f"Ongeldig XML-bestand: {e}")
 
+    # AFAS kent twee exportvormen: named export (<Profit_Employees><Employee>) en
+    # GET-connector (<root><skip/><take/><rows><row>…). Kies de juiste container.
+    rows_el = root.find("rows")
+    container = rows_el if (rows_el is not None and len(list(rows_el)) > 0) else root
+
     headers_ordered: list[str] = []
     headers_seen: set[str] = set()
     rows: list[dict] = []
+    total = 0
 
-    for record in root:
+    for record in container:
         row: dict[str, str] = {}
         for field in record:
             tag = field.tag
-            val = _normalize_xml_value(field.text or "")
+            is_nil = (field.get("nil") or "").lower() == "true"
+            val = "" if is_nil else _normalize_xml_value(field.text or "")
             row[tag] = val
             if tag not in headers_seen:
                 headers_seen.add(tag)
                 headers_ordered.append(tag)
         if any(v for v in row.values()):
-            rows.append(row)
-        if len(rows) >= max_rows:
-            break
+            total += 1
+            if len(rows) < max_rows:
+                rows.append(row)
 
-    return headers_ordered, rows
+    return headers_ordered, rows, total
 
 
-def parse_upload(content: bytes, filename: str, ext: str) -> tuple[list, list]:
+def parse_json_bytes(content: bytes, max_rows: int = MAX_ROWS) -> tuple[list, list]:
+    """Parseer AFAS GetConnector JSON-exports.
+
+    Ondersteunt de REST GetConnector-envelope {"skip":..,"take":..,"rows":[..]},
+    een losse record-dict, en een platte lijst van records. Waarden worden
+    gestringificeerd en datums genormaliseerd, identiek aan de XML-parser, zodat
+    XML- en JSON-import dezelfde rijen opleveren. null -> "".
+    """
+    try:
+        data = json.loads(content.decode("utf-8-sig", errors="replace"))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Ongeldig JSON-bestand: {e}")
+
+    if isinstance(data, dict):
+        records = data.get("rows")
+        if records is None:
+            records = [data]            # losse record-dict -> één rij
+    elif isinstance(data, list):
+        records = data
+    else:
+        raise ValueError("JSON moet een object met 'rows' of een lijst van records zijn")
+
+    headers_ordered: list[str] = []
+    headers_seen: set[str] = set()
+    rows: list[dict] = []
+    total = 0
+
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        row: dict[str, str] = {}
+        for key, raw in record.items():
+            # bool -> "True"/"False" (str(bool) matcht AFAS-XML-casing); None -> ""
+            val = "" if raw is None else _normalize_xml_value(str(raw))
+            row[key] = val
+            if key not in headers_seen:
+                headers_seen.add(key)
+                headers_ordered.append(key)
+        if any(v for v in row.values()):
+            total += 1
+            if len(rows) < max_rows:
+                rows.append(row)
+
+    return headers_ordered, rows, total
+
+
+def parse_upload(content: bytes, filename: str, ext: str) -> tuple[list, list, int]:
     if ext == "csv":
         return parse_csv_bytes(content, filename)
     if ext == "xml":
         return parse_xml_bytes(content)
+    if ext == "json":
+        return parse_json_bytes(content)
     try:
         import openpyxl
-        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+        try:
+            # read_only=True gebruikt de streaming-reader die de volledige
+            # stylesheet niet inlaadt; omzeilt o.a. AFAS/Excel-exports die
+            # falen met "expected <class 'openpyxl.styles.fills.Fill'>".
+            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True, read_only=True)
+        except Exception:
+            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
         ws = wb.active
         all_rows = list(ws.iter_rows(values_only=True))
         headers = [str(c or "") for c in all_rows[0]] if all_rows else []
@@ -130,7 +193,7 @@ def parse_upload(content: bytes, filename: str, ext: str) -> tuple[list, list]:
             for row in all_rows[1:]
             if any(cell for cell in row)
         ]
-        return headers, rows
+        return headers, rows, len(rows)
     except Exception as e:
         raise HTTPException(400, f"Could not parse Excel file: {e}")
 
@@ -173,13 +236,20 @@ async def upload_and_validate(
                     )
 
     parsed = []
+    truncation_warnings = []
     for upload in files:
         content = await upload.read()
         ext = upload.filename.split(".")[-1].lower()
-        if ext not in ("csv", "xlsx", "xls", "xml"):
+        if ext not in ("csv", "xlsx", "xls", "xml", "json"):
             raise HTTPException(400, f"Unsupported file type: {ext}")
-        headers, rows = parse_upload(content, upload.filename, ext)
-        rows = rows[:MAX_ROWS]   # cap
+        headers, rows, total = parse_upload(content, upload.filename, ext)
+        rows = rows[:MAX_ROWS]   # harde bovengrens
+        if total > len(rows):
+            truncation_warnings.append({
+                "filename": upload.filename,
+                "verwerkt": len(rows),
+                "totaal":   total,
+            })
         parsed.append({"filename": upload.filename, "headers": headers, "rows": rows})
 
     # ── Actualiteit (altijd, voor alle bestanden) ─────────────────────────────
@@ -230,7 +300,7 @@ async def upload_and_validate(
             created_at = str(run.created_at)
         except Exception:
             pass
-        return {**result, "run_id": run_id, "created_at": created_at,
+        return {**result, "truncation": truncation_warnings, "run_id": run_id, "created_at": created_at,
                 "label": label or "Algemeen-scan", "benchmark": benchmark}
 
     # ── ZIB-pad ───────────────────────────────────────────────────────────────
@@ -302,6 +372,7 @@ async def upload_and_validate(
 
         return {
             **result,
+        "truncation": truncation_warnings,
             "run_id":      run_id,
             "created_at":  created_at,
             "concept_mapping": [],
@@ -450,6 +521,7 @@ async def upload_and_validate(
 
     return {
         **result,
+        "truncation": truncation_warnings,
         "run_id":          run_id,
         "created_at":      created_at,
         "concept_mapping": concept_results,

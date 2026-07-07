@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import EnvironmentBanner, { BANNER_HEIGHT } from './components/EnvironmentBanner'
 import { setAuthToken, clearAuthToken, login as apiLogin, getMe } from './services/api'
 import Landing                 from './pages/Landing'
+import { getInitialBrand } from './brand'
 import SelectSystems           from './pages/SelectSystems'
 import Upload                  from './pages/Upload'
 import Beschikbaarheid         from './pages/Beschikbaarheid'
@@ -21,9 +22,11 @@ import Stap2Resultaat          from './pages/Stap2Resultaat'
 import ReconciliationDashboard from './pages/reconciliation/ReconciliationDashboard'
 import LoginScreen        from './pages/LoginScreen'
 import AppPortal          from './pages/AppPortal'
+import PlatformLanding    from './pages/PlatformLanding'
 import AdminDashboard     from './pages/AdminDashboard'
 import OrgAdminDashboard  from './pages/OrgAdminDashboard'
 import UserDashboard      from './pages/UserDashboard'
+import Taken             from './pages/Taken'
 import OrgDashboard       from './pages/OrgDashboard'
 import PlatformDashboard  from './pages/PlatformDashboard'
 
@@ -36,7 +39,8 @@ import PlatformDashboard  from './pages/PlatformDashboard'
 
 export default function App() {
   const [step, setStep]                 = useState('login')
-  const [entry, setEntry]               = useState('portal')   // 'portal' | 'login'
+  const [entry, setEntry]               = useState('landing')  // 'landing' | 'login'
+  const [brand, setBrand]               = useState(getInitialBrand)   // 'rhadix' | 'suresync' (white-label, staging)
   const [authUser, setAuthUser]         = useState(null)   // { id, email, role, tenant_id, tenant_name }
   const [systems, setSystems]           = useState([])
   const [standard, setStandard]         = useState('kikv')
@@ -69,7 +73,7 @@ export default function App() {
     setAuthToken(access_token)
     const user = await getMe()
     setAuthUser(user)
-    setStep('landing')
+    setStep('portal')   // na inloggen: kies een applicatie
   }
 
   const handleLogout = () => {
@@ -85,12 +89,19 @@ export default function App() {
     return () => window.removeEventListener('rhadix:unauthorized', handler)
   }, [])
 
+  // White-label merk-laag: zet data-brand op <html> zodat het palet (index.css) volgt.
+  useEffect(() => { document.documentElement.dataset.brand = brand }, [brand])
+  const changeBrand = (b) => {
+    try { sessionStorage.setItem('rhadix:brand', b) } catch { /* ignore */ }
+    setBrand(b)
+  }
+
   // ── Guard: not authenticated ──────────────────────────────────────────────
   if (!authUser) {
     if (entry === 'login') {
-      return <LoginScreen onLogin={handleLogin} onBack={() => setEntry('portal')} />
+      return <LoginScreen onLogin={handleLogin} onBack={() => setEntry('landing')} brand={brand} onBrandChange={changeBrand} />
     }
-    return <AppPortal onLogin={() => setEntry('login')} />
+    return <PlatformLanding onLogin={() => setEntry('login')} brand={brand} onBrandChange={changeBrand} />
   }
 
   const completeUpload = (result) => {
@@ -213,9 +224,22 @@ export default function App() {
       {/* Verschuif content naar beneden als de banner zichtbaar is */}
       {BANNER_HEIGHT > 0 && <div style={{ height: BANNER_HEIGHT }} />}
 
+      {step === 'portal' && (
+        <AppPortal
+          onLogin={() => setStep('landing')}
+          brand={brand} onBrandChange={changeBrand}
+          authUser={authUser}
+          onDashboard={() => setStep('user_dashboard')}
+          onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
+          onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
+          onLogout={handleLogout}
+        />
+      )}
+
       {step === 'landing' && (
         <Landing
           onStart={() => setStep('systems')}
+          onTasks={() => setStep('tasks')}
           onProfiles={() => openProfiles('landing')}
           onReconciliation={canReconciliation ? () => setStep('reconciliation') : null}
           onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
@@ -238,6 +262,10 @@ export default function App() {
 
       {step === 'admin' && (
         <AdminDashboard onBack={() => setStep('landing')} />
+      )}
+
+      {step === 'tasks' && (
+        <Taken authUser={authUser} onBack={() => setStep('landing')} />
       )}
 
       {step === 'org_admin' && (
@@ -303,6 +331,7 @@ export default function App() {
           onProfiles={() => openProfiles('dashboard')}
           onReconciliation={canReconciliation ? () => setStep('reconciliation') : null}
           onHome={() => setStep('landing')}
+          authUser={authUser}
         />
       )}
       {step === 'stap2_resultaat' && (
@@ -359,6 +388,7 @@ export default function App() {
           onNewScan={startNewScan}
           onBack={() => setStep('landing')}
           onHome={() => setStep('landing')}
+          authUser={authUser}
         />
       )}
 

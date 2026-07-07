@@ -29,6 +29,7 @@ GESLACHT_ALLOWED = [
     {"value": "vrouw",   "label": "Vrouw"},
     {"value": "onbekend","label": "Onbekend"},
     {"value": "undifferentiated", "label": "Niet te bepalen"},
+    {"value": "x",       "label": "X (niet gespecificeerd)"},
     # EPD-varianten
     {"value": "m",       "label": "Man"},
     {"value": "v",       "label": "Vrouw"},

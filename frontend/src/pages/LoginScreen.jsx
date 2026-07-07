@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { BANNER_HEIGHT } from '../components/EnvironmentBanner'
-import { TreeDecoration } from '../components/UI'
+import { TreeDecoration, ConstellationBg } from '../components/UI'
+import { currentBrand, brandLogo } from '../brand'
 
-export default function LoginScreen({ onLogin, onBack }) {
+export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrandChange }) {
   const [email,      setEmail]      = useState('')
   const [password,   setPassword]   = useState('')
   const [loading,    setLoading]    = useState(false)
@@ -45,18 +46,22 @@ export default function LoginScreen({ onLogin, onBack }) {
       <div style={{
         flex: 1, background: 'var(--blue-hero)',
         display: 'flex', flexDirection: 'column',
-        position: 'relative', overflow: 'hidden',
+        position: 'relative', overflow: 'hidden', isolation: 'isolate',
       }}>
 
-        {/* Logo linksboven — klikbaar, terug naar rhadix.nl */}
-        <div style={{ padding: '32px 48px 0', flexShrink: 0 }}>
-          <a
-            href="https://rhadix.nl"
-            style={{ display: 'inline-block', textDecoration: 'none' }}
-            title="Terug naar rhadix.nl"
-          >
-            <img src="/rhadix-logo.jpg" alt="Rhadix" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
+        {/* Logo linksboven + (op staging) SureSync white-label-knop */}
+        <div style={{ padding: '32px 48px 0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
+          <a href="https://rhadix.nl" style={{ display: 'inline-block', textDecoration: 'none' }} title="Terug naar rhadix.nl">
+            <img src={brandLogo()} alt="logo" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
           </a>
+          {import.meta.env.VITE_RHADIX_ENV !== 'production' && onBrandChange && (
+            <button onClick={() => onBrandChange(brand === 'suresync' ? 'rhadix' : 'suresync')}
+              title="White-label demo (alleen staging)" style={{
+                background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.35)',
+                borderRadius: 99, padding: '6px 14px', color: '#fff', fontSize: 12.5, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'var(--font)',
+              }}>{brand === 'suresync' ? '← Rhadix' : 'SureSync ↗'}</button>
+          )}
         </div>
 
         {/* Tekst — verticaal gecentreerd in resterende ruimte */}
@@ -88,8 +93,10 @@ export default function LoginScreen({ onLogin, onBack }) {
           </p>
         </div>
 
-        {/* Boom-decoratie rechtonder */}
-        <TreeDecoration />
+        {/* Decoratie rechtonder (constellatie bij SureSync, anders boom) */}
+        {currentBrand() === 'suresync'
+          ? <ConstellationBg style={{ zIndex: -1 }} />
+          : <TreeDecoration />}
       </div>
 
       {/* ── Right — login form ────────────────────────────────────────────── */}
@@ -110,7 +117,8 @@ export default function LoginScreen({ onLogin, onBack }) {
           <p style={{ fontSize: 14, color: 'var(--text3)' }}>Voer uw e-mailadres en wachtwoord in.</p>
         </div>
 
-        {/* ── Demo-inloggegevens ── */}
+        {/* ── Demo-inloggegevens (alleen buiten productie) ── */}
+        {(import.meta.env.VITE_RHADIX_ENV || 'production') !== 'production' && (
         <div style={{
           background: '#f0fdf4', border: '1px solid #bbf7d0',
           borderRadius: 'var(--radius)', padding: '12px 14px',
@@ -130,6 +138,7 @@ export default function LoginScreen({ onLogin, onBack }) {
             <div>Wachtwoord: <code style={{ fontFamily: 'monospace', fontWeight: 600 }}>Demogebruiker1!</code></div>
           </div>
         </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

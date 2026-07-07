@@ -51,6 +51,51 @@ VERZUIMTYPE_ALLOWED = [
 
 VERZUIMTYPE_VALUES = [av["value"] for av in VERZUIMTYPE_ALLOWED]
 
+# ─── AFAS-verzuim mapping → KIK-V SoortVerzuim ────────────────────────────────
+# AFAS levert de verzuimsoort als code (AbsenceTypeId) en/of omschrijving
+# (AbsenceTypeDesc). Beide mappen we naar de KIK-V SoortVerzuim-waarden.
+# NB: bevestigd met domein/KIK-V (2026-06). Twijfelgevallen gemarkeerd.
+AFAS_VERZUIM_CODE_MAP = {
+    "a":   "bijzonder verlof",      # Adoptie
+    "b":   "ziek",                  # Bedrijfsongeval
+    "d":   "arbeidsongeschikt",     # Arbeidsongeschikt door derde
+    "o":   "ziek",                  # Overig ongeval
+    "p":   "bijzonder verlof",      # Pleegzorg
+    "z":   "ziek",                  # Ziek
+    "zb":  "ziek",                  # Ziek a.g.v. bevalling
+    "zod": "ziek",                  # Ziek a.g.v. orgaandonatie
+    "zzw": "zwangerschapsverlof",   # Ziek a.g.v. zwangerschap
+    "zw":  "zwangerschapsverlof",   # Zwangerschap / bevalling
+}
+AFAS_VERZUIM_DESC_MAP = {
+    "adoptie":                          "bijzonder verlof",
+    "bedrijfsongeval":                  "ziek",
+    "arbeidsongeschikt door derde":     "arbeidsongeschikt",
+    "overig ongeval":                   "ziek",
+    "pleegzorg":                        "bijzonder verlof",
+    "ziek":                             "ziek",
+    "ziek als gevolg van bevalling":    "ziek",
+    "ziek als gevolg van orgaandonatie":"ziek",
+    "ziek als gevolg van zwangerschap": "zwangerschapsverlof",
+    "zwangerschap / bevalling":         "zwangerschapsverlof",
+    "zwangerschap/bevalling":           "zwangerschapsverlof",
+}
+
+def normalize_verzuimtype(val) -> str:
+    """Map een AFAS-code of -omschrijving naar de KIK-V SoortVerzuim-waarde.
+    Geeft een al-geldige KIK-V-waarde ongewijzigd terug; onbekende waarden
+    blijven staan (worden dan terecht afgekeurd)."""
+    if val is None:
+        return ""
+    v = str(val).strip().lower()
+    if not v:
+        return ""
+    if v in VERZUIMTYPE_VALUES:        return v
+    if v in AFAS_VERZUIM_DESC_MAP:     return AFAS_VERZUIM_DESC_MAP[v]
+    if v in AFAS_VERZUIM_CODE_MAP:     return AFAS_VERZUIM_CODE_MAP[v]
+    return v
+
+
 # ─── FIELD_RULES — compleet regeloverzicht per schema/veld ────────────────────
 # concept_uri: URI van het bijbehorende KIK-V ontologieconcept (stap 2 validatie)
 FIELD_RULES: dict = {

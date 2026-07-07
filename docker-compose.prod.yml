@@ -34,11 +34,24 @@ services:
     environment:
       DATABASE_URL:        postgresql://${DB_USER:-kikv}:${DB_PASSWORD}@db:5432/${DB_NAME:-kikv_validator}
       JWT_SECRET_KEY:      ${JWT_SECRET_KEY:?Stel JWT_SECRET_KEY in als GitHub Secret / .env}
+      JWT_PRIVATE_KEY:     ${JWT_PRIVATE_KEY:-}
+      JWT_PUBLIC_KEY:      ${JWT_PUBLIC_KEY:-LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFtbkN3WXBrTGhIUmw5MVh3YXlEOApGMUx6cUFMUDhEdUFCTkZCTVJqR3c4QTNNeFdPeW5tTmxBc3FUMmpVMGU4aTFzZ2k2ZmljNzR5VkFiZGo0bDhDCjJpd3NRZHppTU5iRHl6UGpQTTJYTHd4dGREbjlMTUtOa1MyeHp4S1plYU82OFZ0V05lVlRTR1pONUR5UWgxZVYKYncyODV0ZlhPeVZTZndyUW9VenQvZ2IvSW95RDhCZ1F1cU5mV2hKZEhJZXF6SnFhM2hRRHlNWktLU0xpYktKQgo4NzhYcFUwK3YwRFVpSk1yWmNld0JFc2tvMXFLZ2NkZm5pWkF6WmxuRmFxU2ZYZ0lqb2NLNzlEZFN5aktkanFiCnh2NW1OT09JQ241QUhkeXY0ekJGaGpwdEZuVlJ6QWdEdUR0aW4vakFQeW9CYWJRci9EVUlUWmlaaUxVUzRmWFkKcVFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==}
+      JWT_ISSUER:          ${JWT_ISSUER:-suresync-id}
+      SSO_COOKIE_DOMAIN:   ${SSO_COOKIE_DOMAIN:-.rhadix.nl}
       RHADIX_LICENSE_KEY:  ${RHADIX_LICENSE_KEY:?Licentiesleutel verplicht — zie .env}
       FUSEKI_URL:          http://fuseki:3030
       FUSEKI_DATASET:      rhadix
       FUSEKI_USER:         admin
       FUSEKI_PASSWORD:     ${FUSEKI_PASSWORD:-rhadix-prod-admin}
+      # E-mail (taaknotificaties) — standaard uit; waarden uit /opt/rhadix-app/mail.env
+      MAIL_ENABLED:    ${MAIL_ENABLED:-false}
+      SMTP_HOST:       ${SMTP_HOST:-}
+      SMTP_PORT:       ${SMTP_PORT:-587}
+      SMTP_USER:       ${SMTP_USER:-}
+      SMTP_PASSWORD:   ${SMTP_PASSWORD:-}
+      SMTP_FROM:       ${SMTP_FROM:-noreply@rhadix.nl}
+      SMTP_FROM_NAME:  ${SMTP_FROM_NAME:-Rhadix}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://app.rhadix.nl}
     volumes:
       - rhadix_profiles:/app/data/profiles
     ports:

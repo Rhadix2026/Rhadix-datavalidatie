@@ -57,6 +57,7 @@ class CanonicalFile:
     total_rows: int = 0                                   # aangeleverd (voor de cap)
     source_type: Optional[str] = None                    # slice 2: bronherkenning
     record_type: Optional[str] = None                    # slice 2: record/schema
+    field_concepts: dict[str, str] = field(default_factory=dict)  # slice 3: bronkolom -> concept
 
     @property
     def processed_rows(self) -> int:
@@ -65,6 +66,10 @@ class CanonicalFile:
     @property
     def truncated(self) -> bool:
         return self.total_rows > self.processed_rows
+
+    def concept_for(self, source_column: str) -> Optional[str]:
+        """Het canonieke concept voor een bronkolom, of None."""
+        return self.field_concepts.get(source_column)
 
     def to_legacy_rows(self) -> list[dict]:
         """Levert de rijen in het bestaande dict[str, str]-formaat, zodat

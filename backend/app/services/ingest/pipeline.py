@@ -15,25 +15,31 @@ from __future__ import annotations
 from typing import Iterable, Mapping
 
 from app.services.ingest.canonical import CanonicalFile, CanonicalRow
+from app.services.ingest.sources import detect_source
 
 
 def to_canonical(filename: str, headers: list[str], raw_rows: list[dict],
-                 total: int | None = None) -> CanonicalFile:
+                 total: int | None = None, standard: str | None = None) -> CanonicalFile:
     """Bouw een CanonicalFile uit een reeds geparset bestand.
 
     `total` is het aantal aangeleverde rijen (voor de cap); valt terug op het
     aantal doorgegeven rijen als het niet bekend is.
     """
     rows = [CanonicalRow.from_raw(r) for r in raw_rows]
-    return CanonicalFile(
+    cf = CanonicalFile(
         filename=filename,
         fields=list(headers),
         rows=rows,
         total_rows=total if total is not None else len(rows),
     )
+    if standard:
+        match = detect_source(filename, headers, standard)
+        cf.source_type = match.standard
+        cf.record_type = match.record_type
+    return cf
 
 
-def ingest(parsed: Iterable[Mapping]) -> list[CanonicalFile]:
+def ingest(parsed: Iterable[Mapping], standard: str | None = None) -> list[CanonicalFile]:
     """Zet een reeks geparste bestanden om naar canonieke bestanden.
 
     Elk item is een mapping met sleutels `filename`, `headers`, `rows` en
@@ -46,5 +52,6 @@ def ingest(parsed: Iterable[Mapping]) -> list[CanonicalFile]:
             headers=p.get("headers", []),
             raw_rows=p.get("rows", []),
             total=p.get("total"),
+            standard=standard,
         ))
     return out

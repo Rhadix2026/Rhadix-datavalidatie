@@ -17,6 +17,7 @@ from typing import Iterable, Mapping
 from app.services.ingest.canonical import CanonicalFile, CanonicalRow
 from app.services.ingest.sources import detect_source
 from app.services.ingest.concepts import map_concepts
+from app.services.ingest.normalize import normalize_file
 
 
 def to_canonical(filename: str, headers: list[str], raw_rows: list[dict],
@@ -38,6 +39,7 @@ def to_canonical(filename: str, headers: list[str], raw_rows: list[dict],
         cf.source_type = match.standard
         cf.record_type = match.record_type
         cf.field_concepts = map_concepts(match.standard, match.record_type, headers)
+        normalize_file(cf)
     return cf
 
 

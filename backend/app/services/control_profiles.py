@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from app.services.algemeen_validator import ALL_TEMPLATES
+from app.services.zib_rules import ZIB_FIELD_RULES
 from app.services.controls import Finding, run_column, column_values
 
 
@@ -25,6 +26,7 @@ class Profile:
     record_type: str
     required: dict = field(default_factory=dict)   # {concept: check}
     optional: dict = field(default_factory=dict)   # {concept: check}
+    codelists: dict = field(default_factory=dict)  # {concept: [toegestane waarden]}
 
     @property
     def all_fields(self) -> dict:
@@ -41,6 +43,27 @@ def profile_from_algemeen_template(record_type: str) -> Optional[Profile]:
         required=dict(tpl.get("required", {})),
         optional=dict(tpl.get("optional", {})),
     )
+
+
+# ZIB-typen -> generieke check
+_ZIB_CHECK = {"bsn": "bsn", "date": "date", "code": "codelist", "numeric": "number",
+              "string": "text"}
+
+
+def profile_from_zib(record_type: str) -> Optional[Profile]:
+    """Bouw een profiel uit ZIB_FIELD_RULES (required/type/allowed_values -> check)."""
+    rules = ZIB_FIELD_RULES.get(record_type)
+    if not rules:
+        return None
+    required, optional, codelists = {}, {}, {}
+    for field_name, r in rules.items():
+        check = _ZIB_CHECK.get(r.get("type", "string"), "text")
+        (required if r.get("required") else optional)[field_name] = check
+        allowed = [av["value"] for av in r.get("allowed_values", []) if "value" in av]
+        if allowed:
+            codelists[field_name] = allowed
+    return Profile(record_type=record_type, required=required, optional=optional,
+                   codelists=codelists)
 
 
 def _column_for(cf, concept: str) -> Optional[str]:
@@ -79,7 +102,8 @@ def run_profile(cf, profile: Profile) -> list[Finding]:
         if col is None or col not in present:
             continue
         severity = "error" if concept in profile.required else "warning"
-        f = run_column(column_values(cf, col), concept, check, severity=severity)
+        allowed = profile.codelists.get(concept)
+        f = run_column(column_values(cf, col), concept, check, severity=severity, allowed=allowed)
         if f:
             findings.append(f)
 

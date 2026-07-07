@@ -38,7 +38,7 @@ def is_present(value) -> bool:
     return bool(str(value).strip())
 
 
-def check_value(check: str, value) -> bool:
+def check_value(check: str, value, allowed=None) -> bool:
     """True als de waarde slaagt voor de generieke check.
 
     Lege waarden zijn 'niet van toepassing' voor formaatchecks (True); alleen
@@ -49,14 +49,19 @@ def check_value(check: str, value) -> bool:
         return bool(s)
     if not s:
         return True
-    validator = _FORMAT_VALIDATORS.get(check)
+    if check in ("codelist", "code"):
+        if not allowed:
+            return True
+        return s.lower() in {str(a).strip().lower() for a in allowed}
+    key = "number" if check == "numeric" else check
+    validator = _FORMAT_VALIDATORS.get(key)
     if validator is None:
         return True
     return bool(validator(s))
 
 
 def run_column(values: Sequence, concept: str, check: str,
-               severity: str = "warning", max_examples: int = 5) -> Optional[Finding]:
+               severity: str = "warning", allowed=None, max_examples: int = 5) -> Optional[Finding]:
     """Draai één check over de waarden van één kolom. Geef een Finding met het
     aantal fouten + voorbeelden, of None als alles slaagt."""
     total = 0
@@ -67,7 +72,7 @@ def run_column(values: Sequence, concept: str, check: str,
         if check != "required" and not s:
             continue
         total += 1
-        if check_value(check, value):
+        if check_value(check, value, allowed=allowed):
             passed += 1
         elif len(examples) < max_examples:
             examples.append({"row": idx + 2, "value": s[:50]})

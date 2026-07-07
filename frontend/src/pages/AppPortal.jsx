@@ -31,9 +31,6 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
     { id: 'recon', icon: '🔁', label: 'Reconciliation Engine', laag: 'Bij de bron \u00b7 Vergelijking',
       color: '#0E7490', bg: '#ECFEFF', border: '#A5F3FC', actie: 'Openen \u2192',
       desc: 'Vergelijk verwachte indicatorwaarden uit brondata met actuele SPARQL-uitkomsten en analyseer afwijkingen op recordniveau.' },
-    { id: 'recon', icon: '🔁', label: 'Reconciliation Engine', laag: 'Bij de bron \u00b7 Vergelijking',
-      color: '#0E7490', bg: '#ECFEFF', border: '#A5F3FC', actie: 'Openen \u2192',
-      desc: 'Vergelijk verwachte indicatorwaarden uit brondata met actuele SPARQL-uitkomsten en analyseer afwijkingen op recordniveau.' },
   ]
 
   const open = (id) => {
@@ -41,7 +38,6 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
     else if (id === 'u') window.location.href = withBrand(UITVRAAG_URL)
     else if (id === 'ds' && DATASTATION_ACTIVE) window.location.href = withBrand(DATASTATION_URL)
     else if (id === 'crm' && CRM_ACTIVE) window.location.href = withBrand(CRM_URL)
-    else if (id === 'recon' && onReconciliation) onReconciliation()
     else if (id === 'recon' && onReconciliation) onReconciliation()
   }
 

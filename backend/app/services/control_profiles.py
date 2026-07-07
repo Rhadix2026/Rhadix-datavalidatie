@@ -17,6 +17,7 @@ from typing import Optional
 
 from app.services.algemeen_validator import ALL_TEMPLATES
 from app.services.zib_rules import ZIB_FIELD_RULES
+from app.services.validator import KIKV_REFERENCE
 from app.services.controls import Finding, run_column, column_values
 
 
@@ -62,6 +63,32 @@ def profile_from_zib(record_type: str) -> Optional[Profile]:
         allowed = [av["value"] for av in r.get("allowed_values", []) if "value" in av]
         if allowed:
             codelists[field_name] = allowed
+    return Profile(record_type=record_type, required=required, optional=optional,
+                   codelists=codelists)
+
+
+# KIK-V veld-niveau -> generieke check. De bespoke KIK-V-regels (dubbele
+# identifiers, cross-field, berekeningsregels) blijven in run_file_checks en
+# horen bij een rijker profiel (relationele/berekeningsregels) - latere stap.
+def profile_from_kikv(record_type: str) -> Optional[Profile]:
+    """Bouw een veld-niveau profiel uit KIKV_REFERENCE (required_cols, datumvelden,
+    overeenkomsttype-codelijst)."""
+    schema = KIKV_REFERENCE.get(record_type)
+    if not schema:
+        return None
+    required_cols = set(schema.get("required_cols", []))
+    concepts = list(schema.get("col_aliases", {}).keys())
+    allowed_types = schema.get("allowed_types", [])
+    required, optional, codelists = {}, {}, {}
+    for concept in concepts:
+        if "datum" in concept.lower():
+            check = "date"
+        elif concept == "overeenkomsttype" and allowed_types:
+            check = "codelist"
+            codelists[concept] = allowed_types
+        else:
+            check = "text"
+        (required if concept in required_cols else optional)[concept] = check
     return Profile(record_type=record_type, required=required, optional=optional,
                    codelists=codelists)
 

@@ -18,7 +18,7 @@ from typing import Optional
 from app.services.algemeen_validator import ALL_TEMPLATES
 from app.services.zib_rules import ZIB_FIELD_RULES
 from app.services.validator import KIKV_REFERENCE
-from app.services.controls import Finding, run_column, column_values
+from app.services.controls import Finding, run_column, run_unique, column_values
 
 
 @dataclass
@@ -28,6 +28,7 @@ class Profile:
     required: dict = field(default_factory=dict)   # {concept: check}
     optional: dict = field(default_factory=dict)   # {concept: check}
     codelists: dict = field(default_factory=dict)  # {concept: [toegestane waarden]}
+    unique: list = field(default_factory=list)     # concepten die uniek moeten zijn
 
     @property
     def all_fields(self) -> dict:
@@ -63,13 +64,19 @@ def profile_from_zib(record_type: str) -> Optional[Profile]:
         allowed = [av["value"] for av in r.get("allowed_values", []) if "value" in av]
         if allowed:
             codelists[field_name] = allowed
+    unique = _KIKV_UNIQUE.get(record_type, [])
+    unique = [c for c in unique if c in required or c in optional]
     return Profile(record_type=record_type, required=required, optional=optional,
-                   codelists=codelists)
+                   codelists=codelists, unique=unique)
 
 
 # KIK-V veld-niveau -> generieke check. De bespoke KIK-V-regels (dubbele
 # identifiers, cross-field, berekeningsregels) blijven in run_file_checks en
 # horen bij een rijker profiel (relationele/berekeningsregels) - latere stap.
+# Primaire identifiers die KIK-V op duplicaten controleert (dup_id).
+_KIKV_UNIQUE = {"medewerker": ["personeelsnummer"]}
+
+
 def profile_from_kikv(record_type: str) -> Optional[Profile]:
     """Bouw een veld-niveau profiel uit KIKV_REFERENCE (required_cols, datumvelden,
     overeenkomsttype-codelijst)."""
@@ -89,8 +96,10 @@ def profile_from_kikv(record_type: str) -> Optional[Profile]:
         else:
             check = "text"
         (required if concept in required_cols else optional)[concept] = check
+    unique = _KIKV_UNIQUE.get(record_type, [])
+    unique = [c for c in unique if c in required or c in optional]
     return Profile(record_type=record_type, required=required, optional=optional,
-                   codelists=codelists)
+                   codelists=codelists, unique=unique)
 
 
 def _column_for(cf, concept: str) -> Optional[str]:
@@ -131,6 +140,15 @@ def run_profile(cf, profile: Profile) -> list[Finding]:
         severity = "error" if concept in profile.required else "warning"
         allowed = profile.codelists.get(concept)
         f = run_column(column_values(cf, col), concept, check, severity=severity, allowed=allowed)
+        if f:
+            findings.append(f)
+
+    # 3. Uniciteit (relationele regel, bv. KIK-V dup_id).
+    for concept in profile.unique:
+        col = _column_for(cf, concept)
+        if col is None or col not in present:
+            continue
+        f = run_unique(column_values(cf, col), concept, severity="error")
         if f:
             findings.append(f)
 

@@ -90,3 +90,24 @@ def column_values(cf, source_column: str) -> list:
     """Genormaliseerde waarden (cell.value) van één bronkolom uit een CanonicalFile."""
     return [row.cells[source_column].value
             for row in cf.rows if source_column in row.cells]
+
+
+def run_unique(values: Sequence, concept: str, severity: str = "error",
+               max_examples: int = 5) -> Optional[Finding]:
+    """Signaleer dubbele (niet-lege) waarden in een kolom. `count` = het aantal
+    rijen dat betrokken is bij een duplicaat, gelijk aan KIK-V's `dup_id`."""
+    counts: dict = {}
+    for v in values:
+        s = "" if v is None else str(v).strip()
+        if s:
+            counts[s] = counts.get(s, 0) + 1
+    dupes = {v for v, c in counts.items() if c > 1}
+    if not dupes:
+        return None
+    involved = [v for v in values if (str(v).strip() if v is not None else "") in dupes]
+    examples = [{"value": v} for v in list(dupes)[:max_examples]]
+    return Finding(
+        concept=concept, check="unique", severity=severity, count=len(involved),
+        message=f"{len(dupes)} waarde(n) komen meerdere keren voor ({len(involved)} rijen).",
+        examples=examples,
+    )

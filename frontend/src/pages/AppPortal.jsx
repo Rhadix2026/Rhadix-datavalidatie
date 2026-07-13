@@ -9,7 +9,7 @@ const CRM_URL = import.meta.env.VITE_CRM_URL || (IS_PROD ? 'https://crm.rhadix.n
 const CRM_ACTIVE = true  // CRM live op staging én productie
 
 // Post-login portal: de drie applicaties als kaart-grid (zoals 'Kies een standaard').
-export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onLogout, onTasks }) {
+export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onLogout, onTasks, onReconciliation }) {
   const withBrand = (url) => {
     if (brand !== 'suresync' || !url) return url
     try { const u = new URL(url); u.searchParams.set('brand', 'suresync'); return u.toString() }
@@ -29,6 +29,9 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
     { id: 'crm', icon: '\u{1F91D}', label: 'Rhadix CRM', laag: 'Relatie \u00b7 Krachtenveld',
       color: '#7C3AED', bg: '#F3EEFF', border: '#DDD0FB', actie: CRM_ACTIVE ? 'Openen \u2192' : 'Binnenkort',
       desc: 'Stakeholder- en relatiebeheer rond RSO\u2019s en zorgaanbieders, met krachtenveld-analyse (invloed \u00d7 betrokkenheid).' },
+    { id: 'recon', icon: '🔁', label: 'Reconciliation Engine', laag: 'Bij de bron \u00b7 Vergelijking',
+      color: '#0E7490', bg: '#ECFEFF', border: '#A5F3FC', actie: 'Openen \u2192',
+      desc: 'Vergelijk verwachte indicatorwaarden uit brondata met actuele SPARQL-uitkomsten en analyseer afwijkingen op recordniveau.' },
   ]
 
   const open = (id) => {
@@ -36,6 +39,7 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
     else if (id === 'u') window.location.href = withBrand(UITVRAAG_URL)
     else if (id === 'ds' && DATASTATION_ACTIVE) window.location.href = withBrand(DATASTATION_URL)
     else if (id === 'crm' && CRM_ACTIVE) window.location.href = withBrand(CRM_URL)
+    else if (id === 'recon' && onReconciliation) onReconciliation()
   }
 
   const sureSyncToggle = (import.meta.env.VITE_RHADIX_ENV !== 'production' && onBrandChange) ? (

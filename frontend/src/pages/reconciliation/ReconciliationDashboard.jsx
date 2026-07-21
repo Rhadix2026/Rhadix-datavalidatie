@@ -1326,6 +1326,38 @@ function HappyFlowTab() {
     }
   }
 
+  // KIK-V implementatie-twin: synthetische happy-flow voorbeeldset (AVG-proof).
+  const KIKV_VOORBEELDSET = [
+    "medewerker_afas_hrm.csv","medewerker_ons.csv",
+    "werkovereenkomst_afas_hrm.csv","werkovereenkomst_ons.csv",
+    "verzuim_afas_hrm.csv","verzuim_ons.csv",
+    "client_ons.csv","clienten.csv","contracten.csv","medewerkers.csv",
+    "vestiging_ons.csv","functie_ons.csv",
+    "financieleboeking_afas_fin.csv","grootboekrubriek_afas_fin.csv","wlzkostenplaats_afas_fin.csv",
+  ];
+  async function loadVoorbeeldset() {
+    setLoading(true); setBatchResult(null);
+    try {
+      const fetched = await Promise.all(KIKV_VOORBEELDSET.map(async name => {
+        const r = await fetch(`/kikv-voorbeeldset/${name}`);
+        if (!r.ok) throw new Error(`kon ${name} niet laden`);
+        return new File([await r.blob()], name, { type: "text/csv" });
+      }));
+      setFiles(fetched);
+      const fd = new FormData();
+      fetched.forEach(f => fd.append("files", f, f.name));
+      if (selectedProfile) fd.append("profile_filename", selectedProfile);
+      const resp = await authFetch(`${API_BASE}/happy-flow/batch`, { method: "POST", body: fd });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        throw new Error(err.detail || resp.statusText);
+      }
+      setBatchResult(await resp.json());
+    } catch (err) {
+      alert("Fout bij laden voorbeeldset: " + err.message);
+    } finally { setLoading(false); }
+  }
+
   function exportHappyFlowCSV() {
     if (!batchResult) return;
     const header = ["indicator_id", "naam", "dataset", "uitkomst", "meegeteld", "totaal_rijen"];
@@ -1362,6 +1394,19 @@ function HappyFlowTab() {
         padding: 20, marginBottom: 20,
       }}>
         <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700 }}>Happy Flow — Batch upload</h3>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
+          <button onClick={loadVoorbeeldset} disabled={loading}
+            style={{ background: "var(--blue)", color: "#fff", border: "none", borderRadius: 8,
+                     padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            {loading ? "Bezig…" : "Laad KIK-V voorbeeldset"}
+          </button>
+          <a href="/kikv-voorbeeldset.zip" download
+            style={{ border: "1.5px solid var(--blue)", color: "var(--blue)", borderRadius: 8,
+                     padding: "8px 16px", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+            Download voorbeeldset (ZIP)
+          </a>
+          <span style={{ fontSize: 12, color: "#64748b" }}>Synthetische implementatie-twin — geen echte cliëntgegevens.</span>
+        </div>
 
         {/* Profiel dropdown */}
         <div style={{ marginBottom: 16 }}>

@@ -213,18 +213,20 @@ h1, h2, h3 {
 /* ── KIK-V demo-skin (uit Brandbook KIK-V 1.0: blauw #01689b, roze #ca005d, geel #ffce27).
    Alleen buiten productie via ?brand=kikv; staat na de overige blokken zodat merk wint. ── */
 :root[data-brand="kikv"] {
-  --blue:        #2e6896;   /* KIK-V blauw (primair/CTA/nav) — werkpalet */
-  --blue-dark:   #234f6f;   /* dieper blauw */
-  --blue-hero:   #2e6896;   /* nav / hero */
-  --blue-light:  #d5e1ea;   /* lichte blauw-tint (vlakken) */
-  --blue-mid:    #aec4d5;   /* mid blauw (badges) */
-  --rhadix-accent: #ba2a5e; /* KIK-V roze (accent/CTA) */
-  --rhadix-sub:  #5686ae;   /* gedempt blauw (subtitels) */
+  /* Roze-voorwaarts, conform kik-v-publicatieplatform.nl (thema #bd285f).
+     Primair/CTA = roze; blauw = frame (nav) waarop het roze logo uitkomt. */
+  --blue:        #bd285f;   /* KIK-V roze — primair / CTA / links / actief */
+  --blue-dark:   #9e2050;   /* dieper roze (hover) */
+  --blue-hero:   #2e6896;   /* blauw nav/hero-frame */
+  --blue-light:  #fae3ec;   /* lichte roze-tint (vlakken) */
+  --blue-mid:    #e4a9bf;   /* mid roze (badges) */
+  --rhadix-accent: #bd285f; /* roze accent */
+  --rhadix-sub:  #aec4d5;   /* licht blauw (subtitels op de blauwe nav) */
   --amber:       #c9a227;
   --font:        Verdana, Geneva, Tahoma, sans-serif;
   --font-brand:  Verdana, Geneva, Tahoma, sans-serif;
   --kikv-yellow: #fad94c;
-  --kikv-pink:   #ba2a5e;
+  --kikv-pink:   #bd285f;
 }
 /* KIK-V signatuur: geel-naar-roze accentbalk bovenaan de pagina */
 :root[data-brand="kikv"] body::before {

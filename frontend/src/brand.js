@@ -9,6 +9,12 @@ export const BRANDS = {
     logo: '/rhadix-logo.jpg',     // afbeelding
     wordmark: null,
   },
+  kikv: {
+    name: 'KIK-V',
+    sub: 'Keteninformatie Kwaliteit Verpleeghuiszorg',
+    logo: '/kikv-logo.png',
+    wordmark: null,
+  },
   suresync: {
     name: 'SureSync',
     sub: 'Databeschikbaarheid in de zorg',
@@ -24,11 +30,14 @@ export function currentBrand() {
 }
 
 export function getInitialBrand() {
+  // Alternatieve skins (suresync/kikv) alleen buiten productie — productie blijft Rhadix.
+  const isProd = (import.meta?.env?.VITE_RHADIX_ENV === 'production')
+  const allowed = isProd ? ['rhadix'] : ['rhadix', 'suresync', 'kikv']
   try {
     const p = new URLSearchParams(window.location.search).get('brand')
-    if (p === 'suresync' || p === 'rhadix') return p
+    if (allowed.includes(p)) return p
     const s = sessionStorage.getItem('rhadix:brand')
-    if (s === 'suresync' || s === 'rhadix') return s
+    if (allowed.includes(s)) return s
   } catch { /* ignore */ }
   return 'rhadix'
 }

@@ -208,3 +208,27 @@ h1, h2, h3 {
   --rhadix-accent: #7344F3; /* violet accent */
   --rhadix-sub:  #A99BE8;   /* gedempt violet (subtitels) */
 }
+
+
+/* ── KIK-V demo-skin (uit Brandbook KIK-V 1.0: blauw #01689b, roze #ca005d, geel #ffce27).
+   Alleen buiten productie via ?brand=kikv; staat na de overige blokken zodat merk wint. ── */
+:root[data-brand="kikv"] {
+  --blue:        #01689b;   /* KIK-V blauw (primair/CTA/nav) */
+  --blue-dark:   #014c73;   /* dieper blauw */
+  --blue-hero:   #01689b;   /* nav / hero */
+  --blue-light:  #cce1eb;   /* lichte blauw-tint (vlakken) */
+  --blue-mid:    #99c3d7;   /* mid blauw (badges) */
+  --rhadix-accent: #ca005d; /* KIK-V roze (accent/CTA) */
+  --rhadix-sub:  #67a4c3;   /* gedempt blauw (subtitels) */
+  --amber:       #b8860b;
+  --font:        Verdana, Geneva, Tahoma, sans-serif;
+  --font-brand:  Verdana, Geneva, Tahoma, sans-serif;
+  --kikv-yellow: #ffce27;
+  --kikv-pink:   #ca005d;
+}
+/* KIK-V signatuur: geel-naar-roze accentbalk bovenaan de pagina */
+:root[data-brand="kikv"] body::before {
+  content: "";
+  position: fixed; top: 0; left: 0; right: 0; height: 5px; z-index: 1000;
+  background: linear-gradient(90deg, var(--kikv-yellow) 0%, var(--kikv-pink) 100%);
+}

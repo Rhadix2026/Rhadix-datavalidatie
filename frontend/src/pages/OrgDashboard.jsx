@@ -91,7 +91,7 @@ export default function OrgDashboard({ onBack, authUser, tenantId }) {
                 <XAxis dataKey="period" tick={{ fontSize: 11 }} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={v => [v?.toFixed(1), 'Gem. score']} />
-                <Line type="monotone" dataKey="avg_score" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="avg_score" stroke="var(--k-blue)" strokeWidth={2} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           ) : (

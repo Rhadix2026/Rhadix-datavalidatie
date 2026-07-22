@@ -15,14 +15,6 @@ export const BRANDS = {
     logo: '/kikv-logo.png',
     wordmark: null,
   },
-  suresync: {
-    name: 'SureSync',
-    sub: 'Databeschikbaarheid in de zorg',
-    logo: '/suresync-logo-light.svg',   // officieel logo (lichte variant voor donkere balk)
-    logoLight: '/suresync-logo-light.svg',
-    logoColor: '/suresync-logo.svg',
-    wordmark: 'SureSync',
-  },
 }
 
 export function currentBrand() {
@@ -32,7 +24,7 @@ export function currentBrand() {
 export function getInitialBrand() {
   // Alternatieve skins (suresync/kikv) alleen buiten productie — productie blijft Rhadix.
   const isProd = (import.meta?.env?.VITE_RHADIX_ENV === 'production')
-  const allowed = isProd ? ['rhadix'] : ['rhadix', 'suresync', 'kikv']
+  const allowed = isProd ? ['rhadix'] : ['rhadix', 'kikv']
   try {
     const p = new URLSearchParams(window.location.search).get('brand')
     if (allowed.includes(p)) return p

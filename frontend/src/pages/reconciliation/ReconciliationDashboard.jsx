@@ -82,7 +82,7 @@ function SparqlQueryModal({ indicatorId, indicatorName, onClose }) {
           <>
             {query.sparql_endpoint && (
               <div style={{ marginBottom: 12, padding: "8px 12px", background: "#f0f9ff", borderRadius: 6, fontSize: 13 }}>
-                <strong>Endpoint:</strong> <code style={{ color: "#1d4ed8" }}>{query.sparql_endpoint}</code>
+                <strong>Endpoint:</strong> <code style={{ color: "var(--k-blue-strong)" }}>{query.sparql_endpoint}</code>
               </div>
             )}
             <pre style={{
@@ -256,7 +256,7 @@ function IndicatorCard({ result, onDrillDown }) {
         <Metric label="Brondata (CSV)" value={fmt(result.expected_value)} color="#15803d" sub="berekend uit bestand" />
         {hasSparql ? (
           <>
-            <Metric label="SPARQL-uitkomst" value={fmt(result.actual_value)} color="#1d4ed8" sub="live query" />
+            <Metric label="SPARQL-uitkomst" value={fmt(result.actual_value)} color="var(--k-blue-strong)" sub="live query" />
             <Metric
               label="Afwijking"
               value={result.percentage_difference !== null ? `${fmt(result.percentage_difference)}%` : "—"}
@@ -436,18 +436,18 @@ function SparqlPicker({ selectedQuery, onSelect }) {
       {selectedQuery && (
         <div style={{
           marginBottom: 10, padding: "8px 12px", borderRadius: 6,
-          background: "#eff6ff", border: "1px solid #bfdbfe",
+          background: "var(--k-blue-light)", border: "1px solid var(--k-blue-mid)",
           display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8,
         }}>
-          <div style={{ fontSize: 12, color: "#1d4ed8", fontWeight: 600 }}>
+          <div style={{ fontSize: 12, color: "var(--k-blue-strong)", fontWeight: 600 }}>
             ✓ SPARQL-query geselecteerd ({selectedQuery.id})
           </div>
           <button
             type="button"
             onClick={() => onSelect(null)}
             style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4,
-              border: "1px solid #93c5fd", background: "transparent",
-              color: "#1d4ed8", cursor: "pointer" }}
+              border: "1px solid var(--k-blue-mid)", background: "transparent",
+              color: "var(--k-blue-strong)", cursor: "pointer" }}
           >
             Verwijder
           </button>
@@ -511,12 +511,12 @@ function SparqlPicker({ selectedQuery, onSelect }) {
                     return (
                       <tr key={ind.id || i} style={{
                         borderTop: "1px solid #f1f5f9",
-                        background: isSelected ? "#eff6ff" : (i % 2 === 0 ? "#fff" : "#fafafa"),
+                        background: isSelected ? "var(--k-blue-light)" : (i % 2 === 0 ? "#fff" : "#fafafa"),
                       }}>
                         <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "#64748b" }}>
                           {ind.id || "—"}
                         </td>
-                        <td style={{ ...tdStyle, fontWeight: isSelected ? 600 : 400, color: isSelected ? "#1d4ed8" : "#1e293b" }}>
+                        <td style={{ ...tdStyle, fontWeight: isSelected ? 600 : 400, color: isSelected ? "var(--k-blue-strong)" : "#1e293b" }}>
                           {ind.title || ind.id || "—"}
                         </td>
                         <td style={{ ...tdStyle, textAlign: "center" }}>
@@ -538,9 +538,9 @@ function SparqlPicker({ selectedQuery, onSelect }) {
                               onClick={() => { onSelect(ind); setPreviewQuery(null); }}
                               style={{
                                 padding: "3px 10px", borderRadius: 4, fontSize: 11,
-                                border: isSelected ? "1px solid #3b82f6" : "1px solid #cbd5e1",
+                                border: isSelected ? "1px solid var(--k-blue)" : "1px solid #cbd5e1",
                                 cursor: "pointer",
-                                background: isSelected ? "#3b82f6" : "#fff",
+                                background: isSelected ? "var(--k-blue)" : "#fff",
                                 color: isSelected ? "#fff" : "#374151",
                                 fontWeight: isSelected ? 600 : 400,
                               }}
@@ -767,7 +767,7 @@ function SparqlOnDataPanel({ fileRef, fileName, sparqlQuery, sparqlLabel, calcRu
           <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
-                <tr style={{ background: "#eef2ff", textAlign: "left" }}>
+                <tr style={{ background: "var(--k-blue-light)", textAlign: "left" }}>
                   <th style={{ padding: "8px 10px" }}>Kolom</th>
                   <th style={{ padding: "8px 10px" }}>Voorbeeld</th>
                   <th style={{ padding: "8px 10px" }}>Concept (predicaat)</th>
@@ -1021,7 +1021,7 @@ function UploadForm({ indicators, onResult, onCalcPreview, loading, setLoading }
         <button type="button" onClick={handleReconcile}
           disabled={loading || !canReconcile}
           style={{
-            padding: "10px 24px", borderRadius: 8, background: "#3b82f6", color: "#fff",
+            padding: "10px 24px", borderRadius: 8, background: "var(--k-blue)", color: "#fff",
             border: "none", fontWeight: 600, fontSize: 14,
             cursor: (!canReconcile || loading) ? "not-allowed" : "pointer",
             opacity: !canReconcile ? 0.5 : 1,
@@ -1080,7 +1080,7 @@ function exportJSON(results) {
 
 const DATASET_LABELS = {
   // ── ONS / AFAS CSV-formaten ──────────────────────────────────────────────
-  "medewerker_ons.csv":             { label: "Medewerkers ONS",              icon: "👤", color: "#3b82f6" },
+  "medewerker_ons.csv":             { label: "Medewerkers ONS",              icon: "👤", color: "var(--k-blue)" },
   "medewerker_afas_hrm.csv":        { label: "Medewerkers AFAS HRM",         icon: "👤", color: "#6366f1" },
   "werkovereenkomst_ons.csv":       { label: "Werkovereenkomsten ONS",        icon: "📋", color: "#0891b2" },
   "werkovereenkomst_afas_hrm.csv":  { label: "Werkovereenkomsten AFAS HRM",   icon: "📋", color: "#0e7490" },
@@ -1144,10 +1144,10 @@ function SparqlViewModal({ indicator, sparqls, onClose }) {
                 {sparqlList.map((s, i) => (
                   <tr key={s.id} style={{
                     borderTop: "1px solid #f1f5f9",
-                    background: selected?.id === s.id ? "#eff6ff" : (i % 2 === 0 ? "#fff" : "#fafafa"),
+                    background: selected?.id === s.id ? "var(--k-blue-light)" : (i % 2 === 0 ? "#fff" : "#fafafa"),
                   }}>
                     <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "#64748b" }}>{s.id}</td>
-                    <td style={{ ...tdStyle, color: selected?.id === s.id ? "#1d4ed8" : "#1e293b", fontWeight: selected?.id === s.id ? 600 : 400 }}>
+                    <td style={{ ...tdStyle, color: selected?.id === s.id ? "var(--k-blue-strong)" : "#1e293b", fontWeight: selected?.id === s.id ? 600 : 400 }}>
                       {s.title}
                     </td>
                     <td style={{ ...tdStyle, textAlign: "center" }}>
@@ -1155,8 +1155,8 @@ function SparqlViewModal({ indicator, sparqls, onClose }) {
                         onClick={() => setSelected(selected?.id === s.id ? null : s)}
                         style={{
                           padding: "3px 10px", borderRadius: 4, fontSize: 11, cursor: "pointer",
-                          border: selected?.id === s.id ? "1px solid #3b82f6" : "1px solid #cbd5e1",
-                          background: selected?.id === s.id ? "#3b82f6" : "#fff",
+                          border: selected?.id === s.id ? "1px solid var(--k-blue)" : "1px solid #cbd5e1",
+                          background: selected?.id === s.id ? "var(--k-blue)" : "#fff",
                           color: selected?.id === s.id ? "#fff" : "#374151",
                         }}
                       >
@@ -1252,9 +1252,9 @@ function HappyFlowResultCard({ result, sparqls, onViewSparql }) {
           <button
             onClick={() => onViewSparql(result)}
             style={{
-              padding: "6px 12px", borderRadius: 6, border: "1px solid #bfdbfe",
-              background: "#eff6ff", cursor: "pointer", fontSize: 12, fontWeight: 500,
-              color: "#1d4ed8", whiteSpace: "nowrap",
+              padding: "6px 12px", borderRadius: 6, border: "1px solid var(--k-blue-mid)",
+              background: "var(--k-blue-light)", cursor: "pointer", fontSize: 12, fontWeight: 500,
+              color: "var(--k-blue-strong)", whiteSpace: "nowrap",
             }}
           >
             📡 SPARQL
@@ -1432,9 +1432,9 @@ function HappyFlowTab() {
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
           style={{
-            border: `2px dashed ${dragOver ? "#3b82f6" : "#cbd5e1"}`,
+            border: `2px dashed ${dragOver ? "var(--k-blue)" : "#cbd5e1"}`,
             borderRadius: 10, padding: "28px 20px", textAlign: "center",
-            cursor: "pointer", background: dragOver ? "#eff6ff" : "#fff",
+            cursor: "pointer", background: dragOver ? "var(--k-blue-light)" : "#fff",
             transition: "all 0.15s", marginBottom: 14,
           }}
         >
@@ -1494,7 +1494,7 @@ function HappyFlowTab() {
             disabled={loading || recognizedFiles.length === 0}
             style={{
               padding: "10px 24px", borderRadius: 8,
-              background: (loading || recognizedFiles.length === 0) ? "#cbd5e1" : "#3b82f6",
+              background: (loading || recognizedFiles.length === 0) ? "#cbd5e1" : "var(--k-blue)",
               color: "#fff", border: "none", fontWeight: 600, fontSize: 14,
               cursor: (loading || recognizedFiles.length === 0) ? "not-allowed" : "pointer",
             }}
@@ -1521,7 +1521,7 @@ function HappyFlowTab() {
             marginBottom: 20,
           }}>
             {[
-              { label: "Indicatoren berekend", value: batchResult.total_indicators, color: "#3b82f6" },
+              { label: "Indicatoren berekend", value: batchResult.total_indicators, color: "var(--k-blue)" },
               { label: "Datasets verwerkt", value: batchResult.total_datasets, color: "#16a34a" },
               { label: "Bestanden overgeslagen", value: (batchResult.skipped_files || []).length, color: "#f59e0b" },
               { label: "SPARQL-queries beschikbaar", value: batchResult.profile_sparqls_available || 0, color: "#8b5cf6" },
@@ -1556,9 +1556,9 @@ function HappyFlowTab() {
                     onClick={() => setFilterTag(tag)}
                     style={{
                       padding: "4px 12px", borderRadius: 12, fontSize: 12, cursor: "pointer",
-                      border: filterTag === tag ? "1.5px solid #3b82f6" : "1px solid #cbd5e1",
-                      background: filterTag === tag ? "#eff6ff" : "#fff",
-                      color: filterTag === tag ? "#1d4ed8" : "#475569",
+                      border: filterTag === tag ? "1.5px solid var(--k-blue)" : "1px solid #cbd5e1",
+                      background: filterTag === tag ? "var(--k-blue-light)" : "#fff",
+                      color: filterTag === tag ? "var(--k-blue-strong)" : "#475569",
                       fontWeight: filterTag === tag ? 600 : 400,
                     }}
                   >
@@ -1671,8 +1671,8 @@ export default function ReconciliationDashboard({ onBack }) {
             style={{
               padding: "10px 20px", border: "none", cursor: "pointer",
               background: "none", fontWeight: activeTab === tab.id ? 700 : 400,
-              fontSize: 14, color: activeTab === tab.id ? "#1d4ed8" : "#64748b",
-              borderBottom: activeTab === tab.id ? "2px solid #1d4ed8" : "2px solid transparent",
+              fontSize: 14, color: activeTab === tab.id ? "var(--k-blue-strong)" : "#64748b",
+              borderBottom: activeTab === tab.id ? "2px solid var(--k-blue-strong)" : "2px solid transparent",
               marginBottom: -2,
               transition: "all 0.15s",
             }}

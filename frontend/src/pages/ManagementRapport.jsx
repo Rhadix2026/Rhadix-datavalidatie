@@ -35,7 +35,7 @@ function RhadixHero({ index, availScore, qualScore, readinessScore, indicators }
   const c = scoreColor(index)
   return (
     <div style={{
-      background: 'linear-gradient(135deg, #1e3a8a 0%, #2d3eb8 100%)',
+      background: 'linear-gradient(135deg, var(--k-blue-strong) 0%, #2d3eb8 100%)',
       borderRadius: 'var(--radius-xl)', padding: '28px 32px', marginBottom: 20,
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap',
     }}>

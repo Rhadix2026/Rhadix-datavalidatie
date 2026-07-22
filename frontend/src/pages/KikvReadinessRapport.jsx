@@ -492,7 +492,7 @@ export default function KikvReadinessRapport({ results, systems, onBack }) {
 
         {/* Kop */}
         <div style={{
-          background: 'linear-gradient(135deg, #2d3eb8 0%, #1e3a8a 100%)',
+          background: 'linear-gradient(135deg, #2d3eb8 0%, var(--k-blue-strong) 100%)',
           borderRadius: 'var(--radius-xl)', padding: '32px 36px', marginBottom: 24, color: '#fff',
         }}>
           <div style={{

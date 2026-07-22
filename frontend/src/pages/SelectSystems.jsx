@@ -13,7 +13,7 @@ const SOURCES = [
   { id: 'afas_fin',  systemId: 'afas_profit_fin', standard: 'algemeen', label: 'AFAS Profit Financieel',vendor: 'AFAS Software', formats: 'XML / JSON', domain: 'Financieel',    benchmark: 'KIK-V',        color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
   { id: 'visma',     systemId: 'visma_puur',      standard: 'algemeen', label: 'Visma PUUR',            vendor: 'Visma',         formats: 'n.t.b.',     domain: 'Personeel (HR)', benchmark: 'KIK-V',       color: '#8b5cf6', bg: '#f5f3ff', border: '#ddd6fe' },
   { id: 'chipsoft',  systemId: 'chipsoft_hix',    standard: 'zib',      label: 'ChipSoft HiX',          vendor: 'ChipSoft',      formats: 'XML',        domain: 'Klinisch',      benchmark: 'ZIB',          color: '#059669', bg: '#f0fdf4', border: '#bbf7d0' },
-  { id: 'epic',      systemId: 'epic',            standard: 'zib',      label: 'Epic',                  vendor: 'Epic',          formats: 'XML',        domain: 'Klinisch',      benchmark: 'ZIB',          color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+  { id: 'epic',      systemId: 'epic',            standard: 'zib',      label: 'Epic',                  vendor: 'Epic',          formats: 'XML',        domain: 'Klinisch',      benchmark: 'ZIB',          color: 'var(--k-blue)', bg: 'var(--k-blue-light)', border: 'var(--k-blue-mid)' },
 ]
 
 const STANDARD_SLUGS = { kikv: 'kikv-validator', zib: 'zib-validator', algemeen: 'algemeen-validator' }

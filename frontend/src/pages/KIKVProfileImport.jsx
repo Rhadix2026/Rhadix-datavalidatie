@@ -40,7 +40,7 @@ function Badge({ color, children }) {
     green:  { bg: "#d1fae5", text: "#065f46", border: "#6ee7b7" },
     amber:  { bg: "#fef3c7", text: "#92400e", border: "#fcd34d" },
     red:    { bg: "#fee2e2", text: "#991b1b", border: "#fca5a5" },
-    blue:   { bg: "#dbeafe", text: "#1e40af", border: "#93c5fd" },
+    blue:   { bg: "var(--k-blue-light)", text: "var(--k-blue-strong)", border: "var(--k-blue-mid)" },
     grey:   { bg: "#f3f4f6", text: "#6b7280", border: "#d1d5db" },
   };
   const p = palettes[color] || palettes.grey;
@@ -97,7 +97,7 @@ function IndicatorRow({ ind, index }) {
           background: index % 2 === 0 ? "#fff" : "#f9fafb",
           transition: "background 0.15s",
         }}
-        onMouseEnter={e => e.currentTarget.style.background = "#eff6ff"}
+        onMouseEnter={e => e.currentTarget.style.background = "var(--k-blue-light)"}
         onMouseLeave={e => e.currentTarget.style.background = index % 2 === 0 ? "#fff" : "#f9fafb"}
       >
         <td style={{ ...td, whiteSpace: "nowrap" }}>
@@ -105,8 +105,8 @@ function IndicatorRow({ ind, index }) {
           <span style={{
             marginLeft: 6, fontSize: 11, fontWeight: 700,
             padding: "2px 7px", borderRadius: 9999,
-            background: "#eff6ff", color: "#1d4ed8",
-            border: "1px solid #bfdbfe",
+            background: "var(--k-blue-light)", color: "var(--k-blue-strong)",
+            border: "1px solid var(--k-blue-mid)",
           }}>{ind.id}</span>
         </td>
         <td style={td}>
@@ -167,7 +167,7 @@ function IndicatorRow({ ind, index }) {
                         <div style={{ fontWeight: 600, fontSize: 12, color: "#374151", marginBottom: 4 }}>Concepten:</div>
                         {(meta.concepts || []).slice(0, 6).map((c, i) => (
                           <div key={i} style={{ fontSize: 12, color: "#4b5563", marginBottom: 2 }}>
-                            • <a href={c.uri} target="_blank" rel="noreferrer" style={{ color: "#3b82f6" }}>{c.label}</a>
+                            • <a href={c.uri} target="_blank" rel="noreferrer" style={{ color: "var(--k-blue)" }}>{c.label}</a>
                           </div>
                         ))}
                       </div>
@@ -429,7 +429,7 @@ function CustomImportForm({ onImported, prefill }) {
         </div>
       )}
       <button type="submit" disabled={loading} style={{
-        background: loading ? "#93c5fd" : "#1d4ed8", color: "#fff",
+        background: loading ? "var(--k-blue-mid)" : "var(--k-blue-strong)", color: "#fff",
         border: "none", borderRadius: 7, padding: "9px 20px",
         fontWeight: 700, fontSize: 13, cursor: loading ? "not-allowed" : "pointer",
         display: "flex", alignItems: "center", gap: 8,
@@ -447,8 +447,8 @@ function CatalogCard({ entry, imported, selected, onImport, onSelect, onDelete, 
 
   return (
     <div style={{
-      background: selected ? "#eff6ff" : "#fff",
-      border: `2px solid ${selected ? "#3b82f6" : isImported ? "#bbf7d0" : "#e5e7eb"}`,
+      background: selected ? "var(--k-blue-light)" : "#fff",
+      border: `2px solid ${selected ? "var(--k-blue)" : isImported ? "#bbf7d0" : "#e5e7eb"}`,
       borderRadius: 10, padding: "14px 16px", marginBottom: 10,
       transition: "border-color 0.2s",
       opacity: entry.comingSoon && !isImported ? 0.65 : 1,
@@ -467,7 +467,7 @@ function CatalogCard({ entry, imported, selected, onImport, onSelect, onDelete, 
               border: `1px solid ${entry.sectorColor}55`,
             }}>{entry.sector}</span>
             {entry.published && !isImported && (
-              <span style={{ fontSize: 11, fontWeight: 600, padding: "1px 7px", borderRadius: 9999, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, padding: "1px 7px", borderRadius: 9999, background: "var(--k-blue-light)", color: "var(--k-blue-strong)", border: "1px solid var(--k-blue-mid)" }}>
                 Gepubliceerd v{entry.ref}
               </span>
             )}
@@ -504,9 +504,9 @@ function CatalogCard({ entry, imported, selected, onImport, onSelect, onDelete, 
             <button
               onClick={() => onSelect(imported)}
               style={{
-                flex: 1, background: selected ? "#1d4ed8" : "#eff6ff",
-                color: selected ? "#fff" : "#1d4ed8",
-                border: `1px solid ${selected ? "#1d4ed8" : "#bfdbfe"}`,
+                flex: 1, background: selected ? "var(--k-blue-strong)" : "var(--k-blue-light)",
+                color: selected ? "#fff" : "var(--k-blue-strong)",
+                border: `1px solid ${selected ? "var(--k-blue-strong)" : "var(--k-blue-mid)"}`,
                 borderRadius: 6, padding: "6px 12px", fontWeight: 700,
                 fontSize: 12, cursor: "pointer",
               }}
@@ -533,7 +533,7 @@ function CatalogCard({ entry, imported, selected, onImport, onSelect, onDelete, 
             onClick={() => onImport(entry)}
             disabled={loading}
             style={{
-              flex: 1, background: loading ? "#93c5fd" : "#1d4ed8", color: "#fff",
+              flex: 1, background: loading ? "var(--k-blue-mid)" : "var(--k-blue-strong)", color: "#fff",
               border: "none", borderRadius: 6, padding: "6px 12px",
               fontWeight: 700, fontSize: 12, cursor: loading ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
@@ -705,7 +705,7 @@ export default function KIKVProfileImport({ onBack, onAnalyze, scanResult }) {
         </div>
         <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
           <div>
-            <span style={{ fontSize: 22, fontWeight: 800, color: "#1d4ed8" }}>{importedCount}/{publishedCount}</span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: "var(--k-blue-strong)" }}>{importedCount}/{publishedCount}</span>
             <div style={{ fontSize: 11, color: "#9ca3af" }}>gepubliceerde profielen geïmporteerd</div>
           </div>
           {profiles.length > 0 && (
@@ -778,8 +778,8 @@ export default function KIKVProfileImport({ onBack, onAnalyze, scanResult }) {
                     key={p.filename}
                     onClick={() => setSelected(p)}
                     style={{
-                      background: selected?.filename === p.filename ? "#eff6ff" : "#fff",
-                      border: `2px solid ${selected?.filename === p.filename ? "#3b82f6" : "#e5e7eb"}`,
+                      background: selected?.filename === p.filename ? "var(--k-blue-light)" : "#fff",
+                      border: `2px solid ${selected?.filename === p.filename ? "var(--k-blue)" : "#e5e7eb"}`,
                       borderRadius: 9, padding: "12px 16px", cursor: "pointer", marginBottom: 8,
                       display: "flex", justifyContent: "space-between", alignItems: "flex-start",
                     }}
@@ -846,7 +846,7 @@ export default function KIKVProfileImport({ onBack, onAnalyze, scanResult }) {
                 display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center",
               }}>
                 <div>
-                  <span style={{ fontSize: 28, fontWeight: 800, color: "#1d4ed8" }}>
+                  <span style={{ fontSize: 28, fontWeight: 800, color: "var(--k-blue-strong)" }}>
                     {fullData.indicator_count}
                   </span>
                   <span style={{ fontSize: 13, color: "#6b7280", marginLeft: 6 }}>indicatoren</span>
@@ -860,7 +860,7 @@ export default function KIKVProfileImport({ onBack, onAnalyze, scanResult }) {
                     <Badge color="red">{fullData.parse_errors.length} parseerfout{fullData.parse_errors.length !== 1 ? "en" : ""}</Badge>}
                 </div>
                 <div style={{ marginLeft: "auto", fontSize: 12, color: "#9ca3af" }}>
-                  Bron: <a href={fullData.source} target="_blank" rel="noreferrer" style={{ color: "#3b82f6" }}>{fullData.source}</a>
+                  Bron: <a href={fullData.source} target="_blank" rel="noreferrer" style={{ color: "var(--k-blue)" }}>{fullData.source}</a>
                   &nbsp;· ref <strong>{fullData.ref}</strong>
                   &nbsp;· map <code style={{ fontSize: 11 }}>{fullData.folder}</code>
                 </div>
@@ -936,22 +936,22 @@ export default function KIKVProfileImport({ onBack, onAnalyze, scanResult }) {
               {onAnalyze && scanResult && (
                 <div style={{
                   marginTop: 16,
-                  background: "#eff6ff", border: "1px solid #bfdbfe",
+                  background: "var(--k-blue-light)", border: "1px solid var(--k-blue-mid)",
                   borderRadius: 8, padding: "12px 16px",
                   display: "flex", justifyContent: "space-between", alignItems: "center",
                 }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: "#1e40af" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "var(--k-blue-strong)" }}>
                       📊 Gereedheidsmatrix beschikbaar
                     </div>
-                    <div style={{ fontSize: 12, color: "#3b82f6", marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: "var(--k-blue)", marginTop: 2 }}>
                       Analyseer welke indicatoren ondersteund worden door de huidig geüploade data
                     </div>
                   </div>
                   <button
                     onClick={() => onAnalyze(selected?.filename, fullData)}
                     style={{
-                      background: "#1d4ed8", color: "#fff", border: "none",
+                      background: "var(--k-blue-strong)", color: "#fff", border: "none",
                       borderRadius: 7, padding: "9px 18px", fontWeight: 700,
                       fontSize: 13, cursor: "pointer", whiteSpace: "nowrap",
                     }}

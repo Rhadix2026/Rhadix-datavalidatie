@@ -36,8 +36,8 @@ const ConceptTag = ({ uri, label }) => (
 const HergebruikBadge = ({ count, total = 8, profielen = [] }) => {
   if (count === null || count === undefined) return null
   const pct = Math.round(count / total * 100)
-  const color = pct >= 75 ? '#7c3aed' : pct >= 40 ? '#2563eb' : '#6b7280'
-  const bg    = pct >= 75 ? '#f5f3ff' : pct >= 40 ? '#eff6ff' : '#f9fafb'
+  const color = pct >= 75 ? '#7c3aed' : pct >= 40 ? 'var(--k-blue)' : '#6b7280'
+  const bg    = pct >= 75 ? '#f5f3ff' : pct >= 40 ? 'var(--k-blue-light)' : '#f9fafb'
   const tooltip = profielen.length > 0
     ? `Gebruikt in ${count}/${total} uitwisselprofielen:\n${profielen.map(p => '• ' + p).join('\n')}`
     : `Gebruikt in ${count}/${total} uitwisselprofielen`
@@ -270,7 +270,7 @@ export default function ConceptMappingRapport({ conceptMapping = [], onBack }) {
             {' '}— het getal naast elk concept toont in hoeveel van de 8 KIK-V uitwisselprofielen
             dit concept voorkomt (bron: <em>kik-v-publicatieplatform.nl/kik-v-concepten</em>).{' '}
             <span style={{ color: '#7c3aed', fontWeight: 600 }}>Paars</span> = hoog hergebruik (≥75%),{' '}
-            <span style={{ color: '#2563eb', fontWeight: 600 }}>blauw</span> = gemiddeld,{' '}
+            <span style={{ color: 'var(--k-blue)', fontWeight: 600 }}>blauw</span> = gemiddeld,{' '}
             <span style={{ color: '#6b7280', fontWeight: 600 }}>grijs</span> = laag.
             Hover over het badge voor de volledige profielenlijst.
           </div>

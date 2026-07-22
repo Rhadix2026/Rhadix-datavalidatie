@@ -121,9 +121,7 @@ export default function Landing({ onStart, onProfiles, onReconciliation, onTasks
           flexDirection: 'column', justifyContent: 'center',
           position: 'relative', overflow: 'hidden', isolation: 'isolate',
         }}>
-          {currentBrand() === 'suresync'
-            ? <ConstellationBg style={{ zIndex: -1 }} />
-            : <TreeDecoration />}
+          <TreeDecoration />
           {/* Logo placeholder verwijderd — logo staat in de header */}
 
           <div style={{

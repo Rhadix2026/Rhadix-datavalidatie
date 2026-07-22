@@ -30,7 +30,6 @@ function IndexCounter() {
 }
 
 export default function PlatformLanding({ onLogin, brand = 'rhadix', onBrandChange }) {
-  const suresync = currentBrand() === 'suresync'
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', paddingTop: BANNER_HEIGHT }}>
       {/* Nav: logo + (staging) SureSync + Inloggen */}
@@ -41,13 +40,6 @@ export default function PlatformLanding({ onLogin, brand = 'rhadix', onBrandChan
           <img src={brandLogo()} alt="logo" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {import.meta.env.VITE_RHADIX_ENV !== 'production' && onBrandChange && (
-            <button onClick={() => onBrandChange(suresync ? 'rhadix' : 'suresync')}
-              title="White-label demo (alleen staging)" style={{
-                background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
-                borderRadius: 99, padding: '6px 14px', color: '#fff', fontSize: 12.5, fontWeight: 700,
-                cursor: 'pointer', fontFamily: 'var(--font)' }}>{suresync ? '← Rhadix' : 'SureSync ↗'}</button>
-          )}
           <button onClick={onLogin} style={{
             background: 'var(--rhadix-accent)', border: 'none', borderRadius: 'var(--radius)',
             padding: '8px 20px', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
@@ -77,7 +69,7 @@ export default function PlatformLanding({ onLogin, brand = 'rhadix', onBrandChan
             color: '#fff', border: 'none', borderRadius: 'var(--radius)', padding: '13px 28px', fontSize: 15,
             fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', position: 'relative', zIndex: 1,
             boxShadow: '0 6px 20px rgba(0,0,0,.25)' }}>Inloggen →</button>
-          {suresync ? <ConstellationBg style={{ zIndex: -1 }} /> : <TreeDecoration opacity={0.1} style={{ transform: 'scale(5)', bottom: -40, right: -20 }} />}
+          <TreeDecoration opacity={0.1} style={{ transform: 'scale(5)', bottom: -40, right: -20 }} />
         </div>
         <div style={{ width: 360, background: '#fff', padding: '48px 36px', display: 'flex',
           flexDirection: 'column', justifyContent: 'center', borderLeft: '1px solid var(--border)' }}>

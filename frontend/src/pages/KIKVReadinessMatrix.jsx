@@ -92,7 +92,7 @@ function SummaryPanel({ matrix }) {
     { label: "Volledig",      value: full,    color: "#10b981", icon: "✓" },
     { label: "Gedeeltelijk",  value: part,    color: "#f59e0b", icon: "◑" },
     { label: "Geblokkeerd",   value: blocked, color: "#ef4444", icon: "✕" },
-    { label: "Totaal",        value: total,   color: "#3b82f6", icon: "Σ" },
+    { label: "Totaal",        value: total,   color: "var(--k-blue)", icon: "Σ" },
   ];
 
   return (
@@ -141,7 +141,7 @@ function SummaryPanel({ matrix }) {
               <span style={{ color: "#6b7280" }}>Geüploade bronnen: </span>
               {uploaded_domains.map(d => (
                 <span key={d} style={{
-                  display: "inline-block", background: "#dbeafe", color: "#1e40af",
+                  display: "inline-block", background: "var(--k-blue-light)", color: "var(--k-blue-strong)",
                   padding: "1px 8px", borderRadius: 9999, fontSize: 11, fontWeight: 600,
                   marginLeft: 4,
                 }}>{DOMAIN_LABELS[d] || d}</span>
@@ -237,8 +237,8 @@ function Heatmap({ rows, onSelect, selectedId }) {
                   onClick={() => onSelect(isSelected ? null : row.indicator_id)}
                   style={{
                     cursor: "pointer",
-                    background: isSelected ? "#eff6ff" : (i % 2 === 0 ? "#fff" : "#f9fafb"),
-                    outline: isSelected ? "2px solid #3b82f6" : "none",
+                    background: isSelected ? "var(--k-blue-light)" : (i % 2 === 0 ? "#fff" : "#f9fafb"),
+                    outline: isSelected ? "2px solid var(--k-blue)" : "none",
                     outlineOffset: -2,
                   }}
                   onMouseEnter={e => !isSelected && (e.currentTarget.style.background = "#f0f9ff")}
@@ -625,8 +625,8 @@ export default function KIKVReadinessMatrix({ matrix, onBack, profileName }) {
                   }}
                   style={{
                     cursor: "pointer",
-                    background: isSelected ? "#eff6ff" : i % 2 === 0 ? "#fff" : "#f9fafb",
-                    borderLeft: isSelected ? "3px solid #3b82f6" : "3px solid transparent",
+                    background: isSelected ? "var(--k-blue-light)" : i % 2 === 0 ? "#fff" : "#f9fafb",
+                    borderLeft: isSelected ? "3px solid var(--k-blue)" : "3px solid transparent",
                   }}
                   onMouseEnter={e => !isSelected && (e.currentTarget.style.background = "#f0f9ff")}
                   onMouseLeave={e => !isSelected && (e.currentTarget.style.background = i % 2 === 0 ? "#fff" : "#f9fafb")}

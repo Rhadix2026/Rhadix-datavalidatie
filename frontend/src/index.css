@@ -53,6 +53,11 @@
   --blue-mid:    #B8D4EA;   /* mid blue for badges/tags    */
   --rhadix-accent: #6FA8D0; /* accent blue                 */
   --rhadix-sub:  #8BADC5;   /* subtitle / secondary text   */
+  /* brand-echo: blauwtinten uit componenten; default = blauw, onder KIK-V roze */
+  --k-blue:        #3b82f6;
+  --k-blue-strong: #1d4ed8;
+  --k-blue-light:  #eff6ff;
+  --k-blue-mid:    #bfdbfe;
 
   /* ── Neutrals ───────────────────────────────────────── */
   --text:        #111827;
@@ -197,17 +202,6 @@ h1, h2, h3 {
 }
 
 
-/* ── SureSync white-label palet (uit officieel logo: violet #7344F3 + navy #101948) — alleen actief als data-brand=suresync
-   gezet is (staging-demo). Staat na de staging-override zodat merk wint van omgeving. ── */
-:root[data-brand="suresync"] {
-  --blue:        #7344F3;   /* SureSync violet (primair/CTA) */
-  --blue-dark:   #0B1233;   /* diep navy */
-  --blue-hero:   #101948;   /* SureSync navy (nav/hero) */
-  --blue-light:  #EDE9FE;   /* lichte violet-tint */
-  --blue-mid:    #C4B5FD;   /* mid violet */
-  --rhadix-accent: #7344F3; /* violet accent */
-  --rhadix-sub:  #A99BE8;   /* gedempt violet (subtitels) */
-}
 
 
 /* ── KIK-V demo-skin (uit Brandbook KIK-V 1.0: blauw #01689b, roze #ca005d, geel #ffce27).
@@ -227,6 +221,10 @@ h1, h2, h3 {
   --font-brand:  Verdana, Geneva, Tahoma, sans-serif;
   --kikv-yellow: #fad94c;
   --kikv-pink:   #bd285f;
+  --k-blue:        #bd285f;
+  --k-blue-strong: #9e2050;
+  --k-blue-light:  #fae3ec;
+  --k-blue-mid:    #e4a9bf;
 }
 /* KIK-V signatuur: geel-naar-roze accentbalk bovenaan de pagina */
 :root[data-brand="kikv"] body::before {

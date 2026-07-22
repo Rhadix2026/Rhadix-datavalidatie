@@ -65,14 +65,6 @@ export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrand
           <a href="https://rhadix.nl" style={{ display: 'inline-block', textDecoration: 'none' }} title="Terug naar rhadix.nl">
             <img src={brandLogo()} alt="logo" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
           </a>
-          {import.meta.env.VITE_RHADIX_ENV !== 'production' && onBrandChange && (
-            <button onClick={() => onBrandChange(brand === 'suresync' ? 'rhadix' : 'suresync')}
-              title="White-label demo (alleen staging)" style={{
-                background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.35)',
-                borderRadius: 99, padding: '6px 14px', color: '#fff', fontSize: 12.5, fontWeight: 700,
-                cursor: 'pointer', fontFamily: 'var(--font)',
-              }}>{brand === 'suresync' ? '← Rhadix' : 'SureSync ↗'}</button>
-          )}
         </div>
 
         {/* Tekst — verticaal gecentreerd in resterende ruimte */}
@@ -105,9 +97,7 @@ export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrand
         </div>
 
         {/* Decoratie rechtonder (constellatie bij SureSync, anders boom) */}
-        {currentBrand() === 'suresync'
-          ? <ConstellationBg style={{ zIndex: -1 }} />
-          : <TreeDecoration />}
+        <TreeDecoration />
       </div>
 
       {/* ── Right — login form ────────────────────────────────────────────── */}
@@ -196,16 +186,16 @@ export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrand
 
           {showForgot && (
             <div style={{
-              padding: '14px 16px', background: '#eff6ff',
-              border: '1px solid #bfdbfe', borderRadius: 'var(--radius)',
-              fontSize: 13, color: '#1d4ed8', lineHeight: 1.55,
+              padding: '14px 16px', background: 'var(--k-blue-light)',
+              border: '1px solid var(--k-blue-mid)', borderRadius: 'var(--radius)',
+              fontSize: 13, color: 'var(--k-blue-strong)', lineHeight: 1.55,
             }}>
               {forgotSent ? (
                 <span>Als <strong>{(forgotEmail || email).trim() || 'dit adres'}</strong> bij ons bekend is, ontvang je een e-mail met een link om je wachtwoord opnieuw in te stellen. Check ook je spamfolder.</span>
               ) : (
                 <>
                   <strong>Wachtwoord vergeten?</strong>
-                  <p style={{ margin: '4px 0 10px', color: '#1e40af' }}>Vul je e-mailadres in; je ontvangt een resetlink per e-mail.</p>
+                  <p style={{ margin: '4px 0 10px', color: 'var(--k-blue-strong)' }}>Vul je e-mailadres in; je ontvangt een resetlink per e-mail.</p>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input
                       type="email"

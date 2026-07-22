@@ -59,7 +59,6 @@ export function ConstellationBg({ color = '#7344F3', style = {} }) {
 }
 
 export function TreeDecoration({ opacity = 0.35, style: sx = {} }) {
-  if (currentBrand() === 'suresync') return null
   return (
     <img
       src="/rhadix-boom.jpg"
@@ -251,7 +250,7 @@ export function StatCard({ label, value, color = 'var(--text)', sub }) {
 export function BtnPrimary({ children, onClick, disabled, style: sx = {} }) {
   return (
     <button onClick={disabled ? undefined : onClick} style={{
-      background: disabled ? '#93c5fd' : 'var(--blue)',
+      background: disabled ? 'var(--k-blue-mid)' : 'var(--blue)',
       color: '#fff', border: 'none', borderRadius: 'var(--radius)',
       padding: '10px 20px', fontSize: 14, fontWeight: 600,
       cursor: disabled ? 'not-allowed' : 'pointer',

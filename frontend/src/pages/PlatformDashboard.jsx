@@ -95,7 +95,7 @@ export default function PlatformDashboard({ onBack, onOrgDrilldown }) {
               <XAxis dataKey="period" tick={{ fontSize: 11 }} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v, n) => [typeof v === 'number' ? v.toFixed(1) : v, n === 'avg_score' ? 'Gem. score' : 'Runs']} />
-              <Line type="monotone" dataKey="avg_score"  stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} name="avg_score" />
+              <Line type="monotone" dataKey="avg_score"  stroke="var(--k-blue)" strokeWidth={2} dot={{ r: 4 }} name="avg_score" />
               <Line type="monotone" dataKey="run_count"  stroke="#94a3b8" strokeWidth={1} strokeDasharray="4 4" dot={false} yAxisId={0} name="run_count" />
             </LineChart>
           </ResponsiveContainer>
@@ -208,7 +208,7 @@ function KpiCard({ label, value, extra, sub }) {
     <div style={styles.kpiCard}>
       <div style={{ fontSize: 26, fontWeight: 800, color: '#1e293b' }}>{value}</div>
       {extra && <div style={{ marginTop: 4 }}>{extra}</div>}
-      {sub   && <div style={{ fontSize: 11, color: '#3b82f6', marginTop: 2, fontWeight: 600 }}>{sub}</div>}
+      {sub   && <div style={{ fontSize: 11, color: 'var(--k-blue)', marginTop: 2, fontWeight: 600 }}>{sub}</div>}
       <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{label}</div>
     </div>
   )
@@ -251,6 +251,6 @@ const styles = {
   pill: { display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 600 },
   drillBtn: {
     background: 'none', border: '1px solid #e2e8f0', borderRadius: 6,
-    padding: '4px 10px', cursor: 'pointer', fontSize: 12, color: '#3b82f6',
+    padding: '4px 10px', cursor: 'pointer', fontSize: 12, color: 'var(--k-blue)',
   },
 }

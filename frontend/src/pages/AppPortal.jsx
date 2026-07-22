@@ -11,9 +11,9 @@ const CRM_ACTIVE = true  // CRM live op staging én productie
 // Post-login portal: de drie applicaties als kaart-grid (zoals 'Kies een standaard').
 export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onLogout, onTasks, onReconciliation }) {
   const withBrand = (url) => {
-    if (brand !== 'suresync' || !url) return url
-    try { const u = new URL(url); u.searchParams.set('brand', 'suresync'); return u.toString() }
-    catch { return url + (url.includes('?') ? '&' : '?') + 'brand=suresync' }
+    if (brand !== 'kikv' || !url) return url
+    try { const u = new URL(url); u.searchParams.set('brand', 'kikv'); return u.toString() }
+    catch { return url + (url.includes('?') ? '&' : '?') + 'brand=kikv' }
   }
 
   const APPS = [
@@ -42,14 +42,7 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
     else if (id === 'recon' && onReconciliation) onReconciliation()
   }
 
-  const sureSyncToggle = (import.meta.env.VITE_RHADIX_ENV !== 'production' && onBrandChange) ? (
-    <button onClick={() => onBrandChange(brand === 'suresync' ? 'rhadix' : 'suresync')}
-      title="White-label demo (alleen staging)" style={{
-        background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.15)',
-        borderRadius: 99, padding: '6px 12px', color: 'rgba(255,255,255,.85)', fontSize: 12.5,
-        fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}>
-      {brand === 'suresync' ? '← Rhadix' : 'SureSync ↗'}</button>
-  ) : null
+  const sureSyncToggle = null
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>

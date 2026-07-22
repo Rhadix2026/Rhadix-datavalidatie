@@ -49,7 +49,7 @@ function RhadixUitleg({ score1, score2, radixIndex }) {
               <span style={{ fontWeight: 600 }}>Kwaliteit</span>
               <span style={{ color: 'var(--blue)', fontWeight: 800 }}>{score2}%</span>
               <span style={{ color: 'var(--text3)' }}>=</span>
-              <span style={{ fontWeight: 800, color: '#1e3a8a' }}>Rhadix Index {radixIndex}%</span>
+              <span style={{ fontWeight: 800, color: 'var(--k-blue-strong)' }}>Rhadix Index {radixIndex}%</span>
             </div>
           </div>
 
@@ -200,7 +200,7 @@ export default function Dashboard({ results, scanHistory = [], step1Completed, s
 
         {/* Rhadix Index hero card */}
         <div style={{
-          background: 'linear-gradient(135deg, #2d3eb8 0%, #1e3a8a 100%)',
+          background: 'linear-gradient(135deg, #2d3eb8 0%, var(--k-blue-strong) 100%)',
           borderRadius: 'var(--radius-xl)', padding: '28px 32px',
           marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
@@ -242,7 +242,7 @@ export default function Dashboard({ results, scanHistory = [], step1Completed, s
           <span style={{ fontWeight: 600, color: 'var(--text2)' }}>Datakwaliteit</span>
           <span style={{ fontWeight: 700, color: 'var(--blue)', fontSize: 15 }}>{score2}%</span>
           <span style={{ color: 'var(--text4)' }}>=</span>
-          <span style={{ fontWeight: 800, color: '#1e3a8a', fontSize: 15 }}>Rhadix Index {radixIndex}%</span>
+          <span style={{ fontWeight: 800, color: 'var(--k-blue-strong)', fontSize: 15 }}>Rhadix Index {radixIndex}%</span>
           <RhadixUitleg score1={score1} score2={score2} radixIndex={radixIndex} />
         </div>
 

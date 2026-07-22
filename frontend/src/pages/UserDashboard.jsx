@@ -101,7 +101,7 @@ export default function UserDashboard({ onBack, authUser }) {
               <Line
                 type="monotone"
                 dataKey="score"
-                stroke="#3b82f6"
+                stroke="var(--k-blue)"
                 strokeWidth={2}
                 dot={{ r: 4 }}
                 activeDot={{ r: 6 }}

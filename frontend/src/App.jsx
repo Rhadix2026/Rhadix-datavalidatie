@@ -43,6 +43,7 @@ export default function App() {
   const [entry, setEntry]               = useState('landing')  // 'landing' | 'login'
   const [brand, setBrand]               = useState(getInitialBrand)   // 'rhadix' | 'suresync' (white-label, staging)
   const [authUser, setAuthUser]         = useState(null)   // { id, email, role, tenant_id, tenant_name }
+  const [booting, setBooting]           = useState(true)   // cookie-auto-login (SSO) op mount
   const [authAction, setAuthAction]     = useState(() => {
     try {
       const p = new URLSearchParams(window.location.search)
@@ -104,11 +105,34 @@ export default function App() {
     return () => window.removeEventListener('rhadix:unauthorized', handler)
   }, [])
 
+  // SSO-boot: bij binnenkomst (bv. 'Terug naar platform' vanuit een andere app) automatisch
+  // inloggen met het centrale rhadix_sso-cookie en direct het portaal ('kies een applicatie') tonen.
+  useEffect(() => {
+    let alive = true
+    getMe()
+      .then(user => { if (alive && user) { setAuthUser(user); setStep('portal') } })
+      .catch(() => {})
+      .finally(() => { if (alive) setBooting(false) })
+    return () => { alive = false }
+  }, [])
+
+  // 'Terug naar platform'-knop in de balk -> terug naar het portaal (kies een applicatie).
+  useEffect(() => {
+    const goPortal = () => setStep('portal')
+    window.addEventListener('rhadix:platform', goPortal)
+    return () => window.removeEventListener('rhadix:platform', goPortal)
+  }, [])
+
   // White-label merk-laag: zet data-brand op <html> zodat het palet (index.css) volgt.
   useEffect(() => { document.documentElement.dataset.brand = brand }, [brand])
   const changeBrand = (b) => {
     try { sessionStorage.setItem('rhadix:brand', b) } catch { /* ignore */ }
     setBrand(b)
+  }
+
+  // ── SSO-boot bezig: kort laadscherm i.p.v. flikkering naar login/landing ──
+  if (booting && !authAction && !authUser) {
+    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text3)', fontFamily: 'var(--font)' }}>Bezig met inloggen…</div>
   }
 
   // ── Auth-actie via e-maillink (reset/invite/verify): vóór alles, ook indien uitgelogd ──
@@ -474,7 +498,7 @@ export default function App() {
       {/* ── Reconciliation Engine ── */}
       {step === 'reconciliation' && (
         <ReconciliationDashboard
-          onBack={() => setStep('systems')}
+          onBack={() => setStep('portal')}
         />
       )}
 

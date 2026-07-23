@@ -86,7 +86,13 @@ export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
       position: 'sticky', top: 0, zIndex: 100,
       boxShadow: '0 2px 12px rgba(0,0,0,.25)',
     }}>
-      <RhadixLogo onHome={onHome} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <RhadixLogo onHome={onHome} />
+        {authUser && (
+          <button onClick={() => window.dispatchEvent(new CustomEvent('rhadix:platform'))}
+            title="Terug naar platform — kies een applicatie" style={_platformBtn}>▦ Platform</button>
+        )}
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         {right}
         {authUser && (
@@ -143,6 +149,14 @@ export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
       </div>
     </header>
   )
+}
+
+const _platformBtn = {
+  background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.28)',
+  borderRadius: 'var(--radius)', padding: '5px 12px',
+  color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+  fontFamily: 'var(--font)', letterSpacing: '.02em',
+  display: 'flex', alignItems: 'center', gap: 5,
 }
 
 const _navBtn = {

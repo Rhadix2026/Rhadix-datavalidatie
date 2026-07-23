@@ -499,6 +499,8 @@ export default function App() {
       {step === 'reconciliation' && (
         <ReconciliationDashboard
           onBack={() => setStep('portal')}
+          authUser={authUser}
+          onLogout={handleLogout}
         />
       )}
 

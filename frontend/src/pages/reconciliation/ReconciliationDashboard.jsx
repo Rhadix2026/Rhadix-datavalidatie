@@ -3,6 +3,7 @@
  */
 
 import React, { useCallback, useRef, useState } from "react";
+import { Nav } from "../../components/UI";
 import { getAuthToken } from "../../services/api";
 
 const API_BASE = "/api/reconciliation";
@@ -1616,7 +1617,7 @@ function HappyFlowTab() {
 // Main Dashboard
 // ---------------------------------------------------------------------------
 
-export default function ReconciliationDashboard({ onBack }) {
+export default function ReconciliationDashboard({ onBack, authUser, onLogout }) {
   const [activeTab, setActiveTab]              = useState("happy-flow");
   const [indicators, setIndicators]           = useState([]);
   const [results, setResults]                 = useState([]);
@@ -1642,7 +1643,9 @@ export default function ReconciliationDashboard({ onBack }) {
   ];
 
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px", fontFamily: "Inter, system-ui, sans-serif" }}>
+    <>
+    <Nav authUser={authUser} onLogout={onLogout} onHome={onBack} />
+    <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px", fontFamily: "var(--font)" }}>
 
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -1730,6 +1733,7 @@ export default function ReconciliationDashboard({ onBack }) {
         </>
       )}
     </div>
+    </>
   );
 }
 

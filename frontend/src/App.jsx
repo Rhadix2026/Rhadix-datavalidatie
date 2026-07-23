@@ -255,6 +255,7 @@ export default function App() {
           onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
           onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
           onLogout={handleLogout}
+          onReconciliation={canReconciliation ? () => setStep('reconciliation') : null}
         />
       )}
 

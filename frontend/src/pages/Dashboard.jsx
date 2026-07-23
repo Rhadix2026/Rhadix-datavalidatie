@@ -338,14 +338,6 @@ export default function Dashboard({ results, scanHistory = [], step1Completed, s
                   enabled: true,
                   onClick: onProfiles,
                 },
-                {
-                  icon: '🔁',
-                  label: 'Reconciliation Engine',
-                  sub: 'Vergelijk brondata met SPARQL-indicatoren — stoplicht per indicator',
-                  stepLabel: 'Nieuw',
-                  enabled: true,
-                  onClick: onReconciliation,
-                },
               ].map(r => (
                 <div key={r.label} style={{
                   display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 12,

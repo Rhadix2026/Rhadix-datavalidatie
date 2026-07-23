@@ -77,7 +77,7 @@ export function TreeDecoration({ opacity = 0.35, style: sx = {} }) {
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
-                      onDashboard, onOrgDashboard, onPlatformDashboard, onHome }) {
+                      onDashboard, onOrgDashboard, onPlatformDashboard, onHome, onBack }) {
   return (
     <header style={{
       background: 'var(--blue-hero)', borderBottom: '1px solid rgba(255,255,255,.08)',
@@ -88,6 +88,9 @@ export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <RhadixLogo onHome={onHome} />
+        {onBack && (
+          <button onClick={onBack} title="Terug (1 stap)" style={_backBtn}>← Terug</button>
+        )}
         {authUser && (
           <button onClick={() => window.dispatchEvent(new CustomEvent('rhadix:platform'))}
             title="Terug naar platform — kies een applicatie" style={_platformBtn}>▦ Platform</button>
@@ -137,6 +140,9 @@ export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
                 {authUser.full_name || authUser.email}
               </span>
             </div>
+            <span title="Applicatieversie" style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', fontFamily: 'var(--font)', whiteSpace: 'nowrap' }}>
+              {import.meta.env.VITE_APP_VERSION || 'dev'}
+            </span>
             {onLogout && (
               <button onClick={onLogout} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
@@ -149,6 +155,13 @@ export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
       </div>
     </header>
   )
+}
+
+const _backBtn = {
+  background: 'rgba(255,255,255,.22)', border: '1.5px solid rgba(255,255,255,.7)',
+  borderRadius: 'var(--radius)', padding: '5px 14px',
+  color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+  fontFamily: 'var(--font)', letterSpacing: '.03em',
 }
 
 const _platformBtn = {

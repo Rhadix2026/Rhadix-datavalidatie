@@ -1644,17 +1644,12 @@ export default function ReconciliationDashboard({ onBack, authUser, onLogout }) 
 
   return (
     <>
-    <Nav authUser={authUser} onLogout={onLogout} onHome={onBack} />
+    <Nav authUser={authUser} onLogout={onLogout} onHome={onBack} onBack={onBack} />
     <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px", fontFamily: "var(--font)" }}>
 
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
-          {onBack && (
-            <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 13, marginBottom: 6, padding: 0, display: "block" }}>
-              ← Terug
-            </button>
-          )}
           <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>🔁 Reconciliation Engine</h2>
           <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>
             Vergelijk brondata-uitkomsten met SPARQL-indicatoren uit het uitwisselprofiel

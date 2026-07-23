@@ -111,8 +111,9 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
     # bv. ".rhadix.nl"); maakt cross-app SSO mogelijk zonder opnieuw inloggen.
     import os as _os
     _dom = _os.getenv("SSO_COOKIE_DOMAIN")
+    _cookie_name = _os.getenv("SSO_COOKIE_NAME", "rhadix_sso")
     if _dom:
-        response.set_cookie("rhadix_sso", token, domain=_dom, path="/",
+        response.set_cookie(_cookie_name, token, domain=_dom, path="/",
                             httponly=True, secure=True, samesite="lax",
                             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60)
     return TokenResponse(access_token=token)

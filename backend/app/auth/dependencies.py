@@ -23,10 +23,11 @@ Usage in routers:
     def upload(user: Optional[User] = Depends(require_app_access("kikv-validator"))):
         ...  # None for anonymous demo users, User for authenticated+authorised callers
 """
+import os
 import uuid
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy.orm import Session
@@ -38,24 +39,38 @@ from app.models.auth_models import Application, User, UserApplication, UserRole
 
 _bearer = HTTPBearer(auto_error=False)
 
+# Naam van het centrale SSO-cookie (env-gestuurd zodat staging en prod gescheiden zijn).
+SSO_COOKIE_NAME = os.getenv("SSO_COOKIE_NAME", "rhadix_sso")
+
+
+def _bearer_or_cookie(credentials, request):
+    """Token uit de Authorization-header, anders uit het centrale rhadix_sso-cookie."""
+    if credentials:
+        return credentials.credentials
+    if request is not None:
+        return request.cookies.get(SSO_COOKIE_NAME)
+    return None
+
 
 # ---------------------------------------------------------------------------
 # Core dependency
 # ---------------------------------------------------------------------------
 
 def get_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
     db: Session = Depends(get_db),
 ) -> User:
-    """Require a valid JWT.  Raises 401 if missing or invalid."""
-    if not credentials:
+    """Require a valid JWT (Bearer of centraal rhadix_sso-cookie).  Raises 401 if missing or invalid."""
+    _tok = _bearer_or_cookie(credentials, request)
+    if not _tok:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
-        payload  = decode_access_token(credentials.credentials)
+        payload  = decode_access_token(_tok)
         user_id: str = payload.get("sub")
         if not user_id:
             raise ValueError("Missing sub claim")
@@ -67,7 +82,7 @@ def get_current_user(
         )
 
     # Controleer of het token ingetrokken is (logout)
-    jti = payload.get("jti") or credentials.credentials
+    jti = payload.get("jti") or _tok
     if token_is_blocked(jti):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -87,14 +102,16 @@ def get_current_user(
 
 
 def get_optional_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
     db: Session = Depends(get_db),
 ) -> Optional[User]:
     """Like get_current_user but returns None instead of raising when no token is provided."""
-    if not credentials:
+    _tok = _bearer_or_cookie(credentials, request)
+    if not _tok:
         return None
     try:
-        payload  = decode_access_token(credentials.credentials)
+        payload  = decode_access_token(_tok)
         user_id  = payload.get("sub")
         if not user_id:
             return None
@@ -147,16 +164,18 @@ def require_app_access(app_slug: str):
             ...
     """
     def _check(
+        request: Request,
         credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
         db: Session = Depends(get_db),
     ) -> Optional[User]:
         # No token — public demo mode, let the request through
-        if not credentials:
+        _tok = _bearer_or_cookie(credentials, request)
+        if not _tok:
             return None
 
         # Decode and look up user (reuse optional logic)
         try:
-            payload  = decode_access_token(credentials.credentials)
+            payload  = decode_access_token(_tok)
             user_id  = payload.get("sub")
             if not user_id:
                 return None

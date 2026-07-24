@@ -296,7 +296,7 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
                           <MaakTakenButton
                             buttonLabel="✓ Maak taken van bevindingen"
                             sourceType="datavalidatie"
-                            sourceRef={b.run_id}
+                            sourceRef={b.run_id != null ? String(b.run_id) : null}
                             items={(b.file_results || []).flatMap(fr => (fr.issues || []).map(iss => ({
                               title: iss.label + (iss.count > 1 ? ` (${iss.count}\u00d7)` : ''),
                               source_label: fr.schema_key,

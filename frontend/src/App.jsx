@@ -5,6 +5,7 @@ import Landing                 from './pages/Landing'
 import { getInitialBrand } from './brand'
 import SelectSystems           from './pages/SelectSystems'
 import Upload                  from './pages/Upload'
+import MultiSourceValidatie    from './pages/MultiSourceValidatie'
 import Beschikbaarheid         from './pages/Beschikbaarheid'
 import BeschikbaarheidsRapport from './pages/BeschikbaarheidsRapport'
 import KikvReadinessRapport    from './pages/KikvReadinessRapport'
@@ -302,7 +303,7 @@ export default function App() {
           onNext={(sel, std) => {
             setSystems(sel)
             setStandard(std || 'kikv')
-            setStep('upload')
+            setStep((sel || []).length > 1 ? 'multi_validatie' : 'upload')
           }}
           onBack={() => setStep('portal')}
           authUser={authUser}
@@ -320,6 +321,15 @@ export default function App() {
           systems={systems}
           standard={standard}
           onNext={completeUpload}
+          onBack={() => setStep('systems')}
+        />
+      )}
+
+      {step === 'multi_validatie' && (
+        <MultiSourceValidatie
+          systems={systems}
+          authUser={authUser}
+          onLogout={handleLogout}
           onBack={() => setStep('systems')}
         />
       )}

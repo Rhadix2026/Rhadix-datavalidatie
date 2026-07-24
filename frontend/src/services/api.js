@@ -104,6 +104,14 @@ export async function uploadFiles(files, label = '', standard = 'kikv', maxAgeDa
   return res.json()
 }
 
+export async function happyFlowBatch(files) {
+  const form = new FormData()
+  files.forEach(f => form.append('files', f))
+  const res = await apiFetch(`${BASE}/reconciliation/happy-flow/batch`, { method: 'POST', body: form })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 export async function runBenchmark(standard) {
   const form = new FormData()
   form.append('standard', standard)

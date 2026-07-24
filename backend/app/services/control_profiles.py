@@ -18,7 +18,8 @@ from typing import Optional
 from app.services.algemeen_validator import ALL_TEMPLATES
 from app.services.zib_rules import ZIB_FIELD_RULES
 from app.services.validator import KIKV_REFERENCE
-from app.services.controls import Finding, run_column, run_unique, column_values, run_date_order
+from app.services.rules import CONTRACTTYPE_TIJDELIJK
+from app.services.controls import Finding, run_column, run_unique, column_values, run_date_order, run_conditional_required
 
 
 @dataclass
@@ -30,6 +31,7 @@ class Profile:
     codelists: dict = field(default_factory=dict)  # {concept: [toegestane waarden]}
     unique: list = field(default_factory=list)     # concepten die uniek moeten zijn
     date_orders: list = field(default_factory=list)  # (start_concept, eind_concept)-paren
+    conditional_required: list = field(default_factory=list)  # [{trigger, values, target}]
 
     @property
     def all_fields(self) -> dict:
@@ -78,6 +80,8 @@ def profile_from_zib(record_type: str) -> Optional[Profile]:
 _KIKV_UNIQUE = {"medewerker": ["personeelsnummer"]}
 # Cross-field datumvolgorde per recordtype (eind mag niet vóór start liggen).
 _KIKV_DATE_ORDER = {"verzuim": [("startmoment", "eindmoment")]}
+# Conditioneel verplicht: einddatum verplicht bij een tijdelijk contracttype.
+_KIKV_CONDITIONAL = {"werkovereenkomst": [{"trigger": "overeenkomsttype", "values": CONTRACTTYPE_TIJDELIJK, "target": "einddatum"}]}
 
 
 def profile_from_kikv(record_type: str) -> Optional[Profile]:
@@ -104,8 +108,11 @@ def profile_from_kikv(record_type: str) -> Optional[Profile]:
     all_concepts = set(required) | set(optional)
     date_orders = [(a, b) for (a, b) in _KIKV_DATE_ORDER.get(record_type, [])
                    if a in all_concepts and b in all_concepts]
+    conditional_required = [c for c in _KIKV_CONDITIONAL.get(record_type, [])
+                            if c["trigger"] in all_concepts and c["target"] in all_concepts]
     return Profile(record_type=record_type, required=required, optional=optional,
-                   codelists=codelists, unique=unique, date_orders=date_orders)
+                   codelists=codelists, unique=unique, date_orders=date_orders,
+                   conditional_required=conditional_required)
 
 
 def _column_for(cf, concept: str) -> Optional[str]:
@@ -167,6 +174,18 @@ def run_profile(cf, profile: Profile) -> list[Finding]:
         starts = [(row.cells[sc].value if sc in row.cells else None) for row in cf.rows]
         ends = [(row.cells[ec].value if ec in row.cells else None) for row in cf.rows]
         f = run_date_order(starts, ends, end_c, severity="error")
+        if f:
+            findings.append(f)
+
+    # 5. Conditioneel verplicht (bv. KIK-V: einddatum verplicht bij tijdelijk contract).
+    for rule in profile.conditional_required:
+        tc = _column_for(cf, rule["trigger"])
+        gc = _column_for(cf, rule["target"])
+        if tc is None or gc is None or tc not in present or gc not in present:
+            continue
+        triggers = [(row.cells[tc].value if tc in row.cells else None) for row in cf.rows]
+        targets = [(row.cells[gc].value if gc in row.cells else None) for row in cf.rows]
+        f = run_conditional_required(triggers, targets, rule["values"], rule["target"], severity="error")
         if f:
             findings.append(f)
 

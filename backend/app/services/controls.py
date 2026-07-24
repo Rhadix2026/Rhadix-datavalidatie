@@ -137,3 +137,29 @@ def run_date_order(start_values, end_values, concept: str, severity: str = "erro
         message=f"{fail} rij(en) met einddatum vóór startdatum.",
         examples=examples,
     )
+
+
+def run_conditional_required(trigger_values, target_values, trigger_set, concept: str,
+                             severity: str = "error", max_examples: int = 5) -> Optional[Finding]:
+    """Conditioneel verplicht: als het trigger-veld een waarde uit `trigger_set`
+    heeft, moet het doelveld (`concept`) gevuld zijn. Per rij uitgelijnd.
+
+    Verdict-pariteit met KIK-V's bespoke `missing_einddatum_temp` (einddatum
+    verplicht bij een tijdelijk contracttype)."""
+    norm = {str(t).strip().lower() for t in trigger_set}
+    fail = 0
+    examples: list = []
+    for idx, (tv, gv) in enumerate(zip(trigger_values, target_values)):
+        tvs = "" if tv is None else str(tv).strip().lower()
+        gvs = "" if gv is None else str(gv).strip()
+        if tvs in norm and not gvs:
+            fail += 1
+            if len(examples) < max_examples:
+                examples.append({"row": idx + 2, "trigger": tvs})
+    if fail <= 0:
+        return None
+    return Finding(
+        concept=concept, check="conditional_required", severity=severity, count=fail,
+        message=f"{fail} rij(en): '{concept}' is verplicht bij deze waarde.",
+        examples=examples,
+    )

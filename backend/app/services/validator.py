@@ -883,6 +883,45 @@ def run_cross_checks(files_data: dict) -> list:
     return cross
 
 # ─── MAIN VALIDATE ENTRY POINT ───────────────────────────────────────────────
+# ── Profiel-laag omschakeling (Stap 2 slice 2.4, achter env-vlag) ─────────────
+_PROFILE_CHECK_LABEL = {
+    "missing": "Verplicht veld ontbreekt", "required": "Verplichte waarde ontbreekt",
+    "date": "Ongeldige datumnotatie", "codelist": "Ongeldige codelijstwaarde",
+    "unique": "Dubbele waarde", "date_order": "Einddatum vóór startdatum",
+    "conditional_required": "Voorwaardelijk verplicht veld ontbreekt",
+    "forbidden": "Placeholder/verboden waarde", "range": "Waarde buiten bereik",
+    "bsn": "Ongeldig BSN", "email": "Ongeldig e-mailadres", "number": "Ongeldig getal",
+    "text": "Ongeldige waarde",
+}
+
+
+def use_profiles() -> bool:
+    """Draait de validatie op de generieke profiel-laag (Laag 2/3) i.p.v. de oude
+    validator? Gestuurd door env RHADIX_USE_PROFILES (default: uit = huidig gedrag)."""
+    import os
+    return os.getenv("RHADIX_USE_PROFILES", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def profile_issues(schema_key: str, headers: list, rows: list) -> list:
+    """KIK-V per-bestand-meldingen uit de profiel-laag, in het issue-formaat van
+    run_file_checks. Vertaalt Finding -> issue-dict (id/label/severity/count/detail)."""
+    from app.services.ingest.pipeline import to_canonical
+    from app.services.control_profiles import profile_from_kikv, run_profile
+    profile = profile_from_kikv(schema_key)
+    if not profile:
+        return []
+    cf = to_canonical("upload", headers, rows, total=len(rows), standard="kikv")
+    issues = []
+    for f in run_profile(cf, profile):
+        label = f"{_PROFILE_CHECK_LABEL.get(f.check, f.check)} — {f.concept}"
+        issues.append({
+            "id": f"{f.concept}_{f.check}", "label": label, "severity": f.severity,
+            "count": f.count, "detail": f.message,
+            "rows": [], "truncated": False,
+        })
+    return issues
+
+
 def validate_files(files_input: list) -> dict:
     """
     files_input: list of {filename, schema_key, headers, rows}
@@ -897,7 +936,10 @@ def validate_files(files_input: list) -> dict:
             continue
         schema = KIKV_REFERENCE[sk]
         mapping = auto_map(fi["headers"], schema["col_aliases"])
-        issues = run_file_checks(sk, fi["rows"], mapping)
+        if use_profiles():
+            issues = profile_issues(sk, fi["headers"], fi["rows"])
+        else:
+            issues = run_file_checks(sk, fi["rows"], mapping)
 
         # Pre-scan: formaat-validatie op extra kolommen (niet in schema-mapping)
         known_col_names = set(mapping.values())

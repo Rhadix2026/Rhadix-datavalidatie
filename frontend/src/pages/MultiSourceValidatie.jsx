@@ -50,6 +50,9 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
   const [phase, setPhase]     = useState('')
   const [error, setError]     = useState(null)
   const [result, setResult]   = useState(null)
+  const [benchmark, setBenchmark]     = useState(null)   // { std, result }
+  const [benchmarking, setBenchmarking] = useState(false)
+  const [benchErr, setBenchErr]       = useState(null)
 
   const addFiles = useCallback((sid, list) => {
     setFilesBySource(prev => {
@@ -120,6 +123,19 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
       const msg = e?.message || String(e)
       setError('Validatie mislukt: ' + (msg.length > 220 ? msg.slice(0, 220) + '…' : msg))
     } finally { setLoading(false); setPhase('') }
+  }
+
+  const runBench = async (std) => {
+    if (!totalFiles()) return
+    setBenchmarking(true); setBenchErr(null); setBenchmark(null)
+    try {
+      const allFiles = Object.values(filesBySource).flat()
+      const res = await uploadFiles(allFiles, `Benchmark ${std.toUpperCase()} — multi-bron`, std, 30)
+      setBenchmark({ std, result: res })
+    } catch (e) {
+      const msg = e?.message || String(e)
+      setBenchErr('Benchmark mislukt: ' + (msg.length > 220 ? msg.slice(0, 220) + '…' : msg))
+    } finally { setBenchmarking(false) }
   }
 
   return (
@@ -201,6 +217,62 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
                 <span style={{ fontSize: 12, fontWeight: 800, color: c.status === 'ok' ? 'var(--green)' : '#b45309', minWidth: 64, textAlign: 'right' }}>{c.status === 'ok' ? 'OK' : 'Afwijking'}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Benchmark tegen standaard */}
+        {totalFiles() > 0 && (
+          <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: 20, marginBottom: 24 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>🎯 Benchmark tegen standaard</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text3)', marginBottom: 14 }}>Toets de aangeleverde data tegen KIK-V of de ZIB's (conformiteit + score over alle bronnen).</div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+              <button onClick={() => runBench('kikv')} disabled={benchmarking} style={{
+                background: 'var(--blue)', border: 'none', borderRadius: 'var(--radius)', padding: '10px 18px',
+                color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: benchmarking ? 'default' : 'pointer', fontFamily: 'var(--font)', opacity: benchmarking ? 0.6 : 1,
+              }}>Benchmark tegen KIK-V</button>
+              <button onClick={() => runBench('zib')} disabled={benchmarking} style={{
+                background: '#fff', border: '1px solid var(--blue-mid)', borderRadius: 'var(--radius)', padding: '10px 18px',
+                color: 'var(--blue)', fontSize: 13.5, fontWeight: 700, cursor: benchmarking ? 'default' : 'pointer', fontFamily: 'var(--font)', opacity: benchmarking ? 0.6 : 1,
+              }}>Benchmark tegen ZIB</button>
+              {benchmarking && <span style={{ fontSize: 12.5, color: 'var(--blue)', alignSelf: 'center', fontWeight: 600 }}>Bezig…</span>}
+            </div>
+            {benchErr && <div style={{ padding: '10px 14px', background: 'var(--red-bg)', border: '1px solid var(--red-light)', borderRadius: 'var(--radius)', color: 'var(--red)', fontSize: 13 }}>{benchErr}</div>}
+            {benchmark && (() => {
+              const b = benchmark.result || {}
+              const per = {}
+              ;(b.file_results || []).forEach(fr => {
+                const k = fr.schema_key || 'onbekend'
+                per[k] = per[k] || { err: 0, warn: 0 }
+                per[k].err += fr.error_count || 0
+                per[k].warn += fr.warn_count || 0
+              })
+              const score = b.score != null ? b.score : null
+              const scoreColor = score == null ? 'var(--text3)' : score >= 80 ? 'var(--green)' : score >= 50 ? '#b45309' : 'var(--red)'
+              return (
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 14, flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)' }}>Resultaat {benchmark.std.toUpperCase()}:</div>
+                    {score != null && <div style={{ fontSize: 30, fontWeight: 900, color: scoreColor }}>{score}<span style={{ fontSize: 15, color: 'var(--text3)' }}>/100</span></div>}
+                    <div style={{ fontSize: 13, color: 'var(--red)', fontWeight: 700 }}>{b.total_errors ?? 0} fouten</div>
+                    <div style={{ fontSize: 13, color: '#b45309', fontWeight: 700 }}>{b.total_warns ?? 0} waarschuwingen</div>
+                  </div>
+                  {Object.keys(per).length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {Object.entries(per).map(([k, v]) => (
+                        <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                          <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{k}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: v.err ? 'var(--red)' : 'var(--green)' }}>{v.err} fouten</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309' }}>{v.warn} waarsch.</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {(b.file_results || []).length === 0 && (
+                    <div style={{ fontSize: 13, color: 'var(--text3)' }}>Geen {benchmark.std.toUpperCase()}-herkende bestanden in deze set.</div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         )}
       </Page>

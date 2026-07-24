@@ -47,17 +47,26 @@ export function MaakTakenButton({ items = [], sourceType = 'handmatig', sourceRe
   const [assignee, setAssignee] = useState('')
   const [busy, setBusy]     = useState(false)
   const [done, setDone]     = useState(null)
+  const [selected, setSelected] = useState(() => new Set())
+  const allSelected = items.length > 0 && selected.size === items.length
+  const toggle = (i) => setSelected(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n })
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(items.map((_, i) => i)))
 
   useEffect(() => {
-    if (open) assignableUsers().then(setUsers).catch(() => setUsers([]))
+    if (open) {
+      assignableUsers().then(setUsers).catch(() => setUsers([]))
+      setSelected(new Set(items.map((_, i) => i)))
+    }
   }, [open])
 
   const submit = async () => {
+    const chosen = items.filter((_, i) => selected.has(i))
+    if (!chosen.length) return
     setBusy(true)
     try {
       const res = await createTasksBulk({
-        items: items.map(it => ({ title: it.title, source_label: it.source_label || null,
-                                  priority: it.priority || 'NORMAAL' })),
+        items: chosen.map(it => ({ title: it.title, source_label: it.source_label || null,
+                                   priority: it.priority || 'NORMAAL' })),
         assignee_id: assignee || null, source_type: sourceType, source_ref: sourceRef,
       })
       setDone(res.created)
@@ -82,27 +91,32 @@ export function MaakTakenButton({ items = [], sourceType = 'handmatig', sourceRe
               <>
                 <h3 style={{ margin: '0 0 6px', fontSize: 18, color: 'var(--text)' }}>Taken aanmaken</h3>
                 <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text3)' }}>
-                  Er worden <b>{items.length}</b> taken aangemaakt uit deze bevindingen.
+                  Er worden <b>{selected.size}</b> van {items.length} bevindingen als taak aangemaakt.
                 </p>
                 <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)' }}>Toewijzen aan</label>
                 <select value={assignee} onChange={e => setAssignee(e.target.value)} style={{ ...inputStyle, marginTop: 6 }}>
                   <option value="">— Niemand (later toewijzen) —</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
                 </select>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 12.5, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+                  Alles selecteren ({selected.size}/{items.length})
+                </label>
                 <div style={{
-                  marginTop: 14, maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)', padding: 10, fontSize: 12, color: 'var(--text2)',
+                  marginTop: 8, maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)', padding: 6, fontSize: 12, color: 'var(--text2)',
                 }}>
-                  {items.slice(0, 50).map((it, i) => (
-                    <div key={i} style={{ padding: '3px 0', borderBottom: '1px solid var(--border)' }}>
-                      • {it.title}{it.source_label ? <span style={{ color: 'var(--text3)' }}> — {it.source_label}</span> : null}
-                    </div>
+                  {items.slice(0, 200).map((it, i) => (
+                    <label key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 4px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={selected.has(i)} onChange={() => toggle(i)} style={{ marginTop: 2 }} />
+                      <span>{it.title}{it.source_label ? <span style={{ color: 'var(--text3)' }}> — {it.source_label}</span> : null}</span>
+                    </label>
                   ))}
-                  {items.length > 50 && <div style={{ paddingTop: 6, color: 'var(--text3)' }}>…en nog {items.length - 50}</div>}
+                  {items.length > 200 && <div style={{ paddingTop: 6, color: 'var(--text3)' }}>…en nog {items.length - 200}</div>}
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 18, justifyContent: 'flex-end' }}>
                   <button onClick={() => setOpen(false)} disabled={busy} style={btnGhost}>Annuleren</button>
-                  <button onClick={submit} disabled={busy} style={btnPrimary}>{busy ? 'Bezig…' : 'Aanmaken'}</button>
+                  <button onClick={submit} disabled={busy || selected.size === 0} style={{ ...btnPrimary, opacity: (busy || selected.size === 0) ? 0.6 : 1 }}>{busy ? 'Bezig…' : `Aanmaken (${selected.size})`}</button>
                 </div>
               </>
             ) : (

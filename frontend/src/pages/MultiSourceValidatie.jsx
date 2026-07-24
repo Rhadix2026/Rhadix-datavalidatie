@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react'
 import { Nav, Page, PageTitle, BtnPrimary } from '../components/UI'
-import { uploadFiles, happyFlowBatch } from '../services/api'
+import { uploadFiles, happyFlowBatch,
+  exportKikvReadinessRapportPdf, exportBeschikbaarheidsRapportPdf, exportManagementRapportPdf } from '../services/api'
+import { MaakTakenButton } from '../components/TaskUI'
 
 // Bron-metadata: label, bron-parameter voor de fase-1 validatie, en de happy-flow
 // voorbeeldbestanden die bij deze bron horen (voor de één-klik demo).
@@ -22,6 +24,12 @@ const CROSSCHECKS = [
   { label: 'Unieke medewerkers in werkovereenkomst ≤ medewerkeraantal (ONS)', a: 'hf_werkovereenkomst_ons_uniek_medewerker', b: 'hf_medewerker_ons_count', rel: 'lte' },
   { label: 'Financiële boekingen én HR-populatie aanwezig', a: 'hf_financieel_boekingen_count', b: 'hf_medewerker_afas_count', rel: 'both' },
 ]
+
+const reportBtn = {
+  background: '#fff', border: '1px solid var(--blue-mid)', borderRadius: 'var(--radius)',
+  padding: '9px 14px', color: 'var(--blue)', fontSize: 13, fontWeight: 700,
+  cursor: 'pointer', fontFamily: 'var(--font)',
+}
 
 // Verzamel alle issues (met severity) recursief uit een validatie-respons.
 function collectIssues(obj, acc = []) {
@@ -53,6 +61,7 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
   const [benchmark, setBenchmark]     = useState(null)   // { std, result }
   const [benchmarking, setBenchmarking] = useState(false)
   const [benchErr, setBenchErr]       = useState(null)
+  const [reportErr, setReportErr]     = useState(null)
 
   const addFiles = useCallback((sid, list) => {
     setFilesBySource(prev => {
@@ -136,6 +145,12 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
       const msg = e?.message || String(e)
       setBenchErr('Benchmark mislukt: ' + (msg.length > 220 ? msg.slice(0, 220) + '…' : msg))
     } finally { setBenchmarking(false) }
+  }
+
+  const dlReport = async (fn) => {
+    setReportErr(null)
+    try { await fn() }
+    catch (e) { setReportErr('Rapport niet beschikbaar voor deze scan: ' + (e?.message || e)) }
   }
 
   return (
@@ -269,6 +284,30 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
                   )}
                   {(b.file_results || []).length === 0 && (
                     <div style={{ fontSize: 13, color: 'var(--text3)' }}>Geen {benchmark.std.toUpperCase()}-herkende bestanden in deze set.</div>
+                  )}
+                  {b.run_id && (
+                    <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 8 }}>Rapportage & opvolging</div>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <button onClick={() => dlReport(() => exportKikvReadinessRapportPdf(b.run_id))} style={reportBtn}>📄 KIK-V readiness (PDF)</button>
+                        <button onClick={() => dlReport(() => exportBeschikbaarheidsRapportPdf(b.run_id))} style={reportBtn}>📄 Beschikbaarheid (PDF)</button>
+                        <button onClick={() => dlReport(() => exportManagementRapportPdf(b.run_id))} style={reportBtn}>📄 Management (PDF)</button>
+                        {authUser && (
+                          <MaakTakenButton
+                            buttonLabel="✓ Maak taken van bevindingen"
+                            sourceType="datavalidatie"
+                            sourceRef={b.run_id}
+                            items={(b.file_results || []).flatMap(fr => (fr.issues || []).map(iss => ({
+                              title: iss.label + (iss.count > 1 ? ` (${iss.count}\u00d7)` : ''),
+                              source_label: fr.schema_key,
+                              priority: iss.severity === 'error' ? 'HOOG' : 'NORMAAL',
+                            })))}
+                          />
+                        )}
+                      </div>
+                      {reportErr && <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--red)' }}>{reportErr}</div>}
+                      <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text3)' }}>Taken worden toegewezen aan een gebruiker van je organisatie; die krijgt een e-mailnotificatie.</div>
+                    </div>
                   )}
                 </div>
               )

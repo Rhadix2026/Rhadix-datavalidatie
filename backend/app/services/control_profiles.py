@@ -18,7 +18,7 @@ from typing import Optional
 from app.services.algemeen_validator import ALL_TEMPLATES
 from app.services.zib_rules import ZIB_FIELD_RULES
 from app.services.validator import KIKV_REFERENCE
-from app.services.controls import Finding, run_column, run_unique, column_values
+from app.services.controls import Finding, run_column, run_unique, column_values, run_date_order
 
 
 @dataclass
@@ -29,6 +29,7 @@ class Profile:
     optional: dict = field(default_factory=dict)   # {concept: check}
     codelists: dict = field(default_factory=dict)  # {concept: [toegestane waarden]}
     unique: list = field(default_factory=list)     # concepten die uniek moeten zijn
+    date_orders: list = field(default_factory=list)  # (start_concept, eind_concept)-paren
 
     @property
     def all_fields(self) -> dict:
@@ -75,6 +76,8 @@ def profile_from_zib(record_type: str) -> Optional[Profile]:
 # horen bij een rijker profiel (relationele/berekeningsregels) - latere stap.
 # Primaire identifiers die KIK-V op duplicaten controleert (dup_id).
 _KIKV_UNIQUE = {"medewerker": ["personeelsnummer"]}
+# Cross-field datumvolgorde per recordtype (eind mag niet vóór start liggen).
+_KIKV_DATE_ORDER = {"verzuim": [("startmoment", "eindmoment")]}
 
 
 def profile_from_kikv(record_type: str) -> Optional[Profile]:
@@ -98,8 +101,11 @@ def profile_from_kikv(record_type: str) -> Optional[Profile]:
         (required if concept in required_cols else optional)[concept] = check
     unique = _KIKV_UNIQUE.get(record_type, [])
     unique = [c for c in unique if c in required or c in optional]
+    all_concepts = set(required) | set(optional)
+    date_orders = [(a, b) for (a, b) in _KIKV_DATE_ORDER.get(record_type, [])
+                   if a in all_concepts and b in all_concepts]
     return Profile(record_type=record_type, required=required, optional=optional,
-                   codelists=codelists, unique=unique)
+                   codelists=codelists, unique=unique, date_orders=date_orders)
 
 
 def _column_for(cf, concept: str) -> Optional[str]:
@@ -149,6 +155,18 @@ def run_profile(cf, profile: Profile) -> list[Finding]:
         if col is None or col not in present:
             continue
         f = run_unique(column_values(cf, col), concept, severity="error")
+        if f:
+            findings.append(f)
+
+    # 4. Cross-field datumvolgorde (bv. KIK-V verzuim: eindmoment >= startmoment).
+    for start_c, end_c in profile.date_orders:
+        sc = _column_for(cf, start_c)
+        ec = _column_for(cf, end_c)
+        if sc is None or ec is None or sc not in present or ec not in present:
+            continue
+        starts = [(row.cells[sc].value if sc in row.cells else None) for row in cf.rows]
+        ends = [(row.cells[ec].value if ec in row.cells else None) for row in cf.rows]
+        f = run_date_order(starts, ends, end_c, severity="error")
         if f:
             findings.append(f)
 

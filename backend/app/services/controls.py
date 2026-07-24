@@ -18,6 +18,7 @@ from typing import Optional, Sequence
 # Hergebruik de bestaande formaatvalidators (bsn/date/email/postcode/number/
 # gender/verzuimtype/...) - één bron van waarheid.
 from app.services.algemeen_validator import VALIDATORS as _FORMAT_VALIDATORS
+from app.services.dataquality import parse_date as _parse_date
 
 
 @dataclass
@@ -109,5 +110,30 @@ def run_unique(values: Sequence, concept: str, severity: str = "error",
     return Finding(
         concept=concept, check="unique", severity=severity, count=len(involved),
         message=f"{len(dupes)} waarde(n) komen meerdere keren voor ({len(involved)} rijen).",
+        examples=examples,
+    )
+
+
+def run_date_order(start_values, end_values, concept: str, severity: str = "error",
+                   max_examples: int = 5) -> Optional[Finding]:
+    """Cross-field: signaleer rijen waar de einddatum vóór de startdatum ligt.
+
+    `start_values` en `end_values` zijn per rij uitgelijnd. Alleen rijen waar
+    beide datums parsebaar zijn tellen mee - identiek aan KIK-V's bespoke
+    `end_before_start` (verdict-pariteit)."""
+    fail = 0
+    examples: list = []
+    for idx, (sv, ev) in enumerate(zip(start_values, end_values)):
+        sd = _parse_date(sv)
+        ed = _parse_date(ev)
+        if sd and ed and ed < sd:
+            fail += 1
+            if len(examples) < max_examples:
+                examples.append({"row": idx + 2, "start": str(sv), "end": str(ev)})
+    if fail <= 0:
+        return None
+    return Finding(
+        concept=concept, check="date_order", severity=severity, count=fail,
+        message=f"{fail} rij(en) met einddatum vóór startdatum.",
         examples=examples,
     )

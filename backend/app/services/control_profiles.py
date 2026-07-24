@@ -19,7 +19,7 @@ from app.services.algemeen_validator import ALL_TEMPLATES
 from app.services.zib_rules import ZIB_FIELD_RULES
 from app.services.validator import KIKV_REFERENCE
 from app.services.rules import CONTRACTTYPE_TIJDELIJK
-from app.services.controls import Finding, run_column, run_unique, column_values, run_date_order, run_conditional_required
+from app.services.controls import Finding, run_column, run_unique, column_values, run_date_order, run_conditional_required, run_forbidden_value, run_range
 
 
 @dataclass
@@ -32,6 +32,8 @@ class Profile:
     unique: list = field(default_factory=list)     # concepten die uniek moeten zijn
     date_orders: list = field(default_factory=list)  # (start_concept, eind_concept)-paren
     conditional_required: list = field(default_factory=list)  # [{trigger, values, target}]
+    forbidden: dict = field(default_factory=dict)  # {concept: [verboden waarden]}
+    ranges: dict = field(default_factory=dict)     # {concept: (lo, hi)}
 
     @property
     def all_fields(self) -> dict:
@@ -82,6 +84,9 @@ _KIKV_UNIQUE = {"medewerker": ["personeelsnummer"]}
 _KIKV_DATE_ORDER = {"verzuim": [("startmoment", "eindmoment")]}
 # Conditioneel verplicht: einddatum verplicht bij een tijdelijk contracttype.
 _KIKV_CONDITIONAL = {"werkovereenkomst": [{"trigger": "overeenkomsttype", "values": CONTRACTTYPE_TIJDELIJK, "target": "einddatum"}]}
+# Placeholder-/verboden waarden en numerieke bereiken.
+_KIKV_FORBIDDEN = {"medewerker": {"personeelsnummer": ["99999"]}}
+_KIKV_RANGE = {"verzuim": {"verzuimpercentage": (0.0, 100.0)}}
 
 
 def profile_from_kikv(record_type: str) -> Optional[Profile]:
@@ -110,9 +115,11 @@ def profile_from_kikv(record_type: str) -> Optional[Profile]:
                    if a in all_concepts and b in all_concepts]
     conditional_required = [c for c in _KIKV_CONDITIONAL.get(record_type, [])
                             if c["trigger"] in all_concepts and c["target"] in all_concepts]
+    forbidden = {c: v for c, v in _KIKV_FORBIDDEN.get(record_type, {}).items() if c in all_concepts}
+    ranges = {c: v for c, v in _KIKV_RANGE.get(record_type, {}).items() if c in all_concepts}
     return Profile(record_type=record_type, required=required, optional=optional,
                    codelists=codelists, unique=unique, date_orders=date_orders,
-                   conditional_required=conditional_required)
+                   conditional_required=conditional_required, forbidden=forbidden, ranges=ranges)
 
 
 def _column_for(cf, concept: str) -> Optional[str]:
@@ -186,6 +193,24 @@ def run_profile(cf, profile: Profile) -> list[Finding]:
         triggers = [(row.cells[tc].value if tc in row.cells else None) for row in cf.rows]
         targets = [(row.cells[gc].value if gc in row.cells else None) for row in cf.rows]
         f = run_conditional_required(triggers, targets, rule["values"], rule["target"], severity="error")
+        if f:
+            findings.append(f)
+
+    # 6. Placeholder/verboden waarden (bv. KIK-V personeelsnummer '99999').
+    for concept, vals in profile.forbidden.items():
+        col = _column_for(cf, concept)
+        if col is None or col not in present:
+            continue
+        f = run_forbidden_value(column_values(cf, col), concept, vals, severity="error")
+        if f:
+            findings.append(f)
+
+    # 7. Numeriek bereik (bv. KIK-V verzuimpercentage 0-100).
+    for concept, (lo, hi) in profile.ranges.items():
+        col = _column_for(cf, concept)
+        if col is None or col not in present:
+            continue
+        f = run_range(column_values(cf, col), concept, lo, hi, severity="error")
         if f:
             findings.append(f)
 

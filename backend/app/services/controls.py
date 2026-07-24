@@ -163,3 +163,52 @@ def run_conditional_required(trigger_values, target_values, trigger_set, concept
         message=f"{fail} rij(en): '{concept}' is verplicht bij deze waarde.",
         examples=examples,
     )
+
+
+def run_forbidden_value(values, concept: str, forbidden, severity: str = "error",
+                        max_examples: int = 5) -> Optional[Finding]:
+    """Signaleer verboden/placeholder-waarden (bv. KIK-V personeelsnummer '99999')."""
+    fset = {str(x).strip() for x in forbidden}
+    fail = 0
+    examples: list = []
+    for idx, v in enumerate(values):
+        s = "" if v is None else str(v).strip()
+        if s and s in fset:
+            fail += 1
+            if len(examples) < max_examples:
+                examples.append({"row": idx + 2, "value": s})
+    if fail <= 0:
+        return None
+    return Finding(
+        concept=concept, check="forbidden", severity=severity, count=fail,
+        message=f"{fail} rij(en) met een verboden/placeholder-waarde.",
+        examples=examples,
+    )
+
+
+def run_range(values, concept: str, lo: float, hi: float, severity: str = "error",
+              max_examples: int = 5) -> Optional[Finding]:
+    """Signaleer niet-numerieke of buiten-bereik waarden (bv. verzuimpercentage 0-100).
+    Lege waarden tellen niet mee - verdict-pariteit met KIK-V's `invalid_pct`."""
+    fail = 0
+    examples: list = []
+    for idx, v in enumerate(values):
+        s = "" if v is None else str(v).strip()
+        if not s:
+            continue
+        try:
+            x = float(s)
+            ok = (lo <= x <= hi)
+        except ValueError:
+            ok = False
+        if not ok:
+            fail += 1
+            if len(examples) < max_examples:
+                examples.append({"row": idx + 2, "value": s[:50]})
+    if fail <= 0:
+        return None
+    return Finding(
+        concept=concept, check="range", severity=severity, count=fail,
+        message=f"{fail} waarde(n) buiten bereik {lo}-{hi} of niet-numeriek.",
+        examples=examples,
+    )

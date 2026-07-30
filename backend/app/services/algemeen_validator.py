@@ -496,6 +496,11 @@ def validate_algemeen(files_input: list[dict]) -> dict:
         issues.extend(_prescan_to_issues(rows, known_strong))
 
         quality = round(100 * quality_passed / max(quality_checks, 1))
+        # 100% moet 'écht foutloos' betekenen: keurde er ook maar één waarde af,
+        # toon dan hooguit 99, zodat een bestand mét uitval niet groen-100 lijkt
+        # (grote bestanden ronden een handvol fouten anders naar 100 af).
+        if quality == 100 and quality_passed < quality_checks:
+            quality = 99
         rhadix_index = round(completeness * quality / 100)
 
         file_results.append({
@@ -518,6 +523,10 @@ def validate_algemeen(files_input: list[dict]) -> dict:
     known = [r for r in file_results if r["template"]]
     overall_completeness = round(sum(r["completeness"] for r in known) / max(len(known), 1))
     overall_quality      = round(sum(r["quality"]      for r in known) / max(len(known), 1))
+    # Zelfde 'écht foutloos'-regel op het totaal: staat er één bestand met uitval,
+    # dan is het totaal niet 100.
+    if overall_quality == 100 and any(r["quality"] < 100 for r in known):
+        overall_quality = 99
     overall_index        = round(overall_completeness * overall_quality / 100)
 
     return {

@@ -389,11 +389,23 @@ export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack, 
               items={[
                 ...file_results.flatMap(r => (r.issues || []).map(iss => ({
                   title: iss.message,
+                  description: [
+                    `Bestand: ${r.filename || r.label || 'onbekend'}`,
+                    iss.count ? `Aantal: ${iss.count}` : null,
+                    (iss.examples || []).length
+                      ? 'Voorbeelden — ' + (iss.examples || [])
+                          .map(e => `rij ${e.row}: ${e.value}`).join(', ')
+                      : null,
+                  ].filter(Boolean).join('\n'),
                   source_label: `${r.label || r.filename || 'bestand'}${iss.count ? ' — ' + iss.count + '×' : ''}`,
                   priority: iss.severity === 'error' ? 'HOOG' : 'NORMAAL',
                 }))),
                 ...cross_checks.map(c => ({
                   title: c.label,
+                  description: [
+                    c.count ? `Aantal: ${c.count}` : null,
+                    c.detail || null,
+                  ].filter(Boolean).join('\n'),
                   source_label: `Cross-check${c.count ? ' — ' + c.count + '×' : ''}`,
                   priority: c.severity === 'error' ? 'HOOG' : 'NORMAAL',
                 })),

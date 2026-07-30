@@ -127,7 +127,7 @@ export default function Taken({ authUser, onBack }) {
                        style={{ marginTop: 3, cursor: 'pointer', accentColor: 'var(--green)' }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', textDecoration: t.status === 'KLAAR' ? 'line-through' : 'none' }}>{t.title}</div>
-                  {t.description && <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 3 }}>{t.description}</div>}
+                  {t.description && <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 3, whiteSpace: 'pre-line' }}>{t.description}</div>}
                   {t.source_label && <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>🔗 {t.source_label}</div>}
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' }}>
                     <StatusPill status={t.status} />

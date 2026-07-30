@@ -101,7 +101,7 @@ export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
           title="Upload databestanden"
           sub={
             standard === 'zib'      ? 'Upload uw EPD/ECD-export (Patient, Probleem, Medicatie, Allergie)' :
-            standard === 'algemeen' ? 'Upload uw AFAS Profit XML-export of Nedap ONS CSV-export' :
+            standard === 'algemeen' ? null :   // context (Datakwaliteit — AFAS/ONS) komt al uit vorig scherm
                                       'Upload uw HRM data-export of koppel via API'
           }
         />
@@ -205,7 +205,7 @@ export default function Upload({ systems, standard = 'kikv', onNext, onBack }) {
 
         {files.length > 0 && !loading && (
           <BtnPrimary onClick={submit} disabled={loading} style={{ marginTop: 8, width: '100%', justifyContent: 'center', padding: '13px' }}>
-            Start Stap 1: Beschikbaarheid →
+            {standard === 'algemeen' ? 'Start datakwaliteitscontrole →' : 'Start Stap 1: Beschikbaarheid →'}
           </BtnPrimary>
         )}
       </Page>

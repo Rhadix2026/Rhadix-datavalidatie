@@ -14,6 +14,10 @@ from app.services.control_profiles import (Profile, profile_from_algemeen_templa
 def _legacy_tuples(file_result):
     out = set()
     for i in file_result["issues"]:
+        # De schema-onafhankelijke pre-scan is een additieve laag bovenop de
+        # template-veldchecks; die valt buiten deze profiel-pariteit.
+        if i.get("prescan"):
+            continue
         if i["type"] == "missing_field":
             out.add(("missing", i["field"], i["severity"]))
         else:

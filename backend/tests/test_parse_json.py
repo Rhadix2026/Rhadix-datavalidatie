@@ -59,6 +59,24 @@ def test_json_invalid():
         parse_json_bytes(b'{not json')
 
 
+def test_json_numeric_not_date_mangled():
+    """AFAS levert personeelsnummer/BSN soms als getal. Een 8-cijferig getal mag
+    NIET als YYYYMMDD-datum worden geïnterpreteerd (regressie: 010203040 -> 1020-30-40)."""
+    import json as _json
+    payload = _json.dumps([
+        {"EmployeeId": 10203040, "BSN": 123456789, "FTE": 24.0, "HourPerWeek": 36},
+    ]).encode()
+    _, rows, _ = parse_json_bytes(payload)
+    r = rows[0]
+    assert r["EmployeeId"] == "10203040"      # geen 1020-30-40
+    assert r["BSN"] == "123456789"            # 9-cijferig getal blijft heel
+    assert r["FTE"] == "24.0"
+    assert r["HourPerWeek"] == "36"
+    # echte datum als string blijft wél genormaliseerd
+    _, rows2, _ = parse_json_bytes(b'[{"StartDate":"20200225"}]')
+    assert rows2[0]["StartDate"] == "2020-02-25"
+
+
 def test_parser_telt_totaal_en_capt(monkeypatch):
     """Stap 0: parser geeft échte totaalcount terug en capt opslag (rij-cap zichtbaar)."""
     import json as _json

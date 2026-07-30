@@ -9,6 +9,33 @@ from typing import Any
 
 from app.services.dataquality import is_date
 from app.services.rules import normalize_verzuimtype, VERZUIMTYPE_VALUES
+from app.services.prescan import prescan_columns
+
+# Formaten die de algemeen-templatevalidators al even streng afvangen; die slaan
+# we in de pre-scan over om dubbele meldingen te voorkomen. Telefoon zit hier
+# bewust NIET bij: de algemeen 'phone'-validator is triviaal (bevat-een-cijfer),
+# terwijl de pre-scan het echte NL/E.164-formaat controleert. IBAN/AGB/BIG staan
+# niet in de templates en komen dus volledig uit de pre-scan.
+_PRESCAN_STRONG_OVERLAP = {"bsn", "date", "email", "postcode"}
+
+
+def _prescan_to_issues(rows: list[dict], known_cols: set[str]) -> list[dict]:
+    """Draai de schema-onafhankelijke pre-scan en zet de bevindingen om naar het
+    issue-formaat dat validate_algemeen / het AlgemeenDashboard verwacht
+    (message/severity/count/examples)."""
+    out: list[dict] = []
+    for pi in prescan_columns(rows, known_cols=known_cols):
+        out.append({
+            "field":    pi["label"].split(" — ")[0],
+            "type":     "prescan",
+            "message":  pi["label"],
+            "severity": pi["severity"],
+            "count":    pi["count"],
+            "examples": [{"row": r.get("rowNumber"), "value": r.get("currentValue")}
+                         for r in pi.get("rows", [])],
+            "prescan":  True,
+        })
+    return out
 
 # ── AFAS Profit veldtemplates ──────────────────────────────────────────────────
 # Elke file-type heeft verplichte velden (required) en optionele velden (optional)
@@ -369,6 +396,12 @@ def validate_algemeen(files_input: list[dict]) -> dict:
         tkey     = _detect_template(filename, headers)
 
         if not tkey:
+            # Ook zonder herkend template draait de schema-onafhankelijke pre-scan
+            # (telefoon/BSN/IBAN/e-mail e.d.) op de kolomnamen door.
+            unknown_issues = [{"field": "-", "type": "unknown_type",
+                               "message": f"Bestandstype niet herkend: {filename}",
+                               "severity": "warning", "count": 1}]
+            unknown_issues.extend(_prescan_to_issues(rows, set()))
             file_results.append({
                 "filename":    filename,
                 "template":    None,
@@ -376,9 +409,7 @@ def validate_algemeen(files_input: list[dict]) -> dict:
                 "icon":        "❓",
                 "color":       "#9ca3af",
                 "rows":        len(rows),
-                "issues":      [{"field": "-", "type": "unknown_type",
-                                 "message": f"Bestandstype niet herkend: {filename}",
-                                 "severity": "warning", "count": 1}],
+                "issues":      unknown_issues,
                 "completeness": 0,
                 "quality":      0,
                 "rhadix_index": 0,
@@ -454,6 +485,13 @@ def validate_algemeen(files_input: list[dict]) -> dict:
 
         quality = round(100 * quality_passed / max(quality_checks, 1))
         rhadix_index = round(completeness * quality / 100)
+
+        # ── Schema-onafhankelijke pre-scan (E.164-telefoon, BSN-elfproef, IBAN,
+        #    e-mail, postcode, AGB/BIG). Slaat velden over die de template al even
+        #    streng valideert, zodat telefoon/IBAN/AGB/BIG-uitval nu ook op de
+        #    algemeen/AFAS-route zichtbaar wordt (was alleen in het KIK-V-pad). ──
+        known_strong = {f for f, t in all_fields.items() if t in _PRESCAN_STRONG_OVERLAP}
+        issues.extend(_prescan_to_issues(rows, known_strong))
 
         file_results.append({
             "filename":     filename,

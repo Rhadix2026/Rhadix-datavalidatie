@@ -156,8 +156,17 @@ def parse_json_bytes(content: bytes, max_rows: int = MAX_ROWS) -> tuple[list, li
             continue
         row: dict[str, str] = {}
         for key, raw in record.items():
-            # bool -> "True"/"False" (str(bool) matcht AFAS-XML-casing); None -> ""
-            val = "" if raw is None else _normalize_xml_value(str(raw))
+            if raw is None:                       # null -> ""
+                val = ""
+            elif isinstance(raw, bool):           # bool -> "True"/"False" (AFAS-XML-casing)
+                val = str(raw)
+            elif isinstance(raw, (int, float)):
+                # Numeriek getypeerde AFAS-waarde: wél stringificeren, maar NIET door
+                # de datum-normalisatie halen — anders wordt bijv. een 8-cijferig
+                # personeelsnummer/BSN onterecht als YYYYMMDD-datum geïnterpreteerd.
+                val = str(raw)
+            else:
+                val = _normalize_xml_value(str(raw))
             row[key] = val
             if key not in headers_seen:
                 headers_seen.add(key)
@@ -252,7 +261,12 @@ async def upload_and_validate(
         ext = upload.filename.split(".")[-1].lower()
         if ext not in ("csv", "xlsx", "xls", "xml", "json"):
             raise HTTPException(400, f"Unsupported file type: {ext}")
-        headers, rows, total = parse_upload(content, upload.filename, ext)
+        try:
+            headers, rows, total = parse_upload(content, upload.filename, ext)
+        except ValueError as _perr:
+            # Ongeldige JSON/XML (bijv. AFAS-getal met voorloopnul zoals `00`) →
+            # duidelijke per-bestand-melding i.p.v. een stille 500.
+            raise HTTPException(400, f"Kon '{upload.filename}' niet lezen: {_perr}")
         rows = rows[:MAX_ROWS]   # harde bovengrens
         if total > len(rows):
             truncation_warnings.append({

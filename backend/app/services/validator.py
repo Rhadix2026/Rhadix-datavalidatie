@@ -928,15 +928,19 @@ def use_profiles() -> bool:
     return os.getenv("RHADIX_USE_PROFILES", "1").strip().lower() not in ("0", "false", "no", "off")
 
 
-def profile_issues(schema_key: str, headers: list, rows: list) -> list:
+def profile_issues(schema_key: str, headers: list, rows: list, filename: str = "upload") -> list:
     """KIK-V per-bestand-meldingen uit de profiel-laag, in het issue-formaat van
-    run_file_checks. Vertaalt Finding -> issue-dict (id/label/severity/count/detail)."""
+    run_file_checks. Vertaalt Finding -> issue-dict (id/label/severity/count/detail).
+
+    `filename` wordt doorgegeven aan de ingest-pipeline zodat de bronherkenning het
+    juiste recordtype kiest (zonder naam classificeert 'upload' bv. een medewerker-
+    bestand verkeerd als werkovereenkomst)."""
     from app.services.ingest.pipeline import to_canonical
     from app.services.control_profiles import profile_from_kikv, run_profile
     profile = profile_from_kikv(schema_key)
     if not profile:
         return []
-    cf = to_canonical("upload", headers, rows, total=len(rows), standard="kikv")
+    cf = to_canonical(filename, headers, rows, total=len(rows), standard="kikv")
     issues = []
     for f in run_profile(cf, profile):
         label = f"{_PROFILE_CHECK_LABEL.get(f.check, f.check)} — {f.concept}"
@@ -963,7 +967,7 @@ def validate_files(files_input: list) -> dict:
         schema = KIKV_REFERENCE[sk]
         mapping = auto_map(fi["headers"], schema["col_aliases"])
         if use_profiles():
-            issues = profile_issues(sk, fi["headers"], fi["rows"])
+            issues = profile_issues(sk, fi["headers"], fi["rows"], filename=fi["filename"])
         else:
             issues = run_file_checks(sk, fi["rows"], mapping)
 

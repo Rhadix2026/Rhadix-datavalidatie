@@ -51,8 +51,9 @@ function IssueRow({ issue }) {
 
 function FileCard({ result }) {
   const [open, setOpen] = useState(false)
-  const errors   = result.issues.filter(i => i.severity === 'error')
-  const warnings = result.issues.filter(i => i.severity === 'warning')
+  const issues   = result.issues || []
+  const errors   = issues.filter(i => i.severity === 'error')
+  const warnings = issues.filter(i => i.severity === 'warning')
 
   return (
     <div style={{
@@ -72,7 +73,7 @@ function FileCard({ result }) {
             {result.label}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text3)' }}>
-            {result.filename} · {result.rows.toLocaleString()} rijen
+            {result.filename} · {(result.rows ?? 0).toLocaleString()} rijen
           </div>
         </div>
         {/* Scores */}
@@ -119,7 +120,7 @@ function FileCard({ result }) {
       </div>
 
       {/* Issues */}
-      {result.issues.length > 0 && (
+      {issues.length > 0 && (
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)' }}>
           <div
             onClick={() => setOpen(o => !o)}
@@ -134,7 +135,7 @@ function FileCard({ result }) {
           </div>
           {open && (
             <div style={{ marginTop: 8 }}>
-              {result.issues.map((issue, i) => <IssueRow key={i} issue={issue} />)}
+              {issues.map((issue, i) => <IssueRow key={i} issue={issue} />)}
             </div>
           )}
         </div>

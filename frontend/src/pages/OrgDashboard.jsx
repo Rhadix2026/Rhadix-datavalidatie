@@ -14,7 +14,7 @@ async function fetchOrgDashboard({ tenantId, standard, from, to } = {}) {
   if (from)     params.set('from', from)
   if (to)       params.set('to', to)
   const res = await fetch(`${API}/api/dashboard/org?${params}`, {
-    headers: { Authorization: `Bearer ${getAuthToken()}` },
+    headers: getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {},
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()

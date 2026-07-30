@@ -10,7 +10,7 @@ async function fetchAdminDashboard({ standard, period } = {}) {
   if (standard) params.set('standard', standard)
   if (period)   params.set('period', period)
   const res = await fetch(`${API}/api/dashboard/admin?${params}`, {
-    headers: { Authorization: `Bearer ${getAuthToken()}` },
+    headers: getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {},
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()

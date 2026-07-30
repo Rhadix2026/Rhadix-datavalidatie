@@ -9,7 +9,7 @@ const API = import.meta.env.VITE_API_URL ?? ''
 
 async function fetchDashboardMe() {
   const res = await fetch(`${API}/api/dashboard/me`, {
-    headers: { Authorization: `Bearer ${getAuthToken()}` },
+    headers: getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {},
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()

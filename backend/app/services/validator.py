@@ -404,7 +404,7 @@ def detect_schema(filename: str, headers: list) -> str | None:
     fn = normalize(filename)
     if "medewerker" in fn or "employees" in fn or "employee" in fn: return "medewerker"
     if "werkovereenkomst" in fn or "contract" in fn or "timetable" in fn: return "werkovereenkomst"
-    if "functie" in fn and "niveau" not in fn: return "functie"
+    if ("functie" in fn or "function" in fn) and "niveau" not in fn: return "functie"
     if "kwalificatieniveau" in fn or "kwn" in fn: return "kwalificatieniveau"
     if "kwaliteitsgr" in fn or "graden" in fn: return "kwaliteitsgraden"
     if "verzuim" in fn or "illness" in fn: return "verzuim"

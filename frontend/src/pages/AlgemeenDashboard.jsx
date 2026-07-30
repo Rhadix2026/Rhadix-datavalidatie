@@ -429,7 +429,7 @@ export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack, 
         <CrossChecksSection checks={cross_checks} />
 
         {/* Fase 2 — benchmark tegen een standaard */}
-        <BenchmarkBar result={results} />
+        <BenchmarkBar result={results} authUser={authUser} />
 
         {/* Benchmark tegen referentieontwerp */}
         {benchmark && (

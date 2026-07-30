@@ -617,6 +617,27 @@ async def upload_and_validate(
     }
 
 
+# AFAS/ONS-template (fase 1) → KIK-V-schema (fase 2). Vangnet zodat een bestand
+# dat in fase 1 al herkend is niet stilletjes uit de KIK-V-benchmark valt puur
+# omdat de bestandsnaam de KIK-V-trefwoorden mist.
+_TEMPLATE_TO_KIKV = {
+    "employees":     "medewerker",     "ons_employees": "medewerker",
+    "timetable":     "werkovereenkomst", "ons_contracts": "werkovereenkomst",
+    "functions":     "functie",
+    "illness":       "verzuim",        "ons_absence":   "verzuim",
+    "ons_teams":     "vestiging",
+}
+
+
+def _kikv_schema_for(filename: str, headers: list) -> Optional[str]:
+    """KIK-V-schema voor een bestand: eerst de KIK-V-detector, anders de
+    AFAS/ONS-template-herkenning uit fase 1 doorvertalen."""
+    sk = detect_schema(filename, headers)
+    if sk:
+        return sk
+    return _TEMPLATE_TO_KIKV.get(_detect_template(filename, headers))
+
+
 @router.post("/benchmark")
 async def benchmark(
     standard: str = Form(...),                 # "kikv" | "zib"
@@ -644,11 +665,24 @@ async def benchmark(
     if std == "kikv":
         files_input = [{
             "filename":   f["filename"],
-            "schema_key": detect_schema(f["filename"], f["headers"]),
+            "schema_key": _kikv_schema_for(f["filename"], f["headers"]),
             "headers":    f["headers"],
             "rows":       f["rows"],
         } for f in files]
         result = validate_files(files_input)
-        return {**result, "benchmark_standard": "kikv", "source": cached.get("source")}
+        # Geen enkel bestand aan een KIK-V-schema gekoppeld? Geef dat expliciet terug
+        # i.p.v. een misleidende lege score van 100 — met de bestandsnamen erbij.
+        if not result.get("file_results"):
+            return {
+                **result,
+                "benchmark_standard": "kikv",
+                "source":    cached.get("source"),
+                "recognized": False,
+                "uploaded_files": [f["filename"] for f in files],
+                "note": ("Geen van de aangeleverde bestanden kon aan een KIK-V-schema "
+                         "gekoppeld worden. Controleer de bestands- of kolomnamen "
+                         "(bijv. medewerker/employees, werkovereenkomst/contract, functie, verzuim)."),
+            }
+        return {**result, "benchmark_standard": "kikv", "source": cached.get("source"), "recognized": True}
 
     raise HTTPException(400, f"Onbekende benchmark-standaard: {standard!r}")

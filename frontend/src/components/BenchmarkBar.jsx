@@ -52,6 +52,24 @@ export default function BenchmarkBar({ result }) {
 }
 
 function BenchResult({ std, r }) {
+  // Niets herkend → geen misleidende score, maar een actie-gerichte melding
+  if (r.recognized === false || (Array.isArray(r.file_results) && r.file_results.length === 0)) {
+    return (
+      <div style={{ marginTop: 14, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius)', padding: '14px 16px' }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>
+          Geen {std === 'zib' ? 'ZIB' : 'KIK-V'}-bestanden herkend
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>
+          {r.note || 'Geen van de aangeleverde bestanden kon aan een schema gekoppeld worden. Controleer de bestands- of kolomnamen.'}
+        </div>
+        {Array.isArray(r.uploaded_files) && r.uploaded_files.length > 0 && (
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 8 }}>
+            Aangeleverd: {r.uploaded_files.join(', ')}
+          </div>
+        )}
+      </div>
+    )
+  }
   const score = r.score
   const dataverzuim = r.dataverzuim != null ? r.dataverzuim : (score != null ? Math.round((100 - score) * 10) / 10 : null)
   const fileResults = r.file_results || []

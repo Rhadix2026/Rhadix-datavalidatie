@@ -67,7 +67,9 @@ export function MaakTakenButton({ items = [], sourceType = 'handmatig', sourceRe
       const res = await createTasksBulk({
         items: chosen.map(it => ({ title: it.title, source_label: it.source_label || null,
                                    priority: it.priority || 'NORMAAL' })),
-        assignee_id: assignee || null, source_type: sourceType, source_ref: sourceRef,
+        assignee_id: assignee || null, source_type: sourceType,
+        // API verwacht source_ref als string; run_id komt soms als getal binnen.
+        source_ref: sourceRef != null ? String(sourceRef) : null,
       })
       setDone(res.created)
       onDone && onDone(res)

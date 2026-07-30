@@ -12,7 +12,7 @@ from app.database import get_db
 from app.services import run_cache
 from app.models.auth_models import Application, TenantApplication, User, UserApplication
 from app.models.models import ValidationRun
-from app.services.validator import validate_files, detect_schema, auto_map, KIKV_REFERENCE
+from app.services.validator import validate_files, detect_schema, auto_map, KIKV_REFERENCE, cross_checks_from_files
 from app.services.concept_validator import validate_concept_mapping
 from app.services.zib_validator import validate_zib
 from app.services.zib_rules import detect_zib_schema
@@ -132,10 +132,18 @@ def parse_json_bytes(content: bytes, max_rows: int = MAX_ROWS) -> tuple[list, li
     gestringificeerd en datums genormaliseerd, identiek aan de XML-parser, zodat
     XML- en JSON-import dezelfde rijen opleveren. null -> "".
     """
+    text = content.decode("utf-8-sig", errors="replace")
     try:
-        data = json.loads(content.decode("utf-8-sig", errors="replace"))
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Ongeldig JSON-bestand: {e}")
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        # AFAS Profit exporteert getallen soms met voorloopnul (bijv.
+        # "HouseNumber": 00), wat strikt genomen ongeldige JSON is. Repareer
+        # alleen die ongequote getal-tokens en probeer opnieuw; blijft het kapot,
+        # dan geven we een nette fout.
+        try:
+            data = json.loads(re.sub(r'(:\s*)0+(\d+)(\s*[,}\]])', r'\1\2\3', text))
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Ongeldig JSON-bestand: {e}")
 
     if isinstance(data, dict):
         records = data.get("rows")
@@ -156,8 +164,17 @@ def parse_json_bytes(content: bytes, max_rows: int = MAX_ROWS) -> tuple[list, li
             continue
         row: dict[str, str] = {}
         for key, raw in record.items():
-            # bool -> "True"/"False" (str(bool) matcht AFAS-XML-casing); None -> ""
-            val = "" if raw is None else _normalize_xml_value(str(raw))
+            if raw is None:                       # null -> ""
+                val = ""
+            elif isinstance(raw, bool):           # bool -> "True"/"False" (AFAS-XML-casing)
+                val = str(raw)
+            elif isinstance(raw, (int, float)):
+                # Numeriek getypeerde AFAS-waarde: wél stringificeren, maar NIET door
+                # de datum-normalisatie halen — anders wordt bijv. een 8-cijferig
+                # personeelsnummer/BSN onterecht als YYYYMMDD-datum geïnterpreteerd.
+                val = str(raw)
+            else:
+                val = _normalize_xml_value(str(raw))
             row[key] = val
             if key not in headers_seen:
                 headers_seen.add(key)
@@ -252,7 +269,12 @@ async def upload_and_validate(
         ext = upload.filename.split(".")[-1].lower()
         if ext not in ("csv", "xlsx", "xls", "xml", "json"):
             raise HTTPException(400, f"Unsupported file type: {ext}")
-        headers, rows, total = parse_upload(content, upload.filename, ext)
+        try:
+            headers, rows, total = parse_upload(content, upload.filename, ext)
+        except ValueError as _perr:
+            # Ongeldige JSON/XML (bijv. AFAS-getal met voorloopnul zoals `00`) →
+            # duidelijke per-bestand-melding i.p.v. een stille 500.
+            raise HTTPException(400, f"Kon '{upload.filename}' niet lezen: {_perr}")
         rows = rows[:MAX_ROWS]   # harde bovengrens
         if total > len(rows):
             truncation_warnings.append({
@@ -304,6 +326,25 @@ async def upload_and_validate(
     if standard == "algemeen":
         alg_input = [{"filename": p["filename"], "headers": p["headers"], "rows": p["rows"]} for p in parsed]
         result = validate_algemeen(alg_input)
+        # Cross-file-checks ("personen niet in Medewerker", "overlappende periodes", …)
+        # ook op de algemeen/AFAS-route — herstelt de gap-analyse voor AFAS-bron (CSV+JSON).
+        try:
+            result["cross_checks"] = cross_checks_from_files(alg_input)
+        except Exception as _cc_err:
+            print(f"[WARN] cross-checks failed (result still returned): {_cc_err}")
+            result["cross_checks"] = []
+        # Cross-check-bevindingen meetellen in de kop (fouten/waarschuwingen) en in
+        # de totaalscore: vindt de gap-analyse iets, dan is het niet '100/foutloos'.
+        # De per-bestand-scores blijven ongemoeid (cross-checks zijn niet aan één
+        # bestand toe te wijzen).
+        _cc = result.get("cross_checks", []) or []
+        if _cc:
+            _sum = result.setdefault("summary", {})
+            _sum["error_count"] = _sum.get("error_count", 0) + sum(1 for c in _cc if c.get("severity") == "error")
+            _sum["warn_count"]  = _sum.get("warn_count", 0)  + sum(1 for c in _cc if c.get("severity") == "warning")
+            if _sum.get("quality", 0) == 100:
+                _sum["quality"] = 99
+                _sum["rhadix_index"] = round(_sum.get("completeness", 100) * 99 / 100)
         # Benchmark tegen het AFAS-referentieontwerp (alleen AFAS-bestanden tellen mee)
         try:
             benchmark = benchmark_against_reference(alg_input)
@@ -576,6 +617,27 @@ async def upload_and_validate(
     }
 
 
+# AFAS/ONS-template (fase 1) → KIK-V-schema (fase 2). Vangnet zodat een bestand
+# dat in fase 1 al herkend is niet stilletjes uit de KIK-V-benchmark valt puur
+# omdat de bestandsnaam de KIK-V-trefwoorden mist.
+_TEMPLATE_TO_KIKV = {
+    "employees":     "medewerker",     "ons_employees": "medewerker",
+    "timetable":     "werkovereenkomst", "ons_contracts": "werkovereenkomst",
+    "functions":     "functie",
+    "illness":       "verzuim",        "ons_absence":   "verzuim",
+    "ons_teams":     "vestiging",
+}
+
+
+def _kikv_schema_for(filename: str, headers: list) -> Optional[str]:
+    """KIK-V-schema voor een bestand: eerst de KIK-V-detector, anders de
+    AFAS/ONS-template-herkenning uit fase 1 doorvertalen."""
+    sk = detect_schema(filename, headers)
+    if sk:
+        return sk
+    return _TEMPLATE_TO_KIKV.get(_detect_template(filename, headers))
+
+
 @router.post("/benchmark")
 async def benchmark(
     standard: str = Form(...),                 # "kikv" | "zib"
@@ -603,11 +665,24 @@ async def benchmark(
     if std == "kikv":
         files_input = [{
             "filename":   f["filename"],
-            "schema_key": detect_schema(f["filename"], f["headers"]),
+            "schema_key": _kikv_schema_for(f["filename"], f["headers"]),
             "headers":    f["headers"],
             "rows":       f["rows"],
         } for f in files]
         result = validate_files(files_input)
-        return {**result, "benchmark_standard": "kikv", "source": cached.get("source")}
+        # Geen enkel bestand aan een KIK-V-schema gekoppeld? Geef dat expliciet terug
+        # i.p.v. een misleidende lege score van 100 — met de bestandsnamen erbij.
+        if not result.get("file_results"):
+            return {
+                **result,
+                "benchmark_standard": "kikv",
+                "source":    cached.get("source"),
+                "recognized": False,
+                "uploaded_files": [f["filename"] for f in files],
+                "note": ("Geen van de aangeleverde bestanden kon aan een KIK-V-schema "
+                         "gekoppeld worden. Controleer de bestands- of kolomnamen "
+                         "(bijv. medewerker/employees, werkovereenkomst/contract, functie, verzuim)."),
+            }
+        return {**result, "benchmark_standard": "kikv", "source": cached.get("source"), "recognized": True}
 
     raise HTTPException(400, f"Onbekende benchmark-standaard: {standard!r}")

@@ -216,7 +216,7 @@ def prescan_columns(rows: list[dict], known_cols: set[str] | None = None) -> lis
             ok, message = validator(val_str)
             if not ok:
                 error_count += 1
-                if len(error_rows) < 10:
+                if len(error_rows) < 50:
                     error_rows.append({
                         "rowNumber":     i + 1,
                         "personId":      "",

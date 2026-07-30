@@ -33,12 +33,16 @@ function IssueRow({ issue }) {
       </div>
       {open && issue.examples?.length > 0 && (
         <div style={{ padding: '0 14px 12px', borderTop: '1px solid rgba(0,0,0,.05)' }}>
-          <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6, fontWeight: 600 }}>Voorbeelden:</div>
-          {issue.examples.map((ex, i) => (
-            <div key={i} style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 3 }}>
-              Rij {ex.row}: <code style={{ background: '#f3f4f6', padding: '1px 6px', borderRadius: 4 }}>{ex.value}</code>
-            </div>
-          ))}
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6, fontWeight: 600 }}>
+            Voorbeelden{issue.count > issue.examples.length ? ` (eerste ${issue.examples.length} van ${issue.count})` : ''}:
+          </div>
+          <div style={{ maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
+            {issue.examples.map((ex, i) => (
+              <div key={i} style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 3 }}>
+                Rij {ex.row}: <code style={{ background: '#f3f4f6', padding: '1px 6px', borderRadius: 4 }}>{ex.value}</code>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -288,10 +292,47 @@ function BenchmarkSection({ benchmark }) {
   )
 }
 
+function CrossCheckRow({ check }) {
+  const isError = check.severity === 'error'
+  return (
+    <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{
+          fontSize: 10, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap',
+          color: isError ? '#ef4444' : '#f59e0b',
+        }}>{isError ? '● fout' : '▲ let op'}</span>
+        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{check.label}</span>
+        <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>{check.count}x</span>
+      </div>
+      {check.detail && (
+        <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>{check.detail}</div>
+      )}
+    </div>
+  )
+}
+
+function CrossChecksSection({ checks }) {
+  if (!checks || checks.length === 0) return null
+  return (
+    <div style={{
+      background: 'var(--card)', border: '1px solid var(--border)',
+      borderRadius: 'var(--radius)', marginBottom: 16, overflow: 'hidden',
+    }}>
+      <div style={{ padding: '12px 14px', fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+        🔗 Cross-checks tussen bronnen
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text3)', marginLeft: 8 }}>
+          gap-analyse over de aangeleverde bestanden heen
+        </span>
+      </div>
+      {checks.map((c, i) => <CrossCheckRow key={c.id || i} check={c} />)}
+    </div>
+  )
+}
+
 export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack, authUser }) {
   const [showBenchmark, setShowBenchmark] = useState(false)
   if (!results) return null
-  const { file_results = [], summary = {}, benchmark = null } = results
+  const { file_results = [], summary = {}, benchmark = null, cross_checks = [] } = results
 
   const indexColor = summary.rhadix_index >= 85 ? '#059669'
     : summary.rhadix_index >= 65 ? 'var(--blue)'
@@ -317,7 +358,7 @@ export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack, 
             fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 20,
             border: '1px solid #fde68a', marginBottom: 12,
           }}>
-            🔍 Beschikbaarheid Algemeen — AFAS Profit &amp; Nedap ONS pre-scan
+            🔍 Datakwaliteit — AFAS Profit &amp; Nedap ONS
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap' }}>
             <div>
@@ -343,17 +384,37 @@ export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack, 
           </div>
         </div>
 
-        {authUser && file_results.some(r => (r.issues||[]).length > 0) && (
+        {authUser && (file_results.some(r => (r.issues||[]).length > 0) || cross_checks.length > 0) && (
           <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <MaakTakenButton
               buttonLabel="✓ Maak taken van bevindingen"
               sourceType="afas_validatie"
               sourceRef={results?.run_id || null}
-              items={file_results.flatMap(r => (r.issues || []).map(iss => ({
-                title: iss.message,
-                source_label: `${r.label || r.filename || 'bestand'}${iss.count ? ' — ' + iss.count + '×' : ''}`,
-                priority: iss.severity === 'error' ? 'HOOG' : 'NORMAAL',
-              })))}
+              items={[
+                ...file_results.flatMap(r => (r.issues || []).map(iss => ({
+                  title: iss.message,
+                  description: [
+                    `Bestand: ${r.filename || r.label || 'onbekend'}`,
+                    iss.count ? `Aantal: ${iss.count}` : null,
+                    (iss.examples || []).length
+                      ? 'Voorbeelden' + (iss.count > (iss.examples || []).length
+                          ? ` (eerste ${(iss.examples || []).length} van ${iss.count})` : '') + ':'
+                      : null,
+                    ...(iss.examples || []).map(e => `  rij ${e.row}: ${e.value}`),
+                  ].filter(Boolean).join('\n'),
+                  source_label: `${r.label || r.filename || 'bestand'}${iss.count ? ' — ' + iss.count + '×' : ''}`,
+                  priority: iss.severity === 'error' ? 'HOOG' : 'NORMAAL',
+                }))),
+                ...cross_checks.map(c => ({
+                  title: c.label,
+                  description: [
+                    c.count ? `Aantal: ${c.count}` : null,
+                    c.detail || null,
+                  ].filter(Boolean).join('\n'),
+                  source_label: `Cross-check${c.count ? ' — ' + c.count + '×' : ''}`,
+                  priority: c.severity === 'error' ? 'HOOG' : 'NORMAAL',
+                })),
+              ]}
             />
             <span style={{ fontSize: 13, color: 'var(--text3)' }}>Zet bevindingen om in taken en wijs ze toe aan een collega.</span>
           </div>
@@ -364,8 +425,11 @@ export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack, 
           <FileCard key={i} result={result} />
         ))}
 
+        {/* Cross-checks tussen bronnen (gap-analyse) */}
+        <CrossChecksSection checks={cross_checks} />
+
         {/* Fase 2 — benchmark tegen een standaard */}
-        <BenchmarkBar result={results} />
+        <BenchmarkBar result={results} authUser={authUser} />
 
         {/* Benchmark tegen referentieontwerp */}
         {benchmark && (

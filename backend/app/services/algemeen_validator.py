@@ -9,6 +9,33 @@ from typing import Any
 
 from app.services.dataquality import is_date
 from app.services.rules import normalize_verzuimtype, VERZUIMTYPE_VALUES
+from app.services.prescan import prescan_columns, prescan_quality_stats
+
+# Formaten die de algemeen-templatevalidators al even streng afvangen; die slaan
+# we in de pre-scan over om dubbele meldingen te voorkomen. Telefoon zit hier
+# bewust NIET bij: de algemeen 'phone'-validator is triviaal (bevat-een-cijfer),
+# terwijl de pre-scan het echte NL/E.164-formaat controleert. IBAN/AGB/BIG staan
+# niet in de templates en komen dus volledig uit de pre-scan.
+_PRESCAN_STRONG_OVERLAP = {"bsn", "date", "email", "postcode"}
+
+
+def _prescan_to_issues(rows: list[dict], known_cols: set[str]) -> list[dict]:
+    """Draai de schema-onafhankelijke pre-scan en zet de bevindingen om naar het
+    issue-formaat dat validate_algemeen / het AlgemeenDashboard verwacht
+    (message/severity/count/examples)."""
+    out: list[dict] = []
+    for pi in prescan_columns(rows, known_cols=known_cols):
+        out.append({
+            "field":    pi["label"].split(" — ")[0],
+            "type":     "prescan",
+            "message":  pi["label"],
+            "severity": pi["severity"],
+            "count":    pi["count"],
+            "examples": [{"row": r.get("rowNumber"), "value": r.get("currentValue")}
+                         for r in pi.get("rows", [])],
+            "prescan":  True,
+        })
+    return out
 
 # ── AFAS Profit veldtemplates ──────────────────────────────────────────────────
 # Elke file-type heeft verplichte velden (required) en optionele velden (optional)
@@ -369,6 +396,12 @@ def validate_algemeen(files_input: list[dict]) -> dict:
         tkey     = _detect_template(filename, headers)
 
         if not tkey:
+            # Ook zonder herkend template draait de schema-onafhankelijke pre-scan
+            # (telefoon/BSN/IBAN/e-mail e.d.) op de kolomnamen door.
+            unknown_issues = [{"field": "-", "type": "unknown_type",
+                               "message": f"Bestandstype niet herkend: {filename}",
+                               "severity": "warning", "count": 1}]
+            unknown_issues.extend(_prescan_to_issues(rows, set()))
             file_results.append({
                 "filename":    filename,
                 "template":    None,
@@ -376,9 +409,7 @@ def validate_algemeen(files_input: list[dict]) -> dict:
                 "icon":        "❓",
                 "color":       "#9ca3af",
                 "rows":        len(rows),
-                "issues":      [{"field": "-", "type": "unknown_type",
-                                 "message": f"Bestandstype niet herkend: {filename}",
-                                 "severity": "warning", "count": 1}],
+                "issues":      unknown_issues,
                 "completeness": 0,
                 "quality":      0,
                 "rhadix_index": 0,
@@ -430,7 +461,7 @@ def validate_algemeen(files_input: list[dict]) -> dict:
                 field_total += 1
                 if validator(val):
                     field_pass += 1
-                elif len(field_issues) < 5:
+                elif len(field_issues) < 50:
                     field_issues.append({
                         "row":   idx + 2,
                         "value": val[:50],
@@ -452,7 +483,24 @@ def validate_algemeen(files_input: list[dict]) -> dict:
                         "examples": field_issues,
                     })
 
+        # ── Schema-onafhankelijke pre-scan (E.164-telefoon, BSN-elfproef, IBAN,
+        #    e-mail, postcode, AGB/BIG). Slaat velden over die de template al even
+        #    streng valideert, zodat telefoon/IBAN/AGB/BIG-uitval nu ook op de
+        #    algemeen/AFAS-route zichtbaar wordt (was alleen in het KIK-V-pad).
+        #    De uitval telt óók mee in de kwaliteitsscore (zoals in het ZIB-pad),
+        #    zodat een bestand mét fouten geen 100% meer toont. ──
+        known_strong = {f for f, t in all_fields.items() if t in _PRESCAN_STRONG_OVERLAP}
+        p_checked, p_errors = prescan_quality_stats(rows, known_cols=known_strong)
+        quality_checks += p_checked
+        quality_passed += (p_checked - p_errors)
+        issues.extend(_prescan_to_issues(rows, known_strong))
+
         quality = round(100 * quality_passed / max(quality_checks, 1))
+        # 100% moet 'écht foutloos' betekenen: keurde er ook maar één waarde af,
+        # toon dan hooguit 99, zodat een bestand mét uitval niet groen-100 lijkt
+        # (grote bestanden ronden een handvol fouten anders naar 100 af).
+        if quality == 100 and quality_passed < quality_checks:
+            quality = 99
         rhadix_index = round(completeness * quality / 100)
 
         file_results.append({
@@ -475,6 +523,10 @@ def validate_algemeen(files_input: list[dict]) -> dict:
     known = [r for r in file_results if r["template"]]
     overall_completeness = round(sum(r["completeness"] for r in known) / max(len(known), 1))
     overall_quality      = round(sum(r["quality"]      for r in known) / max(len(known), 1))
+    # Zelfde 'écht foutloos'-regel op het totaal: staat er één bestand met uitval,
+    # dan is het totaal niet 100.
+    if overall_quality == 100 and any(r["quality"] < 100 for r in known):
+        overall_quality = 99
     overall_index        = round(overall_completeness * overall_quality / 100)
 
     return {

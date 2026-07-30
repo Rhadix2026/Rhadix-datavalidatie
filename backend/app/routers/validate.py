@@ -132,10 +132,18 @@ def parse_json_bytes(content: bytes, max_rows: int = MAX_ROWS) -> tuple[list, li
     gestringificeerd en datums genormaliseerd, identiek aan de XML-parser, zodat
     XML- en JSON-import dezelfde rijen opleveren. null -> "".
     """
+    text = content.decode("utf-8-sig", errors="replace")
     try:
-        data = json.loads(content.decode("utf-8-sig", errors="replace"))
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Ongeldig JSON-bestand: {e}")
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        # AFAS Profit exporteert getallen soms met voorloopnul (bijv.
+        # "HouseNumber": 00), wat strikt genomen ongeldige JSON is. Repareer
+        # alleen die ongequote getal-tokens en probeer opnieuw; blijft het kapot,
+        # dan geven we een nette fout.
+        try:
+            data = json.loads(re.sub(r'(:\s*)0+(\d+)(\s*[,}\]])', r'\1\2\3', text))
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Ongeldig JSON-bestand: {e}")
 
     if isinstance(data, dict):
         records = data.get("rows")

@@ -100,7 +100,13 @@ def _parse_afas_json(source: io.BytesIO) -> pd.DataFrame:
     berekening geven. null → None; getallen/booleans blijven hun type behouden.
     """
     source.seek(0)
-    data = json.loads(source.read().decode("utf-8-sig", errors="replace"))
+    text = source.read().decode("utf-8-sig", errors="replace")
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        # AFAS voorloopnul-getallen (bijv. "HouseNumber": 00) → ongeldige JSON;
+        # repareer alleen die ongequote getal-tokens en probeer opnieuw.
+        data = json.loads(re.sub(r'(:\s*)0+(\d+)(\s*[,}\]])', r'\1\2\3', text))
     if isinstance(data, dict):
         records = data.get("rows")
         if records is None:

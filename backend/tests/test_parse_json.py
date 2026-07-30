@@ -59,6 +59,23 @@ def test_json_invalid():
         parse_json_bytes(b'{not json')
 
 
+def test_json_afas_leading_zero_number_tolerated():
+    """AFAS Profit exporteert getallen soms met voorloopnul (bijv.
+    "HouseNumber": 00) — strikt genomen ongeldige JSON. De parser repareert die
+    ongequote getal-tokens en leest het bestand toch in, i.p.v. te klappen."""
+    payload = b'[{"EmployeeId":"000153","HouseNumber": 00,"AddNumber": 007,"FTE": 0.67,"Mail":"a@b.nl"}]'
+    headers, rows, _ = parse_json_bytes(payload)
+    assert len(rows) == 1
+    assert rows[0]["EmployeeId"] == "000153"   # gequote string blijft heel
+    assert rows[0]["HouseNumber"] == "0"        # 00 -> 0
+    assert rows[0]["AddNumber"] == "7"          # 007 -> 7
+    assert rows[0]["FTE"] == "0.67"             # decimaal ongemoeid
+    # echt kapotte JSON blijft een nette fout geven
+    import pytest
+    with pytest.raises(ValueError):
+        parse_json_bytes(b'[{"a": }]')
+
+
 def test_json_numeric_not_date_mangled():
     """AFAS levert personeelsnummer/BSN soms als getal. Een 8-cijferig getal mag
     NIET als YYYYMMDD-datum worden geïnterpreteerd (regressie: 010203040 -> 1020-30-40)."""

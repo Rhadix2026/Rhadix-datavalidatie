@@ -9,7 +9,7 @@ from typing import Any
 
 from app.services.dataquality import is_date
 from app.services.rules import normalize_verzuimtype, VERZUIMTYPE_VALUES
-from app.services.prescan import prescan_columns
+from app.services.prescan import prescan_columns, prescan_quality_stats
 
 # Formaten die de algemeen-templatevalidators al even streng afvangen; die slaan
 # we in de pre-scan over om dubbele meldingen te voorkomen. Telefoon zit hier
@@ -483,15 +483,20 @@ def validate_algemeen(files_input: list[dict]) -> dict:
                         "examples": field_issues,
                     })
 
-        quality = round(100 * quality_passed / max(quality_checks, 1))
-        rhadix_index = round(completeness * quality / 100)
-
         # ── Schema-onafhankelijke pre-scan (E.164-telefoon, BSN-elfproef, IBAN,
         #    e-mail, postcode, AGB/BIG). Slaat velden over die de template al even
         #    streng valideert, zodat telefoon/IBAN/AGB/BIG-uitval nu ook op de
-        #    algemeen/AFAS-route zichtbaar wordt (was alleen in het KIK-V-pad). ──
+        #    algemeen/AFAS-route zichtbaar wordt (was alleen in het KIK-V-pad).
+        #    De uitval telt óók mee in de kwaliteitsscore (zoals in het ZIB-pad),
+        #    zodat een bestand mét fouten geen 100% meer toont. ──
         known_strong = {f for f, t in all_fields.items() if t in _PRESCAN_STRONG_OVERLAP}
+        p_checked, p_errors = prescan_quality_stats(rows, known_cols=known_strong)
+        quality_checks += p_checked
+        quality_passed += (p_checked - p_errors)
         issues.extend(_prescan_to_issues(rows, known_strong))
+
+        quality = round(100 * quality_passed / max(quality_checks, 1))
+        rhadix_index = round(completeness * quality / 100)
 
         file_results.append({
             "filename":     filename,

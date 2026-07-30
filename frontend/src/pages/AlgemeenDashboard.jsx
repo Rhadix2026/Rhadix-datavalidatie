@@ -33,12 +33,16 @@ function IssueRow({ issue }) {
       </div>
       {open && issue.examples?.length > 0 && (
         <div style={{ padding: '0 14px 12px', borderTop: '1px solid rgba(0,0,0,.05)' }}>
-          <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6, fontWeight: 600 }}>Voorbeelden:</div>
-          {issue.examples.map((ex, i) => (
-            <div key={i} style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 3 }}>
-              Rij {ex.row}: <code style={{ background: '#f3f4f6', padding: '1px 6px', borderRadius: 4 }}>{ex.value}</code>
-            </div>
-          ))}
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6, fontWeight: 600 }}>
+            Voorbeelden{issue.count > issue.examples.length ? ` (eerste ${issue.examples.length} van ${issue.count})` : ''}:
+          </div>
+          <div style={{ maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
+            {issue.examples.map((ex, i) => (
+              <div key={i} style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 3 }}>
+                Rij {ex.row}: <code style={{ background: '#f3f4f6', padding: '1px 6px', borderRadius: 4 }}>{ex.value}</code>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -393,9 +397,10 @@ export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack, 
                     `Bestand: ${r.filename || r.label || 'onbekend'}`,
                     iss.count ? `Aantal: ${iss.count}` : null,
                     (iss.examples || []).length
-                      ? 'Voorbeelden — ' + (iss.examples || [])
-                          .map(e => `rij ${e.row}: ${e.value}`).join(', ')
+                      ? 'Voorbeelden' + (iss.count > (iss.examples || []).length
+                          ? ` (eerste ${(iss.examples || []).length} van ${iss.count})` : '') + ':'
                       : null,
+                    ...(iss.examples || []).map(e => `  rij ${e.row}: ${e.value}`),
                   ].filter(Boolean).join('\n'),
                   source_label: `${r.label || r.filename || 'bestand'}${iss.count ? ' — ' + iss.count + '×' : ''}`,
                   priority: iss.severity === 'error' ? 'HOOG' : 'NORMAAL',

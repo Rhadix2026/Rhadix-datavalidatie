@@ -461,7 +461,7 @@ def validate_algemeen(files_input: list[dict]) -> dict:
                 field_total += 1
                 if validator(val):
                     field_pass += 1
-                elif len(field_issues) < 5:
+                elif len(field_issues) < 50:
                     field_issues.append({
                         "row":   idx + 2,
                         "value": val[:50],

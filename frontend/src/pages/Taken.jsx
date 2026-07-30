@@ -8,6 +8,30 @@ const inputStyle = {
   border: '1px solid var(--border)', fontSize: 14, fontFamily: 'var(--font)', boxSizing: 'border-box',
 }
 
+// In-/uitklapbare omschrijving met scroll — zelfde look als de bevindingskaarten
+// in het scan-overzicht. Toont max ±10 regels; de rest is scrollbaar.
+function TaskDescription({ text }) {
+  const [open, setOpen] = useState(false)
+  if (!text) return null
+  return (
+    <div style={{ marginTop: 4 }}>
+      <span onClick={() => setOpen(o => !o)}
+            style={{ fontSize: 12, color: 'var(--text3)', cursor: 'pointer', fontWeight: 600, userSelect: 'none' }}>
+        {open ? '▲ Details verbergen' : '▼ Details tonen'}
+      </span>
+      {open && (
+        <div style={{
+          fontSize: 13, color: 'var(--text2)', marginTop: 4, whiteSpace: 'pre-line',
+          maxHeight: 220, overflowY: 'auto',
+          background: '#f9fafb', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px',
+        }}>
+          {text}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Taken({ authUser, onBack }) {
   const isAdmin = authUser?.role === 'ORG_ADMIN' || authUser?.role === 'RHADIX_ADMIN'
   const [scope, setScope]   = useState('mine')
@@ -127,7 +151,7 @@ export default function Taken({ authUser, onBack }) {
                        style={{ marginTop: 3, cursor: 'pointer', accentColor: 'var(--green)' }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', textDecoration: t.status === 'KLAAR' ? 'line-through' : 'none' }}>{t.title}</div>
-                  {t.description && <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 3, whiteSpace: 'pre-line' }}>{t.description}</div>}
+                  <TaskDescription text={t.description} />
                   {t.source_label && <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>🔗 {t.source_label}</div>}
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' }}>
                     <StatusPill status={t.status} />

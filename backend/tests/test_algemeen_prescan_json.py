@@ -52,3 +52,26 @@ def test_algemeen_json_csv_pariteit():
 
     assert sig(jr) == sig(cr)
     assert jr["summary"]["warn_count"] == cr["summary"]["warn_count"]
+
+
+def test_algemeen_json_cross_checks():
+    """Cross-file-checks ('personen niet in Medewerker') draaien nu ook op de
+    algemeen/AFAS-route, over JSON-bestanden heen."""
+    from app.services.validator import cross_checks_from_files
+
+    med = [{"EmployeeId": "000101", "BSN": "111222333"},
+           {"EmployeeId": "000102", "BSN": "111222333"}]
+    werk = [{"EmployeeId": "000102", "StartDate": "2020-01-01", "ContractType": "vast"},
+            {"EmployeeId": "000999", "StartDate": "2020-01-01", "ContractType": "vast"}]
+
+    def _f(fn, recs):
+        _, rows, _ = parse_json_bytes(json.dumps(recs).encode())
+        return {"filename": fn, "headers": list(recs[0].keys()), "rows": rows}
+
+    cross = cross_checks_from_files([
+        _f("medewerker_afas_hrm.json", med),
+        _f("werkovereenkomst_afas_hrm.json", werk),
+    ])
+    labels = {c["label"]: c for c in cross}
+    assert "Werkovereenkomst: personen niet in Medewerker" in labels
+    assert labels["Werkovereenkomst: personen niet in Medewerker"]["count"] == 1  # 000999

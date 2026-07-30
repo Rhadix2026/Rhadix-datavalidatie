@@ -12,7 +12,7 @@ from app.database import get_db
 from app.services import run_cache
 from app.models.auth_models import Application, TenantApplication, User, UserApplication
 from app.models.models import ValidationRun
-from app.services.validator import validate_files, detect_schema, auto_map, KIKV_REFERENCE
+from app.services.validator import validate_files, detect_schema, auto_map, KIKV_REFERENCE, cross_checks_from_files
 from app.services.concept_validator import validate_concept_mapping
 from app.services.zib_validator import validate_zib
 from app.services.zib_rules import detect_zib_schema
@@ -318,6 +318,13 @@ async def upload_and_validate(
     if standard == "algemeen":
         alg_input = [{"filename": p["filename"], "headers": p["headers"], "rows": p["rows"]} for p in parsed]
         result = validate_algemeen(alg_input)
+        # Cross-file-checks ("personen niet in Medewerker", "overlappende periodes", …)
+        # ook op de algemeen/AFAS-route — herstelt de gap-analyse voor AFAS-bron (CSV+JSON).
+        try:
+            result["cross_checks"] = cross_checks_from_files(alg_input)
+        except Exception as _cc_err:
+            print(f"[WARN] cross-checks failed (result still returned): {_cc_err}")
+            result["cross_checks"] = []
         # Benchmark tegen het AFAS-referentieontwerp (alleen AFAS-bestanden tellen mee)
         try:
             benchmark = benchmark_against_reference(alg_input)

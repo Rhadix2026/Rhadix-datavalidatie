@@ -449,16 +449,27 @@ async def happy_flow_batch(
     # ── Bereken alle indicatoren die matchen op bestandsnaam ─────────────────
     happy_flow_rules = [r for r in _rule_engine.list_rules() if "happy_flow" in r.tags]
 
+    # Match op de bestandsstam (zónder extensie) zodat een bron óók als JSON of
+    # XML meedoet: 'medewerker_afas_hrm.json' matcht op regel-dataset
+    # 'medewerker_afas_hrm.csv'. De reken-engine detecteert het formaat zelf.
+    def _stem(name: str) -> str:
+        return name.rsplit(".", 1)[0].strip().lower()
+
+    contents_by_stem: dict[str, tuple[str, bytes]] = {}
+    for _fn, _c in file_contents.items():
+        contents_by_stem.setdefault(_stem(_fn), (_fn, _c))
+
     results = []
     skipped_files = []  # bestanden waarvoor geen regels gevonden zijn
     matched_files = set()
 
     for rule in happy_flow_rules:
-        if rule.source_dataset not in file_contents:
+        match = contents_by_stem.get(_stem(rule.source_dataset))
+        if match is None:
             continue
-        matched_files.add(rule.source_dataset)
+        matched_filename, contents = match
+        matched_files.add(matched_filename)
         try:
-            contents = file_contents[rule.source_dataset]
             calc = _calc_engine.calculate(rule, source=io.BytesIO(contents))
             # Maak een ReconciliationResult zonder SPARQL (status UNKNOWN)
             recon = _recon_engine.reconcile(rule, calc, actual_value=None)

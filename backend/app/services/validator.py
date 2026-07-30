@@ -882,6 +882,31 @@ def run_cross_checks(files_data: dict) -> list:
 
     return cross
 
+
+def cross_checks_from_files(files_input: list) -> list:
+    """Bouw de KIK-V-schema `files_data` (schemadetectie + kolom-mapping +
+    rij-normalisatie naar interne veldnamen) en draai de cross-file-checks.
+
+    Herbruikbaar buiten het KIK-V-pad — zo draaien de cross-checks ("personen
+    niet in Medewerker", "overlappende periodes", …) óók op de algemeen/AFAS-route.
+    files_input: list van {filename, headers, rows}.
+    """
+    files_data: dict = {}
+    for fi in files_input:
+        sk = fi.get("schema_key") or detect_schema(fi["filename"], fi.get("headers", []))
+        if not sk or sk not in KIKV_REFERENCE:
+            continue
+        mapping = auto_map(fi.get("headers", []), KIKV_REFERENCE[sk]["col_aliases"])
+        rev_map = {col: field for field, col in mapping.items()}
+        norm_rows = [{rev_map.get(k, k): v for k, v in row.items()} for row in fi["rows"]]
+        if sk not in files_data:
+            files_data[sk] = {"rows": norm_rows, "mapping": {f: f for f in mapping.keys()}}
+        else:
+            files_data[sk]["rows"].extend(norm_rows)
+            for f in mapping.keys():
+                files_data[sk]["mapping"].setdefault(f, f)
+    return run_cross_checks(files_data)
+
 # ─── MAIN VALIDATE ENTRY POINT ───────────────────────────────────────────────
 # ── Profiel-laag omschakeling (Stap 2 slice 2.4, achter env-vlag) ─────────────
 _PROFILE_CHECK_LABEL = {

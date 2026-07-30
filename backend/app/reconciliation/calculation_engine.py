@@ -1,12 +1,13 @@
 """
 Rhadix Reconciliation Engine — Calculation Engine
 Laadt brondata, past filters toe en berekent de verwachte indicatorwaarde.
-Ondersteunde formaten: CSV, Excel (.xlsx/.xls), AFAS XML (Profit GET-connector)
+Ondersteunde formaten: CSV, Excel (.xlsx/.xls), AFAS XML + JSON (Profit GET-connector)
 """
 
 from __future__ import annotations
 
 import io
+import json
 import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
@@ -90,12 +91,64 @@ def _parse_afas_xml(source: io.BytesIO) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _parse_afas_json(source: io.BytesIO) -> pd.DataFrame:
+    """Parseer AFAS Profit JSON (GET-connector) naar een pandas DataFrame.
+
+    Ondersteunt de REST-envelope {"skip","take","rows":[…]}, een kale lijst van
+    records en een losse record-dict. Datumvelden (YYYYMMDD en ISO-datetime)
+    worden herkend, net als in de XML-parser, zodat XML- en JSON-bron dezelfde
+    berekening geven. null → None; getallen/booleans blijven hun type behouden.
+    """
+    source.seek(0)
+    data = json.loads(source.read().decode("utf-8-sig", errors="replace"))
+    if isinstance(data, dict):
+        records = data.get("rows")
+        if records is None:
+            records = [data]
+    elif isinstance(data, list):
+        records = data
+    else:
+        return pd.DataFrame()
+
+    rows = []
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        row: dict = {}
+        for k, v in rec.items():
+            if v is None or (isinstance(v, str) and v.strip() == ""):
+                row[k] = None
+            elif isinstance(v, str):
+                s = v.strip()
+                if _AFAS_DATE_COMPACT.match(s):
+                    try:    row[k] = pd.to_datetime(s, format="%Y%m%d")
+                    except Exception: row[k] = s
+                elif _AFAS_DATETIME_ISO.match(s):
+                    try:    row[k] = pd.to_datetime(s)
+                    except Exception: row[k] = s
+                else:
+                    row[k] = s
+            else:
+                row[k] = v      # getallen/booleans: type behouden
+        if row:
+            rows.append(row)
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
 def _is_xml(source: io.BytesIO) -> bool:
     """Controleer of de bron XML is door de eerste bytes te lezen."""
     source.seek(0)
     header = source.read(64).lstrip()
     source.seek(0)
     return header.startswith(b"<?xml") or header.startswith(b"<")
+
+
+def _is_json(source: io.BytesIO) -> bool:
+    """Controleer of de bron JSON is (begint met { of [ )."""
+    source.seek(0)
+    header = source.read(64).lstrip()
+    source.seek(0)
+    return header.startswith(b"{") or header.startswith(b"[")
 
 
 class DataLoader:
@@ -108,12 +161,17 @@ class DataLoader:
             if path.suffix == ".xml":
                 with open(path, "rb") as f:
                     return _parse_afas_xml(io.BytesIO(f.read()))
+            if path.suffix == ".json":
+                with open(path, "rb") as f:
+                    return _parse_afas_json(io.BytesIO(f.read()))
             return pd.read_csv(path, **read_kwargs)
         if isinstance(source, bytes):
             source = io.BytesIO(source)
         # Auto-detectie op basis van inhoud
         if _is_xml(source):
             return _parse_afas_xml(source)
+        if _is_json(source):
+            return _parse_afas_json(source)
         try:
             source.seek(0)
             return pd.read_csv(source, **read_kwargs)

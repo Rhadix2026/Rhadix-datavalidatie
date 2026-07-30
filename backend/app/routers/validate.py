@@ -333,6 +333,18 @@ async def upload_and_validate(
         except Exception as _cc_err:
             print(f"[WARN] cross-checks failed (result still returned): {_cc_err}")
             result["cross_checks"] = []
+        # Cross-check-bevindingen meetellen in de kop (fouten/waarschuwingen) en in
+        # de totaalscore: vindt de gap-analyse iets, dan is het niet '100/foutloos'.
+        # De per-bestand-scores blijven ongemoeid (cross-checks zijn niet aan één
+        # bestand toe te wijzen).
+        _cc = result.get("cross_checks", []) or []
+        if _cc:
+            _sum = result.setdefault("summary", {})
+            _sum["error_count"] = _sum.get("error_count", 0) + sum(1 for c in _cc if c.get("severity") == "error")
+            _sum["warn_count"]  = _sum.get("warn_count", 0)  + sum(1 for c in _cc if c.get("severity") == "warning")
+            if _sum.get("quality", 0) == 100:
+                _sum["quality"] = 99
+                _sum["rhadix_index"] = round(_sum.get("completeness", 100) * 99 / 100)
         # Benchmark tegen het AFAS-referentieontwerp (alleen AFAS-bestanden tellen mee)
         try:
             benchmark = benchmark_against_reference(alg_input)

@@ -25,7 +25,7 @@ def _ids(result):
 
 
 def test_flag_off_uses_legacy(monkeypatch):
-    monkeypatch.delenv("RHADIX_USE_PROFILES", raising=False)
+    monkeypatch.setenv("RHADIX_USE_PROFILES", "0")
     assert use_profiles() is False
     result = validate_files(FILES)
     ids = _ids(result)
@@ -34,7 +34,7 @@ def test_flag_off_uses_legacy(monkeypatch):
 
 
 def test_flag_on_uses_profiles(monkeypatch):
-    monkeypatch.setenv("RHADIX_USE_PROFILES", "1")
+    monkeypatch.delenv("RHADIX_USE_PROFILES", raising=False)
     assert use_profiles() is True
     result = validate_files(FILES)
     ids = _ids(result)

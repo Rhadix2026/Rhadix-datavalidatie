@@ -896,10 +896,11 @@ _PROFILE_CHECK_LABEL = {
 
 
 def use_profiles() -> bool:
-    """Draait de validatie op de generieke profiel-laag (Laag 2/3) i.p.v. de oude
-    validator? Gestuurd door env RHADIX_USE_PROFILES (default: uit = huidig gedrag)."""
+    """De generieke profiel-laag (Laag 2/3) is het standaardgedrag. Alleen als
+    RHADIX_USE_PROFILES expliciet op '0'/'off' staat, valt validate_files terug op
+    de oude validator (noodrem)."""
     import os
-    return os.getenv("RHADIX_USE_PROFILES", "").strip().lower() in ("1", "true", "yes", "on")
+    return os.getenv("RHADIX_USE_PROFILES", "1").strip().lower() not in ("0", "false", "no", "off")
 
 
 def profile_issues(schema_key: str, headers: list, rows: list) -> list:

@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Nav, Page, PageTitle, BtnPrimary } from '../components/UI'
-import { uploadFiles, happyFlowBatch,
+import { uploadFiles, happyFlowBatch, listProfiles, profileReadiness,
   exportKikvReadinessRapportPdf, exportBeschikbaarheidsRapportPdf, exportManagementRapportPdf } from '../services/api'
 import { MaakTakenButton } from '../components/TaskUI'
 
@@ -62,6 +62,12 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
   const [benchmarking, setBenchmarking] = useState(false)
   const [benchErr, setBenchErr]       = useState(null)
   const [reportErr, setReportErr]     = useState(null)
+  const [profiles, setProfiles]       = useState([])
+  const [upSel, setUpSel]             = useState('')
+  const [upResult, setUpResult]       = useState(null)
+  const [upBusy, setUpBusy]           = useState(false)
+  const [upErr, setUpErr]             = useState(null)
+  useEffect(() => { if (benchmark && !profiles.length) listProfiles().then(setProfiles).catch(() => {}) }, [benchmark])
 
   const addFiles = useCallback((sid, list) => {
     setFilesBySource(prev => {
@@ -151,6 +157,14 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
     setReportErr(null)
     try { await fn() }
     catch (e) { setReportErr('Rapport niet beschikbaar voor deze scan: ' + (e?.message || e)) }
+  }
+
+  const toetsUP = async () => {
+    if (!upSel || !benchmark?.result) return
+    setUpBusy(true); setUpErr(null); setUpResult(null)
+    try { setUpResult(await profileReadiness(upSel, benchmark.result)) }
+    catch (e) { setUpErr('Toets mislukt: ' + (e?.message || e)) }
+    finally { setUpBusy(false) }
   }
 
   return (
@@ -309,6 +323,30 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
                       </div>
                       {reportErr && <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--red)' }}>{reportErr}</div>}
                       <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text3)' }}>Taken worden toegewezen aan een gebruiker van je organisatie; die krijgt een e-mailnotificatie.</div>
+                      <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 8 }}>Uitwisselprofiel toetsen — kunnen alle indicatoren beantwoord worden?</div>
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <select value={upSel} onChange={e => setUpSel(e.target.value)} style={{ padding: '8px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, fontFamily: 'var(--font)', minWidth: 300, background: '#fff' }}>
+                            <option value="">— Kies een uitwisselprofiel —</option>
+                            {profiles.map(p => <option key={p.filename} value={p.filename}>{(p.name || p.filename)}{p.indicator_count ? ` (${p.indicator_count} indicatoren)` : ''}</option>)}
+                          </select>
+                          <button onClick={toetsUP} disabled={!upSel || upBusy} style={{ ...reportBtn, opacity: (!upSel || upBusy) ? 0.6 : 1 }}>{upBusy ? 'Bezig…' : 'Toets uitwisselprofiel'}</button>
+                        </div>
+                        {upErr && <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--red)' }}>{upErr}</div>}
+                        {upResult && (() => {
+                          const sc = upResult.profile_readiness_score || 0
+                          const col = sc >= 90 ? 'var(--green)' : sc >= 50 ? '#b45309' : 'var(--red)'
+                          return (
+                            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+                              <div style={{ fontSize: 26, fontWeight: 900, color: col }}>{Math.round(sc)}<span style={{ fontSize: 14, color: 'var(--text3)' }}>%</span></div>
+                              <div style={{ fontSize: 13, color: 'var(--green)', fontWeight: 700 }}>{upResult.fully_computable} volledig</div>
+                              <div style={{ fontSize: 13, color: '#b45309', fontWeight: 700 }}>{upResult.partially_computable} gedeeltelijk</div>
+                              <div style={{ fontSize: 13, color: 'var(--red)', fontWeight: 700 }}>{upResult.blocked} geblokkeerd</div>
+                              <div style={{ fontSize: 12.5, color: 'var(--text3)' }}>van {upResult.total_indicators} indicatoren</div>
+                            </div>
+                          )
+                        })()}
+                      </div>
                     </div>
                   )}
                 </div>

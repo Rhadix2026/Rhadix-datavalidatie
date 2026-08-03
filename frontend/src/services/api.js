@@ -104,6 +104,20 @@ export async function uploadFiles(files, label = '', standard = 'kikv', maxAgeDa
   return res.json()
 }
 
+export async function listProfiles() {
+  const res = await apiFetch(`${BASE}/profiles/`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function profileReadiness(filename, scanResult) {
+  const res = await apiFetch(`${BASE}/profiles/${encodeURIComponent(filename)}/readiness`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(scanResult),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 export async function happyFlowBatch(files) {
   const form = new FormData()
   files.forEach(f => form.append('files', f))

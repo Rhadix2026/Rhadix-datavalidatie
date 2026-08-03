@@ -62,7 +62,7 @@ def check_value(check: str, value, allowed=None) -> bool:
 
 
 def run_column(values: Sequence, concept: str, check: str,
-               severity: str = "warning", allowed=None, max_examples: int = 5) -> Optional[Finding]:
+               severity: str = "warning", allowed=None, max_examples: int = 50) -> Optional[Finding]:
     """Draai één check over de waarden van één kolom. Geef een Finding met het
     aantal fouten + voorbeelden, of None als alles slaagt."""
     total = 0
@@ -94,7 +94,7 @@ def column_values(cf, source_column: str) -> list:
 
 
 def run_unique(values: Sequence, concept: str, severity: str = "error",
-               max_examples: int = 5) -> Optional[Finding]:
+               max_examples: int = 50) -> Optional[Finding]:
     """Signaleer dubbele (niet-lege) waarden in een kolom. `count` = het aantal
     rijen dat betrokken is bij een duplicaat, gelijk aan KIK-V's `dup_id`."""
     counts: dict = {}
@@ -115,7 +115,7 @@ def run_unique(values: Sequence, concept: str, severity: str = "error",
 
 
 def run_date_order(start_values, end_values, concept: str, severity: str = "error",
-                   max_examples: int = 5) -> Optional[Finding]:
+                   max_examples: int = 50) -> Optional[Finding]:
     """Cross-field: signaleer rijen waar de einddatum vóór de startdatum ligt.
 
     `start_values` en `end_values` zijn per rij uitgelijnd. Alleen rijen waar
@@ -140,7 +140,7 @@ def run_date_order(start_values, end_values, concept: str, severity: str = "erro
 
 
 def run_conditional_required(trigger_values, target_values, trigger_set, concept: str,
-                             severity: str = "error", max_examples: int = 5) -> Optional[Finding]:
+                             severity: str = "error", max_examples: int = 50) -> Optional[Finding]:
     """Conditioneel verplicht: als het trigger-veld een waarde uit `trigger_set`
     heeft, moet het doelveld (`concept`) gevuld zijn. Per rij uitgelijnd.
 
@@ -166,7 +166,7 @@ def run_conditional_required(trigger_values, target_values, trigger_set, concept
 
 
 def run_forbidden_value(values, concept: str, forbidden, severity: str = "error",
-                        max_examples: int = 5) -> Optional[Finding]:
+                        max_examples: int = 50) -> Optional[Finding]:
     """Signaleer verboden/placeholder-waarden (bv. KIK-V personeelsnummer '99999')."""
     fset = {str(x).strip() for x in forbidden}
     fail = 0
@@ -187,7 +187,7 @@ def run_forbidden_value(values, concept: str, forbidden, severity: str = "error"
 
 
 def run_range(values, concept: str, lo: float, hi: float, severity: str = "error",
-              max_examples: int = 5) -> Optional[Finding]:
+              max_examples: int = 50) -> Optional[Finding]:
     """Signaleer niet-numerieke of buiten-bereik waarden (bv. verzuimpercentage 0-100).
     Lege waarden tellen niet mee - verdict-pariteit met KIK-V's `invalid_pct`."""
     fail = 0

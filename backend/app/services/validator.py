@@ -941,13 +941,26 @@ def profile_issues(schema_key: str, headers: list, rows: list, filename: str = "
     if not profile:
         return []
     cf = to_canonical(filename, headers, rows, total=len(rows), standard="kikv")
+
+    def _ex_to_row(e: dict) -> dict:
+        val = e.get("value")
+        if val is None:
+            val = e.get("end") if "end" in e else e.get("trigger")
+        return {
+            "rowNumber":     e.get("row", ""),
+            "personId":      "",
+            "currentValue":  "" if val is None else str(val),
+            "expectedValue": "",
+        }
+
     issues = []
     for f in run_profile(cf, profile):
         label = f"{_PROFILE_CHECK_LABEL.get(f.check, f.check)} — {f.concept}"
+        detail_rows = [_ex_to_row(e) for e in (f.examples or [])]
         issues.append({
             "id": f"{f.concept}_{f.check}", "label": label, "severity": f.severity,
             "count": f.count, "detail": f.message,
-            "rows": [], "truncated": False,
+            "rows": detail_rows, "truncated": f.count > len(detail_rows),
         })
     return issues
 

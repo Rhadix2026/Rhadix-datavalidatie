@@ -6,7 +6,7 @@
   dayfirst: true
   aggregation:
     function: count
-    field: objectId
+    field: contractId
   tolerance:
     absolute: 0
     percentage: 0.0
@@ -26,7 +26,7 @@
   peildatum: "2025-01-01"
   aggregation:
     function: count
-    field: objectId
+    field: contractId
   tolerance:
     absolute: 0
     percentage: 0.0
@@ -43,7 +43,7 @@
   dayfirst: true
   aggregation:
     function: nunique
-    field: employeeId
+    field: employeeObjectId
   tolerance:
     absolute: 0
     percentage: 0.0

@@ -57,7 +57,7 @@
   dayfirst: true
   aggregation:
     function: count
-    field: functie
+    field: FunctionDesc
   tolerance:
     absolute: 0
     percentage: 0.0
@@ -74,7 +74,7 @@
   dayfirst: true
   aggregation:
     function: nunique
-    field: functie
+    field: FunctionDesc
   tolerance:
     absolute: 0
     percentage: 0.0

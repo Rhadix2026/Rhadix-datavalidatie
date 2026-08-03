@@ -26,6 +26,7 @@ KIKV_REFERENCE = {
         "required_cols": ["personeelsnummer", "geboortedatum"],
         "col_aliases": {
             "personeelsnummer": [
+                "uuid",
                 "personeelsnummer","persoonid","personid","employeeid","medewerkerid",
                 "identificationno","identificatieno","employeeobjectid",       # Nedap ONS
             ],
@@ -46,7 +47,7 @@ KIKV_REFERENCE = {
                 "objectid",                                                    # Nedap ONS: Contracts.objectId
             ],
             "personeelsnummer": [
-                "personeelsnummer","personid","medewerkerid","employeeid",
+                "personeelsnummer","personid","medewerkerid","employeenumber","employeeid",
                 "employeeobjectid",                                            # Nedap ONS
             ],
             "overeenkomsttype": [
@@ -83,7 +84,7 @@ KIKV_REFERENCE = {
         "col_aliases": {
             "functie": [
                 "functie","functienaam","jobtitle","function",
-                "description","expertiseprofiledescription",                   # Nedap ONS: Expertise_profiles.description
+                "description","expertiseprofiledescription","functiondesc",                   # Nedap ONS: Expertise_profiles.description
             ],
             "zorg":               ["zorg","iszorg","carerole"],
             "kwalificatieniveau": ["kwalificatieniveau","niveau","level","qualification"],
@@ -125,15 +126,15 @@ KIKV_REFERENCE = {
         "col_aliases": {
             "personeelsnummer": [
                 "personeelsnummer","personid","medewerkerid",
-                "employeeid",                                                  # Nedap ONS: presence_logs.employeeId
+                "employeeid","employeenumber",                                 # Nedap ONS: presence_logs.employeeId / ons_absence.employeeNumber
             ],
             "soortverzuim": [
-                "soortverzuim","type","soort","verzuimtype",
+                "soortverzuim","type","soort","verzuimtype","absencetype",
                 "description","activitydescription",                           # Nedap ONS: activities.description
                 "absencetypedesc","absencetypeid","reasondesc","reasonid",     # AFAS Profit_Illness
             ],
             "startmoment": [
-                "startmoment","startdatum","illnessstart","begindatum","beginmoment",
+                "startmoment","startdatum","illnessstart","begindatum","beginmoment","begindatetime",
                 "startdate",                                                   # Nedap ONS / AFAS Profit_Illness
             ],
             "eindmoment": [

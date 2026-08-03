@@ -6,7 +6,7 @@
   dayfirst: true
   aggregation:
     function: count
-    field: employeeId
+    field: employeeNumber
   tolerance:
     absolute: 0
     percentage: 0.0
@@ -21,11 +21,11 @@
     Aantal lopende verzuimgevallen in ONS (endDate niet ingevuld of >= 2025-01-01).
   source_dataset: verzuim_ons.csv
   dayfirst: true
-  peildatum_field: endDate
+  peildatum_field: expectedEndDateTime
   peildatum: "2025-01-01"
   aggregation:
     function: count
-    field: employeeId
+    field: employeeNumber
   tolerance:
     absolute: 0
     percentage: 0.0

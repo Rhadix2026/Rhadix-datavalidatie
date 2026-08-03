@@ -1340,7 +1340,7 @@ function HappyFlowTab() {
     setLoading(true); setBatchResult(null);
     try {
       const fetched = await Promise.all(KIKV_VOORBEELDSET.map(async name => {
-        const r = await fetch(`/kikv-voorbeeldset/${name}`);
+        const r = await fetch(`/kikv-voorbeeldset/${name}?v=${import.meta.env.VITE_APP_VERSION || 'dev'}`);
         if (!r.ok) throw new Error(`kon ${name} niet laden`);
         return new File([await r.blob()], name, { type: "text/csv" });
       }));
@@ -1401,7 +1401,7 @@ function HappyFlowTab() {
                      padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
             {loading ? "Bezig…" : "Laad KIK-V voorbeeldset"}
           </button>
-          <a href="/kikv-voorbeeldset.zip" download
+          <a href={`/kikv-voorbeeldset.zip?v=${import.meta.env.VITE_APP_VERSION || 'dev'}`} download
             style={{ border: "1.5px solid var(--blue)", color: "var(--blue)", borderRadius: 8,
                      padding: "8px 16px", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
             Download voorbeeldset (ZIP)

@@ -84,7 +84,7 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
         const names = SYS[sid].happyflow
         const arr = []
         for (const name of names) {
-          const r = await fetch(`/kikv-voorbeeldset/${name}`)
+          const r = await fetch(`/kikv-voorbeeldset/${name}?v=${import.meta.env.VITE_APP_VERSION || 'dev'}`)
           if (!r.ok) continue
           const blob = await r.blob()
           arr.push(new File([blob], name, { type: 'text/csv' }))

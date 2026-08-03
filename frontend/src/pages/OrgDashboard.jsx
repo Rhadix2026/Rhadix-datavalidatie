@@ -42,7 +42,7 @@ export default function OrgDashboard({ onBack, authUser, tenantId }) {
   if (error)   return <Centered style={{ color: '#ef4444' }}>Fout: {error}</Centered>
   if (!data)   return null
 
-  const { tenant_name, summary, trend_monthly, by_application, by_user, top_runs, sector_benchmark } = data
+  const { tenant_name, summary = {}, trend_monthly = [], by_application = [], by_user = [], top_runs = [], sector_benchmark = null } = data
 
   return (
     <div style={styles.page}>

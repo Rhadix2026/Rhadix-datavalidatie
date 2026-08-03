@@ -39,7 +39,7 @@ export default function PlatformDashboard({ onBack, onOrgDrilldown }) {
   if (error)   return <Centered style={{ color: '#ef4444' }}>Fout: {error}</Centered>
   if (!data)   return null
 
-  const { platform_summary, per_tenant, trend_platform_monthly, benchmark } = data
+  const { platform_summary = {}, per_tenant = [], trend_platform_monthly = [], benchmark = null } = data
 
   const sortedTenants = [...(per_tenant || [])].sort((a, b) => {
     if (sortKey === 'avg_score') return (b.avg_score ?? -1) - (a.avg_score ?? -1)

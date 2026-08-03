@@ -31,7 +31,7 @@ export default function UserDashboard({ onBack, authUser }) {
   if (error)   return <Centered style={{ color: '#ef4444' }}>Fout: {error}</Centered>
   if (!data)   return null
 
-  const { full_name, total_runs, latest_run, trend, by_standard } = data
+  const { full_name, total_runs = 0, latest_run = null, trend = [], by_standard = [] } = data
   const standards = Object.entries(by_standard || {})
 
   return (

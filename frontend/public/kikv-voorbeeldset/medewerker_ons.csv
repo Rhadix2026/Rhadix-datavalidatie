@@ -1,41 +1,41 @@
-identificationNo,firstName,lastName,function,startDate
-MW100001,Daan,de Vries,Teamleider,2025-10-06
-MW100002,Hilde,Bakker,Verpleegkundige,2024-07-21
-MW100003,Roos,Jansen,Activiteitenbegeleider,2026-05-12
-MW100004,Anna,Jansen,Woonbegeleider,2025-10-18
-MW100005,Quinn,Peters,Verzorgende IG,2024-11-16
-MW100006,Gijs,van Dijk,Activiteitenbegeleider,2025-10-31
-MW100007,Omar,Peters,Teamleider,2024-03-07
-MW100008,Anna,Dekker,Helpende,2024-06-29
-MW100009,Noor,Meijer,Teamleider,2026-01-05
-MW100010,Gijs,Dekker,Kwaliteitsmedewerker,2026-03-01
-MW100011,Carla,Mulder,Verpleegkundige,2025-06-11
-MW100012,Lars,Peters,Teamleider,2024-03-09
-MW100013,Ben,van Dijk,Zorgassistent,2024-12-11
-MW100014,Daan,Kok,Activiteitenbegeleider,2026-03-25
-MW100015,Roos,Smit,Kwaliteitsmedewerker,2024-10-30
-MW100016,Gijs,van Dijk,Verpleegkundige,2026-04-28
-MW100017,Hilde,Dekker,Teamleider,2026-03-24
-MW100018,Hilde,Brouwer,Verpleegkundige,2025-05-20
-MW100019,Imke,Bos,Kwaliteitsmedewerker,2025-12-29
-MW100020,Lars,Meijer,Woonbegeleider,2024-07-27
-MW100021,Imke,van Dijk,Verpleegkundige,2024-09-28
-MW100022,Femke,Vos,Woonbegeleider,2025-12-28
-MW100023,Omar,Mulder,Teamleider,2024-08-27
-MW100024,Roos,Visser,Kwaliteitsmedewerker,2024-02-01
-MW100025,Ben,Visser,Verzorgende IG,2024-03-11
-MW100026,Kim,Mulder,Teamleider,2026-04-07
-MW100027,Gijs,Kok,Kwaliteitsmedewerker,2025-11-08
-MW100028,Puck,Mulder,Zorgassistent,2026-01-18
-MW100029,Imke,Bakker,Woonbegeleider,2024-05-12
-MW100030,Roos,Vos,Teamleider,2024-05-10
-MW100031,Sam,Mulder,Activiteitenbegeleider,2025-06-08
-MW100032,Hilde,Bakker,Zorgassistent,2026-03-12
-MW100033,Ben,Brouwer,Verpleegkundige,2026-01-08
-MW100034,Femke,Dekker,Activiteitenbegeleider,2024-10-11
-MW100035,Carla,Mulder,Activiteitenbegeleider,2024-10-11
-MW100036,Omar,Vos,Teamleider,2024-11-24
-MW100037,Anna,Hendriks,Verpleegkundige,2024-07-15
-MW100038,Roos,Dekker,Teamleider,2024-04-17
-MW100039,Kim,Jansen,Teamleider,2025-03-25
-MW100040,Femke,Bos,Verzorgende IG,2024-06-04
+identificationNo,firstName,lastName,function,startDate,dateOfBirth
+MW100001,Daan,de Vries,Teamleider,2025-10-06,04-04-1983
+MW100002,Hilde,Bakker,Verpleegkundige,2024-07-21,05-05-1990
+MW100003,Roos,Jansen,Activiteitenbegeleider,2026-05-12,06-06-1997
+MW100004,Anna,Jansen,Woonbegeleider,2025-10-18,07-07-1966
+MW100005,Quinn,Peters,Verzorgende IG,2024-11-16,08-08-1973
+MW100006,Gijs,van Dijk,Activiteitenbegeleider,2025-10-31,09-09-1980
+MW100007,Omar,Peters,Teamleider,2024-03-07,10-10-1987
+MW100008,Anna,Dekker,Helpende,2024-06-29,11-11-1994
+MW100009,Noor,Meijer,Teamleider,2026-01-05,12-12-1963
+MW100010,Gijs,Dekker,Kwaliteitsmedewerker,2026-03-01,13-01-1970
+MW100011,Carla,Mulder,Verpleegkundige,2025-06-11,14-02-1977
+MW100012,Lars,Peters,Teamleider,2024-03-09,15-03-1984
+MW100013,Ben,van Dijk,Zorgassistent,2024-12-11,16-04-1991
+MW100014,Daan,Kok,Activiteitenbegeleider,2026-03-25,17-05-1998
+MW100015,Roos,Smit,Kwaliteitsmedewerker,2024-10-30,18-06-1967
+MW100016,Gijs,van Dijk,Verpleegkundige,2026-04-28,19-07-1974
+MW100017,Hilde,Dekker,Teamleider,2026-03-24,20-08-1981
+MW100018,Hilde,Brouwer,Verpleegkundige,2025-05-20,21-09-1988
+MW100019,Imke,Bos,Kwaliteitsmedewerker,2025-12-29,22-10-1995
+MW100020,Lars,Meijer,Woonbegeleider,2024-07-27,23-11-1964
+MW100021,Imke,van Dijk,Verpleegkundige,2024-09-28,24-12-1971
+MW100022,Femke,Vos,Woonbegeleider,2025-12-28,25-01-1978
+MW100023,Omar,Mulder,Teamleider,2024-08-27,26-02-1985
+MW100024,Roos,Visser,Kwaliteitsmedewerker,2024-02-01,27-03-1992
+MW100025,Ben,Visser,Verzorgende IG,2024-03-11,01-04-1999
+MW100026,Kim,Mulder,Teamleider,2026-04-07,02-05-1968
+MW100027,Gijs,Kok,Kwaliteitsmedewerker,2025-11-08,03-06-1975
+MW100028,Puck,Mulder,Zorgassistent,2026-01-18,04-07-1982
+MW100029,Imke,Bakker,Woonbegeleider,2024-05-12,05-08-1989
+MW100030,Roos,Vos,Teamleider,2024-05-10,06-09-1996
+MW100031,Sam,Mulder,Activiteitenbegeleider,2025-06-08,07-10-1965
+MW100032,Hilde,Bakker,Zorgassistent,2026-03-12,08-11-1972
+MW100033,Ben,Brouwer,Verpleegkundige,2026-01-08,09-12-1979
+MW100034,Femke,Dekker,Activiteitenbegeleider,2024-10-11,10-01-1986
+MW100035,Carla,Mulder,Activiteitenbegeleider,2024-10-11,11-02-1993
+MW100036,Omar,Vos,Teamleider,2024-11-24,12-03-1962
+MW100037,Anna,Hendriks,Verpleegkundige,2024-07-15,13-04-1969
+MW100038,Roos,Dekker,Teamleider,2024-04-17,14-05-1976
+MW100039,Kim,Jansen,Teamleider,2025-03-25,15-06-1983
+MW100040,Femke,Bos,Verzorgende IG,2024-06-04,16-07-1990

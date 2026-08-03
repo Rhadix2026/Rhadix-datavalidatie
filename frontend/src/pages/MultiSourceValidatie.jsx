@@ -158,8 +158,10 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
       <Nav authUser={authUser} onLogout={onLogout} onHome={onBack} onBack={onBack} />
       <Page>
         <PageTitle
-          title="Multi-bron validatie"
-          sub="Upload per bron de bestanden. We valideren elke bron generiek en doen cross-checks over de bronnen heen."
+          title={sysList.length > 1 ? "Multi-bron validatie" : "Datavalidatie"}
+          sub={sysList.length > 1
+            ? "Upload per bron de bestanden. We valideren elke bron generiek en doen cross-checks over de bronnen heen."
+            : "Upload de bestanden. We valideren generiek en je kunt benchmarken tegen KIK-V of de ZIB's."}
         />
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>

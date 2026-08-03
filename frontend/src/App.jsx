@@ -303,7 +303,7 @@ export default function App() {
           onNext={(sel, std) => {
             setSystems(sel)
             setStandard(std || 'kikv')
-            setStep((sel || []).length > 1 ? 'multi_validatie' : 'upload')
+            setStep((sel || []).length >= 1 ? 'multi_validatie' : 'upload')
           }}
           onBack={() => setStep('portal')}
           authUser={authUser}

@@ -133,7 +133,7 @@ KIKV_REFERENCE = {
                 "absencetypedesc","absencetypeid","reasondesc","reasonid",     # AFAS Profit_Illness
             ],
             "startmoment": [
-                "startmoment","startdatum","illnessstart","begindatum",
+                "startmoment","startdatum","illnessstart","begindatum","beginmoment",
                 "startdate",                                                   # Nedap ONS / AFAS Profit_Illness
             ],
             "eindmoment": [

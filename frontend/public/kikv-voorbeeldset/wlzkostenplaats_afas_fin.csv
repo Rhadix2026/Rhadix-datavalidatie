@@ -1,9 +1,9 @@
-kostenPlaats,omschrijving
-KP01,Kostenplaats 1
-KP02,Kostenplaats 2
-KP03,Kostenplaats 3
-KP04,Kostenplaats 4
-KP05,Kostenplaats 5
-KP06,Kostenplaats 6
-KP07,Kostenplaats 7
-KP08,Kostenplaats 8
+kostenPlaats,omschrijving,bedrag
+KP01,Kostenplaats 1,25000
+KP02,Kostenplaats 2,29200
+KP03,Kostenplaats 3,33400
+KP04,Kostenplaats 4,37600
+KP05,Kostenplaats 5,41800
+KP06,Kostenplaats 6,46000
+KP07,Kostenplaats 7,50200
+KP08,Kostenplaats 8,54400

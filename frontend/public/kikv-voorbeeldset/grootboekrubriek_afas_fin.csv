@@ -1,16 +1,16 @@
-grootboekRekeningNummer,omschrijving
-4000,Rubriek 4000
-4001,Rubriek 4001
-4002,Rubriek 4002
-4003,Rubriek 4003
-4004,Rubriek 4004
-4005,Rubriek 4005
-4006,Rubriek 4006
-4007,Rubriek 4007
-4008,Rubriek 4008
-4009,Rubriek 4009
-4010,Rubriek 4010
-4011,Rubriek 4011
-4012,Rubriek 4012
-4013,Rubriek 4013
-4014,Rubriek 4014
+grootboekRekeningNummer,omschrijving,saldo
+4000,Rubriek 4000,1000
+4001,Rubriek 4001,1137
+4002,Rubriek 4002,1274
+4003,Rubriek 4003,1411
+4004,Rubriek 4004,1548
+4005,Rubriek 4005,1685
+4006,Rubriek 4006,1822
+4007,Rubriek 4007,1959
+4008,Rubriek 4008,2096
+4009,Rubriek 4009,2233
+4010,Rubriek 4010,2370
+4011,Rubriek 4011,2507
+4012,Rubriek 4012,2644
+4013,Rubriek 4013,2781
+4014,Rubriek 4014,2918

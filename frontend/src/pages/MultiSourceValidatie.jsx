@@ -51,7 +51,7 @@ function evalCheck(c, vals) {
   return { status: 'na', a, b }
 }
 
-export default function MultiSourceValidatie({ systems = [], onBack, authUser, onLogout }) {
+export default function MultiSourceValidatie({ systems = [], onBack, authUser, onLogout, onProfiles }) {
   const sysList = systems.filter(id => SYS[id])
   const [filesBySource, setFilesBySource] = useState({})   // { systemId: File[] }
   const [loading, setLoading] = useState(false)
@@ -325,6 +325,11 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
                       <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text3)' }}>Taken worden toegewezen aan een gebruiker van je organisatie; die krijgt een e-mailnotificatie.</div>
                       <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 8 }}>Uitwisselprofiel toetsen — kunnen alle indicatoren beantwoord worden?</div>
+                        {onProfiles && (
+                          <button onClick={() => onProfiles(b)} style={{ ...reportBtn, marginBottom: 10 }}>
+                            🔎 Uitwisselprofielen importeren &amp; per indicator toetsen (volledig)
+                          </button>
+                        )}
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                           <select value={upSel} onChange={e => setUpSel(e.target.value)} style={{ padding: '8px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, fontFamily: 'var(--font)', minWidth: 300, background: '#fff' }}>
                             <option value="">— Kies een uitwisselprofiel —</option>

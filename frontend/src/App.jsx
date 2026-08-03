@@ -243,7 +243,7 @@ export default function App() {
       const resp  = await fetch(`${API}/api/profiles/${encodeURIComponent(filename)}/readiness`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(activeScanResult),
       })
       if (!resp.ok) {
         const detail = await resp.text().catch(() => `HTTP ${resp.status}`)
@@ -331,6 +331,7 @@ export default function App() {
           authUser={authUser}
           onLogout={handleLogout}
           onBack={() => setStep('systems')}
+          onProfiles={(scanResult) => { setActiveScanResult(scanResult); openProfiles('multi_validatie') }}
         />
       )}
 

@@ -6,7 +6,7 @@ Phase 2: License model, Application model, org-app and user-app assignments.
 import enum
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import func
@@ -154,6 +154,29 @@ class UserApplication(Base):
     application        = relationship("Application",       back_populates="user_applications")
     tenant_application = relationship("TenantApplication", back_populates="user_applications")
     assigned_by        = relationship("User", foreign_keys=[assigned_by_id])
+
+
+# ── TenantBranding (look-and-feel per niveau) ─────────────────────────────────
+
+class TenantBranding(Base):
+    """Eigen look-and-feel per organisatie/RSO (borgen in de database).
+
+    Eén-op-één met een tenant. Leeg/afwezig = erven van de RSO en anders van
+    het Rhadix-platform (default). Logo wordt als bytes bewaard zodat het
+    persistent is over redeploys/containers heen.
+    """
+    __tablename__ = "tenant_branding"
+
+    tenant_id     = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True)
+    preset        = Column(String(32), nullable=True)    # bv. 'rhadix', 'kikv', 'custom'
+    primary_color = Column(String(9),  nullable=True)    # hex, bv. #1A2847
+    accent_color  = Column(String(9),  nullable=True)    # hex voor nav/hero-balk
+    wordmark      = Column(String(120), nullable=True)   # getoonde merknaam in de balk
+    logo_data     = Column(LargeBinary, nullable=True)   # geüpload logo (bytes)
+    logo_mime     = Column(String(64),  nullable=True)   # bv. image/png
+    updated_at    = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    tenant = relationship("Tenant")
 
 
 # ── Auth-tokens (wachtwoord-reset / uitnodiging / e-mailverificatie) ───────────

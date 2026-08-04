@@ -342,6 +342,46 @@ export async function adminDeleteTenant(tenantId, confirmName) {
 }
 
 // ---------------------------------------------------------------------------
+// Branding / look-and-feel per tenant (RHADIX_ADMIN)
+// ---------------------------------------------------------------------------
+
+export async function getTenantBranding(tenantId) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/branding`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function putTenantBranding(tenantId, data) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/branding`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function deleteTenantBranding(tenantId) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/branding`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+export async function uploadTenantLogo(tenantId, file) {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/branding/logo`, { method: 'POST', body: form })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function deleteTenantLogo(tenantId) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/branding/logo`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+export function tenantLogoUrl(tenantId, version) {
+  return `${BASE}/branding/${tenantId}/logo${version ? `?v=${version}` : ''}`
+}
+
+// ---------------------------------------------------------------------------
 // RSO-beheerder (samenwerkingsorganisatie) — gescoped op eigen RSO + kinderen
 // ---------------------------------------------------------------------------
 

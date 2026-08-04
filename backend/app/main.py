@@ -10,6 +10,7 @@ from app.routers import validate, history, reference, export, reports, profiles,
 from app.routers.admin import router as admin_router
 from app.routers.org import router as org_router
 from app.routers.rso import router as rso_router
+from app.routers.branding import router as branding_router
 from app.routers.dashboard import router as dashboard_router
 from app.reconciliation.router import router as recon_router
 
@@ -150,6 +151,19 @@ def _ensure_rso_schema() -> None:
         log.error("Kon RSO-schema niet borgen:\n%s", traceback.format_exc())
 
 _ensure_rso_schema()
+
+def _ensure_branding_table() -> None:
+    """Borg de tenant_branding-tabel (checkfirst/idempotent)."""
+    try:
+        from app.database import engine
+        from app.models.auth_models import TenantBranding
+        TenantBranding.__table__.create(bind=engine, checkfirst=True)
+        log.info("tenant_branding-tabel geborgd.")
+    except Exception:
+        import traceback
+        log.error("Kon tenant_branding-tabel niet borgen:\n%s", traceback.format_exc())
+
+_ensure_branding_table()
 
 
 # ---------------------------------------------------------------------------
@@ -369,6 +383,7 @@ app.include_router(admin_router,      prefix="/api/admin",         tags=["Admin"
 # ── Org admin (ORG_ADMIN + RHADIX_ADMIN) ─────────────────────────────────────
 app.include_router(org_router,        prefix="/api/org",           tags=["Org"])
 app.include_router(rso_router,        prefix="/api/rso",           tags=["RSO"])
+app.include_router(branding_router,   prefix="/api/branding",      tags=["Branding"])
 
 # ── Dashboard (alle rollen, met per-endpoint autorisatie) ─────────────────────
 app.include_router(tasks.router,      prefix="/api/tasks",         tags=["Tasks"])

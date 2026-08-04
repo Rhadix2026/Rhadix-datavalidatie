@@ -1,13 +1,19 @@
 // ─── Rhadix logo (brand SVG — thuis-knop) ────────────────────────────────────
 export function RhadixLogo({ height = 44, onHome }) {
+  const branding = _useContext(BrandingContext)
+  const logoUrl  = _logoUrlFor(branding)
+  const wordmark = branding && branding.wordmark
   const handleClick = (e) => {
     if (onHome) { e.preventDefault(); onHome(); }
   }
   return (
     <a href="https://rhadix.nl" onClick={handleClick}
-       style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', cursor: 'pointer' }}>
-      <img src={brandLogo()} alt="logo"
+       style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', cursor: 'pointer' }}>
+      <img src={logoUrl || brandLogo()} alt="logo"
            style={{ height, width: 'auto', objectFit: 'contain' }} />
+      {wordmark && (
+        <span style={{ color: '#fff', fontWeight: 800, fontSize: 17, letterSpacing: '.01em', fontFamily: 'var(--font)' }}>{wordmark}</span>
+      )}
     </a>
   )
 }
@@ -376,9 +382,10 @@ export function GapRow({ icon, title, sub, status, color }) {
 }
 
 // ─── IssueTable — filterbare tabel met per-rij details ────────────────────────
-import { useState as _useState } from 'react'
+import { useState as _useState, useContext as _useContext } from 'react'
 import { brandLogo, currentBrand } from '../brand'
 import { useRef as _useRef, useEffect as _useEffect } from 'react'
+import { BrandingContext, logoUrlFor as _logoUrlFor } from '../branding'
 
 export function IssueTable({ rows = [], truncated = false, total = 0 }) {
   const [filter, setFilter]     = _useState('')

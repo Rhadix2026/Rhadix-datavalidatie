@@ -9,7 +9,15 @@ import {
   adminToggleUserActive, adminDeleteUser, adminResetUserPassword,
   adminCreateUser, adminUpdateUser,
   getAdminTenantImpact, adminToggleTenantActive, adminDeleteTenant,
+  getTenantBranding, putTenantBranding, deleteTenantBranding,
+  uploadTenantLogo, deleteTenantLogo, tenantLogoUrl,
 } from '../services/api'
+
+const BRAND_PRESETS = {
+  rhadix: { label: 'Rhadix (standaard)', primary_color: '#1A2847', accent_color: '#1A2847' },
+  kikv:   { label: 'KIK-V',              primary_color: '#bd285f', accent_color: '#2e6896' },
+  custom: { label: 'Aangepast',          primary_color: '#1A2847', accent_color: '#1A2847' },
+}
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
 const card       = { background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }
@@ -417,6 +425,122 @@ function AdminEditUserModal({ user, onClose, onSaved }) {
   )
 }
 
+// ── Look & feel editor (per tenant) ─────────────────────────────────────────────
+function BrandingEditor({ tenant }) {
+  const [form,    setForm]    = useState({ preset: 'rhadix', primary_color: '#1A2847', accent_color: '#1A2847', wordmark: '' })
+  const [hasLogo, setHasLogo] = useState(false)
+  const [logoVer, setLogoVer] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving,  setSaving]  = useState(false)
+  const [msg,     setMsg]     = useState('')
+  const [error,   setError]   = useState('')
+
+  async function load() {
+    setLoading(true)
+    try {
+      const b = await getTenantBranding(tenant.id)
+      setForm({
+        preset: b.preset || (b.primary_color ? 'custom' : 'rhadix'),
+        primary_color: b.primary_color || '#1A2847',
+        accent_color:  b.accent_color  || b.primary_color || '#1A2847',
+        wordmark: b.wordmark || '',
+      })
+      setHasLogo(!!b.has_logo); setLogoVer(b.logo_version)
+    } catch (e) { setError(parseErrLocal(e)) } finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [tenant.id])
+
+  function pickPreset(p) {
+    const preset = BRAND_PRESETS[p]
+    if (p === 'custom') { setForm(f => ({ ...f, preset: p })); return }
+    setForm(f => ({ ...f, preset: p, primary_color: preset.primary_color, accent_color: preset.accent_color }))
+  }
+
+  async function save() {
+    setSaving(true); setError(''); setMsg('')
+    try {
+      await putTenantBranding(tenant.id, { preset: form.preset, primary_color: form.primary_color, accent_color: form.accent_color, wordmark: form.wordmark || null })
+      setMsg('Opgeslagen. Gebruikers zien de nieuwe look bij hun volgende login.')
+    } catch (e) { setError(parseErrLocal(e)) } finally { setSaving(false) }
+  }
+  async function resetBranding() {
+    if (!window.confirm('Look-and-feel wissen? Deze organisatie erft dan weer van de RSO/Rhadix.')) return
+    setSaving(true); setError(''); setMsg('')
+    try { await deleteTenantBranding(tenant.id); await load(); setMsg('Gewist — erft weer over.') }
+    catch (e) { setError(parseErrLocal(e)) } finally { setSaving(false) }
+  }
+  async function onLogo(e) {
+    const file = e.target.files?.[0]; if (!file) return
+    setSaving(true); setError(''); setMsg('')
+    try { const r = await uploadTenantLogo(tenant.id, file); setHasLogo(true); setLogoVer(r.logo_version); setMsg('Logo geüpload.') }
+    catch (err) { setError(parseErrLocal(err)) } finally { setSaving(false); e.target.value = '' }
+  }
+  async function removeLogo() {
+    setSaving(true); setError('')
+    try { await deleteTenantLogo(tenant.id); setHasLogo(false); setLogoVer(null); setMsg('Logo verwijderd.') }
+    catch (err) { setError(parseErrLocal(err)) } finally { setSaving(false) }
+  }
+
+  if (loading) return <p style={{ fontSize: 13, color: 'var(--text3)' }}>Look & feel laden…</p>
+
+  const lbl = { fontSize: 12, fontWeight: 600, color: 'var(--text2)', marginBottom: 4 }
+  return (
+    <div>
+      <ErrBox msg={error} />
+      {msg && <div style={{ padding: '8px 12px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius)', fontSize: 12, color: '#065f46', marginBottom: 12 }}>{msg}</div>}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-end' }}>
+        <div>
+          <div style={lbl}>Preset</div>
+          <select value={form.preset} onChange={e => pickPreset(e.target.value)} style={{ ...inputStyle, width: 200 }}>
+            {Object.entries(BRAND_PRESETS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={lbl}>Primaire kleur</div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input type="color" value={form.primary_color} onChange={e => setForm(f => ({ ...f, preset: 'custom', primary_color: e.target.value }))} style={{ width: 42, height: 34, border: '1px solid var(--border)', borderRadius: 6, background: 'none' }} />
+            <input value={form.primary_color} onChange={e => setForm(f => ({ ...f, preset: 'custom', primary_color: e.target.value }))} style={{ ...inputStyle, width: 100 }} />
+          </div>
+        </div>
+        <div>
+          <div style={lbl}>Accent (navbalk)</div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input type="color" value={form.accent_color} onChange={e => setForm(f => ({ ...f, preset: 'custom', accent_color: e.target.value }))} style={{ width: 42, height: 34, border: '1px solid var(--border)', borderRadius: 6, background: 'none' }} />
+            <input value={form.accent_color} onChange={e => setForm(f => ({ ...f, preset: 'custom', accent_color: e.target.value }))} style={{ ...inputStyle, width: 100 }} />
+          </div>
+        </div>
+        <div>
+          <div style={lbl}>Wordmerk (balk)</div>
+          <input value={form.wordmark} onChange={e => setForm(f => ({ ...f, wordmark: e.target.value }))} placeholder="bv. KIK-V" style={{ ...inputStyle, width: 160 }} />
+        </div>
+      </div>
+
+      {/* Preview + logo */}
+      <div style={{ display: 'flex', gap: 20, alignItems: 'center', marginTop: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: form.accent_color, borderRadius: 8, padding: '8px 14px' }}>
+          {hasLogo && <img src={tenantLogoUrl(tenant.id, logoVer)} alt="logo" style={{ height: 26 }} />}
+          {form.wordmark && <span style={{ color: '#fff', fontWeight: 800, fontSize: 15 }}>{form.wordmark}</span>}
+          <button style={{ background: form.primary_color, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 700 }}>Voorbeeld</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label style={{ ...btnGhost, cursor: 'pointer' }}>
+            {hasLogo ? 'Logo vervangen' : 'Logo uploaden'}
+            <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif" onChange={onLogo} style={{ display: 'none' }} />
+          </label>
+          {hasLogo && <button onClick={removeLogo} style={{ ...btnGhost, color: '#dc2626', borderColor: '#fecaca' }}>Logo weg</button>}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        <button onClick={save} disabled={saving} style={btnPrimary}>{saving ? 'Bezig…' : '✓ Look & feel opslaan'}</button>
+        <button onClick={resetBranding} disabled={saving} style={btnGhost}>Wissen (erven)</button>
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>Logo max. 512 KB (PNG/JPG/SVG/WebP). Wijzigingen worden geborgd; gebruikers zien ze bij hun volgende login.</p>
+    </div>
+  )
+}
+function parseErrLocal(err) { let m = err.message; try { m = JSON.parse(err.message)?.detail || m } catch {} return m }
+
 function TabOrganisations({ stats, tenants, applications, onReload }) {
   const [showCreate,     setShowCreate]     = useState(false)
   const [assignTenant,   setAssignTenant]   = useState(null)
@@ -592,6 +716,10 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                             </tbody>
                           </table>
                         )}
+
+                        {/* Look & feel */}
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', margin: '22px 0 12px' }}>Look &amp; feel</div>
+                        <BrandingEditor tenant={t} />
                       </td>
                     </tr>
                   )

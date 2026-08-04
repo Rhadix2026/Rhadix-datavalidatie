@@ -30,6 +30,7 @@ class UserResponse(BaseModel):
     tenant_id: str
     tenant_name: str
     assigned_app_slugs: List[str] = []   # Phase 2: slugs the user may access
+    branding: Optional[dict] = None      # effectieve look-and-feel (kleuren/logo/wordmerk)
 
     model_config = {"from_attributes": True}
 

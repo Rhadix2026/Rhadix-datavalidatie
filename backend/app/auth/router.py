@@ -124,6 +124,9 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
     """Return the profile of the currently authenticated user."""
     app_slugs = _app_slugs_for(current_user, db)
 
+    from app.services.branding import resolve_effective_branding
+    branding = resolve_effective_branding(db, current_user.tenant)
+
     return UserResponse(
         id                 = str(current_user.id),
         email              = current_user.email,
@@ -132,6 +135,7 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
         tenant_id          = str(current_user.tenant_id),
         tenant_name        = current_user.tenant.name,
         assigned_app_slugs = app_slugs,
+        branding           = branding,
     )
 
 

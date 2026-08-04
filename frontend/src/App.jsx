@@ -28,6 +28,7 @@ import PlatformLanding    from './pages/PlatformLanding'
 import AdminDashboard     from './pages/AdminDashboard'
 import OrgAdminDashboard  from './pages/OrgAdminDashboard'
 import RsoDashboard       from './pages/RsoDashboard'
+import { BrandingContext, applyBrandingColors } from './branding'
 import UserDashboard      from './pages/UserDashboard'
 import Taken             from './pages/Taken'
 import OrgDashboard       from './pages/OrgDashboard'
@@ -127,6 +128,10 @@ export default function App() {
 
   // White-label merk-laag: zet data-brand op <html> zodat het palet (index.css) volgt.
   useEffect(() => { document.documentElement.dataset.brand = brand }, [brand])
+
+  // Eigen look-and-feel per niveau: pas kleuren toe op basis van de effectieve branding
+  // van de ingelogde gebruiker (leeg = terug naar de standaard Rhadix-look).
+  useEffect(() => { applyBrandingColors(authUser?.branding || null) }, [authUser])
   const changeBrand = (b) => {
     try { sessionStorage.setItem('rhadix:brand', b) } catch { /* ignore */ }
     setBrand(b)
@@ -266,7 +271,7 @@ export default function App() {
     || (authUser.assigned_app_slugs || []).includes('reconciliation-engine')
 
   return (
-    <>
+    <BrandingContext.Provider value={authUser?.branding || null}>
       <EnvironmentBanner />
       {/* Verschuif content naar beneden als de banner zichtbaar is */}
       {BANNER_HEIGHT > 0 && <div style={{ height: BANNER_HEIGHT }} />}
@@ -522,6 +527,6 @@ export default function App() {
         />
       )}
 
-    </>
+    </BrandingContext.Provider>
   )
 }

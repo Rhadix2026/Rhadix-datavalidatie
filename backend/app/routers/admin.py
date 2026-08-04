@@ -27,7 +27,7 @@ User management (Phase 3+):
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -49,6 +49,7 @@ from app.models.auth_models import (
     License,
     Tenant,
     TenantApplication,
+    TenantBranding,
     User,
     UserRole,
 )
@@ -281,6 +282,139 @@ def admin_delete_tenant(
     audit_log(ADMIN_ACTION, action="tenant_delete", tenant_id=str(tid),
               tenant_name=name, deleted=impact, by=str(current_user.id))
     return {"deleted": True, "id": str(tid), "name": name, "removed": impact}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Look-and-feel / branding per tenant  (RHADIX_ADMIN)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import re as _re
+_HEX = _re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+_MAX_LOGO_BYTES = 512 * 1024   # 512 KB
+_ALLOWED_LOGO_MIME = {"image/png", "image/jpeg", "image/svg+xml", "image/webp", "image/gif"}
+
+
+class BrandingRequest(BaseModel):
+    preset:        Optional[str] = None
+    primary_color: Optional[str] = None
+    accent_color:  Optional[str] = None
+    wordmark:      Optional[str] = None
+
+
+def _branding_dict(b: TenantBranding) -> dict:
+    has_logo = b.logo_data is not None
+    return {
+        "tenant_id":     str(b.tenant_id),
+        "preset":        b.preset,
+        "primary_color": b.primary_color,
+        "accent_color":  b.accent_color,
+        "wordmark":      b.wordmark,
+        "has_logo":      has_logo,
+        "logo_version":  int(b.updated_at.timestamp()) if (has_logo and b.updated_at) else None,
+        "updated_at":    b.updated_at.isoformat() if b.updated_at else None,
+    }
+
+
+@router.get("/tenants/{tenant_id}/branding")
+def get_tenant_branding(
+    tenant_id: str,
+    db: Session = Depends(get_db),
+    _: User     = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    tid = _parse_uuid(tenant_id, "tenant_id")
+    if not db.query(Tenant).filter(Tenant.id == tid).first():
+        raise HTTPException(404, "Tenant not found")
+    b = db.query(TenantBranding).filter(TenantBranding.tenant_id == tid).first()
+    if not b:
+        return {"tenant_id": str(tid), "preset": None, "primary_color": None,
+                "accent_color": None, "wordmark": None, "has_logo": False,
+                "logo_version": None, "updated_at": None}
+    return _branding_dict(b)
+
+
+@router.put("/tenants/{tenant_id}/branding")
+def put_tenant_branding(
+    tenant_id: str,
+    body: BrandingRequest,
+    db: Session = Depends(get_db),
+    _: User     = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    tid = _parse_uuid(tenant_id, "tenant_id")
+    if not db.query(Tenant).filter(Tenant.id == tid).first():
+        raise HTTPException(404, "Tenant not found")
+    for col in (body.primary_color, body.accent_color):
+        if col and not _HEX.match(col):
+            raise HTTPException(422, f"Ongeldige kleurcode: {col}")
+
+    b = db.query(TenantBranding).filter(TenantBranding.tenant_id == tid).first()
+    if not b:
+        b = TenantBranding(tenant_id=tid)
+        db.add(b)
+    b.preset        = body.preset
+    b.primary_color = body.primary_color
+    b.accent_color  = body.accent_color
+    b.wordmark      = (body.wordmark or None)
+    db.commit()
+    db.refresh(b)
+    return _branding_dict(b)
+
+
+@router.delete("/tenants/{tenant_id}/branding", status_code=204)
+def delete_tenant_branding(
+    tenant_id: str,
+    db: Session = Depends(get_db),
+    _: User     = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    """Branding volledig wissen → tenant erft weer van RSO/platform."""
+    tid = _parse_uuid(tenant_id, "tenant_id")
+    b = db.query(TenantBranding).filter(TenantBranding.tenant_id == tid).first()
+    if b:
+        db.delete(b)
+        db.commit()
+
+
+@router.post("/tenants/{tenant_id}/branding/logo")
+def upload_tenant_logo(
+    tenant_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: User     = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    tid = _parse_uuid(tenant_id, "tenant_id")
+    if not db.query(Tenant).filter(Tenant.id == tid).first():
+        raise HTTPException(404, "Tenant not found")
+    mime = (file.content_type or "").lower()
+    if mime not in _ALLOWED_LOGO_MIME:
+        raise HTTPException(422, f"Bestandstype niet toegestaan: {mime or 'onbekend'}")
+    data = file.file.read(_MAX_LOGO_BYTES + 1)
+    if len(data) > _MAX_LOGO_BYTES:
+        raise HTTPException(422, "Logo is te groot (max. 512 KB)")
+    if not data:
+        raise HTTPException(422, "Leeg bestand")
+
+    b = db.query(TenantBranding).filter(TenantBranding.tenant_id == tid).first()
+    if not b:
+        b = TenantBranding(tenant_id=tid)
+        db.add(b)
+    b.logo_data = data
+    b.logo_mime = mime
+    db.commit()
+    db.refresh(b)
+    return _branding_dict(b)
+
+
+@router.delete("/tenants/{tenant_id}/branding/logo", status_code=204)
+def delete_tenant_logo(
+    tenant_id: str,
+    db: Session = Depends(get_db),
+    _: User     = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    tid = _parse_uuid(tenant_id, "tenant_id")
+    b = db.query(TenantBranding).filter(TenantBranding.tenant_id == tid).first()
+    if b and b.logo_data is not None:
+        b.logo_data = None
+        b.logo_mime = None
+        db.commit()
 
 
 class AdminCreateUserRequest(BaseModel):

@@ -104,6 +104,15 @@ export async function uploadFiles(files, label = '', standard = 'kikv', maxAgeDa
   return res.json()
 }
 
+export async function importProfileGitlab({ repo, ref, folder, name }) {
+  const res = await apiFetch(`${BASE}/profiles/import-gitlab`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo, ref, folder, name, token: null }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 export async function listProfiles() {
   const res = await apiFetch(`${BASE}/profiles/`)
   if (!res.ok) throw new Error(await res.text())

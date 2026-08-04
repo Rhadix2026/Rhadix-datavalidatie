@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Nav, Page, PageTitle, BtnPrimary } from '../components/UI'
-import { uploadFiles, happyFlowBatch, listProfiles, profileReadiness,
+import { uploadFiles, happyFlowBatch, listProfiles, profileReadiness, importProfileGitlab,
   exportKikvReadinessRapportPdf, exportBeschikbaarheidsRapportPdf, exportManagementRapportPdf } from '../services/api'
 import { MaakTakenButton } from '../components/TaskUI'
+import { PROFILE_CATALOG } from './KIKVProfileImport'
 
 // Bron-metadata: label, bron-parameter voor de fase-1 validatie, en de happy-flow
 // voorbeeldbestanden die bij deze bron horen (voor de één-klik demo).
@@ -67,6 +68,8 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
   const [upResult, setUpResult]       = useState(null)
   const [upBusy, setUpBusy]           = useState(false)
   const [upErr, setUpErr]             = useState(null)
+  const [impBusy, setImpBusy]         = useState(false)
+  const [impMsg, setImpMsg]           = useState(null)
   useEffect(() => { if (benchmark && !profiles.length) listProfiles().then(setProfiles).catch(() => {}) }, [benchmark])
 
   const addFiles = useCallback((sid, list) => {
@@ -165,6 +168,20 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
     try { setUpResult(await profileReadiness(upSel, benchmark.result)) }
     catch (e) { setUpErr('Toets mislukt: ' + (e?.message || e)) }
     finally { setUpBusy(false) }
+  }
+
+  const ververs = async () => {
+    setImpBusy(true); setImpMsg(null)
+    let ok = 0
+    try {
+      for (const e of PROFILE_CATALOG.filter(x => !x.comingSoon)) {
+        try { await importProfileGitlab(e); ok++ } catch { /* profiel overslaan */ }
+      }
+      const list = await listProfiles().catch(() => [])
+      setProfiles(list)
+      setImpMsg(`${ok} uitwisselprofiel(en) opgehaald op de laatste versie.`)
+    } catch (e) { setImpMsg('Ophalen mislukt: ' + (e?.message || e)) }
+    finally { setImpBusy(false) }
   }
 
   return (
@@ -332,7 +349,9 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
                             {profiles.map(p => <option key={p.filename} value={p.filename}>{(p.name || p.filename)}{p.indicator_count ? ` (${p.indicator_count} indicatoren)` : ''}</option>)}
                           </select>
                           <button onClick={toetsUP} disabled={!upSel || upBusy} style={{ ...reportBtn, opacity: (!upSel || upBusy) ? 0.6 : 1 }}>{upBusy ? 'Bezig…' : 'Toets uitwisselprofiel'}</button>
+                          <button onClick={ververs} disabled={impBusy} style={{ ...reportBtn, opacity: impBusy ? 0.6 : 1 }} title="Haal de laatste versie van alle uitwisselprofielen uit GitLab">{impBusy ? 'Ophalen…' : '⟳ Ververs uit GitLab'}</button>
                         </div>
+                        {impMsg && <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--text3)' }}>{impMsg}</div>}
                         {upErr && <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--red)' }}>{upErr}</div>}
                         {upResult && (() => {
                           const sc = upResult.profile_readiness_score || 0

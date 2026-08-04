@@ -225,7 +225,7 @@ function MetaRow({ label, value }) {
 // Bekende KIK-V uitwisselprofielen. Voeg hier nieuwe toe naarmate ze beschikbaar komen.
 
 // Bron: https://kik-v-publicatieplatform.nl/uitwisselprofielen + GitLab kik-v/uitwisselprofielen
-const PROFILE_CATALOG = [
+export const PROFILE_CATALOG = [
 
   // ── Zorgkantoren ──────────────────────────────────────────────────────────
   {

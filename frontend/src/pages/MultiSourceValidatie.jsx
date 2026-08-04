@@ -318,6 +318,25 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
                   {(b.file_results || []).length === 0 && (
                     <div style={{ fontSize: 13, color: 'var(--text3)' }}>Geen {benchmark.std.toUpperCase()}-herkende bestanden in deze set.</div>
                   )}
+                  {Array.isArray(b.actuality) && b.actuality.some(a => a.primary_col) && (
+                    <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 4 }}>📅 Actualiteit t.o.v. de Uitwisselkalender</div>
+                      <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 10 }}>Per recordtype: hoeveel records binnen de maximale leeftijd van het uitwisselprofiel vallen.</div>
+                      {b.actuality.filter(a => a.primary_col && a.total_records).map((a, i) => {
+                        const tot = a.total_records, within = a.actual_count || 0
+                        const pct = tot ? Math.round(within / tot * 100) : 0
+                        const ok = pct >= 90
+                        return (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderTop: i ? '1px solid var(--border)' : 'none', fontSize: 12.5 }}>
+                            <span>{ok ? '✅' : '⚠️'}</span>
+                            <span style={{ flex: 1, color: 'var(--text)' }}>{a.schema_key || a.filename} <span style={{ color: 'var(--text3)' }}>· {within}/{tot} binnen norm ({pct}%)</span></span>
+                            {a.kikv_norm && <span style={{ fontSize: 11.5, color: 'var(--text3)', whiteSpace: 'nowrap' }}>{a.kikv_norm.label} ≤{a.kikv_norm.max_age_days}d</span>}
+                          </div>
+                        )
+                      })}
+                      <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--text3)' }}>Peildatum: {(b.actuality.find(a => a.reference_date) || {}).reference_date || '—'}. Norm per uitwisselprofiel: Zorgkantoren ≤90d, VWS/NZa ≤548d, IGJ ≤180d.</div>
+                    </div>
+                  )}
                   {b.run_id && (
                     <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
                       <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 8 }}>Rapportage & opvolging</div>

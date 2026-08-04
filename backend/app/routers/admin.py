@@ -53,6 +53,7 @@ from app.models.auth_models import (
     UserRole,
 )
 from app.models.models import ValidationRun
+from app.models.task_models import Task
 
 router = APIRouter(tags=["Admin"])
 
@@ -63,6 +64,34 @@ def _parse_uuid(val: str, label: str = "ID") -> uuid.UUID:
         return uuid.UUID(val)
     except (ValueError, AttributeError):
         raise HTTPException(400, f"Invalid {label}: {val!r}")
+
+
+def _is_last_active_admin(db: Session, user: User) -> bool:
+    """True als deze gebruiker de laatste actieve RHADIX_ADMIN op het platform is."""
+    if user.role != UserRole.RHADIX_ADMIN:
+        return False
+    others = (
+        db.query(func.count(User.id))
+        .filter(
+            User.role == UserRole.RHADIX_ADMIN,
+            User.is_active == True,   # noqa: E712
+            User.id != user.id,
+        )
+        .scalar()
+    )
+    return others == 0
+
+
+def _tenant_impact(db: Session, tid: uuid.UUID) -> dict:
+    """Tel wat er aan een organisatie hangt (voor impact-overzicht/verwijderen)."""
+    return {
+        "user_count":    db.query(func.count(User.id)).filter(User.tenant_id == tid).scalar(),
+        "active_users":  db.query(func.count(User.id)).filter(User.tenant_id == tid, User.is_active == True).scalar(),  # noqa: E712
+        "license_count": db.query(func.count(License.id)).filter(License.tenant_id == tid).scalar(),
+        "app_count":     db.query(func.count(TenantApplication.id)).filter(TenantApplication.tenant_id == tid).scalar(),
+        "task_count":    db.query(func.count(Task.id)).filter(Task.tenant_id == tid).scalar(),
+        "scan_count":    db.query(func.count(ValidationRun.id)).filter(ValidationRun.tenant_id == tid).scalar(),
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -155,12 +184,89 @@ def list_tenant_users(
     ]
 
 
+@router.get("/tenants/{tenant_id}/impact")
+def tenant_impact(
+    tenant_id: str,
+    db: Session  = Depends(get_db),
+    _: User      = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    """Wat hangt er aan deze organisatie — te tonen vóór deactiveren/verwijderen."""
+    tid = _parse_uuid(tenant_id, "tenant_id")
+    tenant = db.query(Tenant).filter(Tenant.id == tid).first()
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+    return {"id": str(tenant.id), "name": tenant.name, "slug": tenant.slug,
+            "is_active": tenant.is_active, **_tenant_impact(db, tid)}
+
+
+class TenantDeactivateRequest(BaseModel):
+    is_active: bool
+
+
+@router.patch("/tenants/{tenant_id}/deactivate")
+def admin_toggle_tenant_active(
+    tenant_id: str,
+    body:         TenantDeactivateRequest,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    """Organisatie (de)activeren — omkeerbaar. Zet ook alle gebruikers mee op dezelfde status."""
+    tid = _parse_uuid(tenant_id, "tenant_id")
+    tenant = db.query(Tenant).filter(Tenant.id == tid).first()
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+    if current_user.tenant_id == tid:
+        raise HTTPException(400, "Je kunt je eigen organisatie niet deactiveren")
+
+    tenant.is_active = body.is_active
+    db.query(User).filter(User.tenant_id == tid).update(
+        {User.is_active: body.is_active}, synchronize_session=False
+    )
+    db.commit()
+    audit_log(ADMIN_ACTION, action="tenant_deactivate", tenant_id=str(tid),
+              tenant_name=tenant.name, is_active=body.is_active, by=str(current_user.id))
+    return {"id": str(tenant.id), "name": tenant.name, "is_active": tenant.is_active}
+
+
+class TenantDeleteRequest(BaseModel):
+    confirm_name: str
+
+
+@router.delete("/tenants/{tenant_id}")
+def admin_delete_tenant(
+    tenant_id: str,
+    body:         TenantDeleteRequest,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    """
+    Organisatie definitief verwijderen, inclusief gebruikers, licenties,
+    app-toewijzingen en taken (cascade). Scans (ValidationRun) blijven bewaard
+    maar worden losgekoppeld (audittrail). Vereist bevestiging via organisatienaam.
+    """
+    tid = _parse_uuid(tenant_id, "tenant_id")
+    tenant = db.query(Tenant).filter(Tenant.id == tid).first()
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+    if current_user.tenant_id == tid:
+        raise HTTPException(400, "Je kunt je eigen organisatie niet verwijderen")
+    if (body.confirm_name or "").strip() != tenant.name:
+        raise HTTPException(400, "Bevestiging komt niet overeen met de organisatienaam")
+
+    impact = _tenant_impact(db, tid)
+    name   = tenant.name
+    db.delete(tenant)   # ORM-cascade: users, licenties, app-toewijzingen; DB-cascade: taken
+    db.commit()
+    audit_log(ADMIN_ACTION, action="tenant_delete", tenant_id=str(tid),
+              tenant_name=name, deleted=impact, by=str(current_user.id))
+    return {"deleted": True, "id": str(tid), "name": name, "removed": impact}
+
+
 class AdminCreateUserRequest(BaseModel):
-    email:       str
-    password:    Optional[str] = None       # leeg laten i.c.m. send_invite=True
-    full_name:   Optional[str] = None
-    role:        str = "ORG_USER"
-    send_invite: bool = False               # True => uitnodigingsmail i.p.v. wachtwoord
+    email:     str
+    password:  str
+    full_name: Optional[str] = None
+    role:      str = "ORG_USER"
 
 
 @router.post("/tenants/{tenant_id}/users", status_code=201)
@@ -177,50 +283,29 @@ def admin_create_user(
     if db.query(User).filter(User.email == body.email.lower()).first():
         raise HTTPException(400, f"Email '{body.email}' is already in use")
     try:
+        validate_password_strength(body.password)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    try:
         role = UserRole(body.role)
     except ValueError:
         raise HTTPException(422, f"Invalid role: {body.role}")
 
-    invite = bool(body.send_invite or not body.password)
-    if not invite:
-        try:
-            validate_password_strength(body.password)
-        except ValueError as exc:
-            raise HTTPException(422, str(exc))
-
     user = User(
-        id             = uuid.uuid4(),
-        tenant_id      = tid,
-        email          = body.email.lower().strip(),
-        password_hash  = None if invite else hash_password(body.password),
-        full_name      = body.full_name,
-        role           = role,
-        is_active      = True,
-        email_verified = not invite,         # uitgenodigde users verifiëren bij activatie
+        id            = uuid.uuid4(),
+        tenant_id     = tid,
+        email         = body.email.lower().strip(),
+        password_hash = hash_password(body.password),
+        full_name     = body.full_name,
+        role          = role,
+        is_active     = True,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     audit_log(USER_CREATED, user_id=str(user.id), email=user.email,
-              tenant_id=str(tid), role=role.value, created_by="RHADIX_ADMIN",
-              method="invite" if invite else "password")
-
-    invited = False
-    if invite:
-        from datetime import timedelta
-        from app.auth.router import issue_token, action_link, INVITE_TTL_DAYS
-        from app.services import mailer
-        from app.audit import INVITE_SENT
-        raw = issue_token(db, user, "invite", timedelta(days=INVITE_TTL_DAYS))
-        try:
-            invited = mailer.send_invite(user.email, user.full_name, "Je Rhadix-beheerder",
-                                         action_link("invite", raw), INVITE_TTL_DAYS)
-        except Exception:
-            import logging; logging.getLogger("rhadix.mail").exception("invite-mail faalde")
-        audit_log(INVITE_SENT, user_id=str(user.id), email=user.email, tenant_id=str(tid))
-
-    return {"id": str(user.id), "email": user.email, "role": user.role.value,
-            "invited": invite, "invite_email_sent": invited}
+              tenant_id=str(tid), role=role.value, created_by="RHADIX_ADMIN")
+    return {"id": str(user.id), "email": user.email, "role": user.role.value}
 
 
 class AdminUpdateUserRequest(BaseModel):
@@ -565,6 +650,9 @@ def admin_toggle_user_active(
         raise HTTPException(404, "User not found")
     if user.id == current_user.id:
         raise HTTPException(400, "You cannot deactivate your own account")
+    # Alleen bij deactiveren (van actief -> inactief) de laatste-admin-check
+    if user.is_active and _is_last_active_admin(db, user):
+        raise HTTPException(400, "Dit is de laatste actieve Rhadix-beheerder; deactiveren is niet toegestaan")
 
     user.is_active = not user.is_active
     db.commit()
@@ -584,6 +672,8 @@ def admin_delete_user(
         raise HTTPException(404, "User not found")
     if user.id == current_user.id:
         raise HTTPException(400, "You cannot delete your own account")
+    if _is_last_active_admin(db, user):
+        raise HTTPException(400, "Dit is de laatste actieve Rhadix-beheerder; verwijderen is niet toegestaan")
 
     db.delete(user)
     db.commit()

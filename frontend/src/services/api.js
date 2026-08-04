@@ -49,100 +49,20 @@ export async function getMe() {
   return res.json()
 }
 
-
-// ── Wachtwoord-reset / uitnodiging / e-mailverificatie ──────────────────────
-function _detail(text) {
-  try { return JSON.parse(text)?.detail || text } catch { return text }
-}
-
-export async function forgotPassword(email) {
-  // Antwoordt altijd 204 (geen account-enumeratie); fouten negeren we bewust niet.
-  const res = await fetch(`${BASE}/auth/forgot-password`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
-  })
-  if (!res.ok) throw new Error(_detail(await res.text()))
-}
-
-export async function resetPassword(token, newPassword) {
-  const res = await fetch(`${BASE}/auth/reset-password`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, new_password: newPassword }),
-  })
-  if (!res.ok) throw new Error(_detail(await res.text()))
-}
-
-export async function setPasswordInvite(token, password) {
-  const res = await fetch(`${BASE}/auth/set-password`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, password }),
-  })
-  if (!res.ok) throw new Error(_detail(await res.text()))
-}
-
-export async function verifyEmail(token) {
-  const res = await fetch(`${BASE}/auth/verify-email`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  })
-  if (!res.ok) throw new Error(_detail(await res.text()))
-}
-
 // ---------------------------------------------------------------------------
 // Validation
 // ---------------------------------------------------------------------------
 
-export async function uploadFiles(files, label = '', standard = 'kikv', maxAgeDays = 30, source = null) {
+export async function uploadFiles(files, label = '', standard = 'kikv', maxAgeDays = 30) {
   const form = new FormData()
   files.forEach(f => form.append('files', f))
   if (label) form.append('label', label)
   form.append('standard', standard)
   form.append('max_age_days', String(maxAgeDays))
-  if (source) form.append('source', source)
   const res = await apiFetch(`${BASE}/validate/upload`, { method: 'POST', body: form })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
-
-export async function importProfileGitlab({ repo, ref, folder, name }) {
-  const res = await apiFetch(`${BASE}/profiles/import-gitlab`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo, ref, folder, name, token: null }),
-  })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
-}
-
-export async function listProfiles() {
-  const res = await apiFetch(`${BASE}/profiles/`)
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
-}
-
-export async function profileReadiness(filename, scanResult) {
-  const res = await apiFetch(`${BASE}/profiles/${encodeURIComponent(filename)}/readiness`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(scanResult),
-  })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
-}
-
-export async function happyFlowBatch(files) {
-  const form = new FormData()
-  files.forEach(f => form.append('files', f))
-  const res = await apiFetch(`${BASE}/reconciliation/happy-flow/batch`, { method: 'POST', body: form })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
-}
-
-export async function runBenchmark(standard) {
-  const form = new FormData()
-  form.append('standard', standard)
-  const res = await apiFetch(`${BASE}/validate/benchmark`, { method: 'POST', body: form })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
-}
-
 
 // ---------------------------------------------------------------------------
 // History
@@ -311,6 +231,32 @@ export async function createAdminTenant(data) {
 
 export async function getAdminTenantUsers(tenantId) {
   const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/users`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function getAdminTenantImpact(tenantId) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/impact`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function adminToggleTenantActive(tenantId, isActive) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}/deactivate`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_active: isActive }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function adminDeleteTenant(tenantId, confirmName) {
+  const res = await apiFetch(`${BASE}/admin/tenants/${tenantId}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm_name: confirmName }),
+  })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }

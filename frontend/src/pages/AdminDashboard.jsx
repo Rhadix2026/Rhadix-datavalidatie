@@ -8,6 +8,7 @@ import {
   getAdminTenantLicenses, getAdminTenantUsers,
   adminToggleUserActive, adminDeleteUser, adminResetUserPassword,
   adminCreateUser, adminUpdateUser,
+  getAdminTenantImpact, adminToggleTenantActive, adminDeleteTenant,
 } from '../services/api'
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -86,6 +87,67 @@ function CreateTenantModal({ onClose, onCreated }) {
             <button type="submit" disabled={loading} style={{ flex: 2, ...btnPrimary }}>{loading ? 'Aanmaken…' : 'Aanmaken →'}</button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+function DeleteTenantModal({ tenant, onClose, onDeleted }) {
+  const [impact,  setImpact]  = useState(null)
+  const [confirm, setConfirm] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  useEffect(() => {
+    getAdminTenantImpact(tenant.id).then(setImpact).catch(() => setImpact({}))
+  }, [tenant.id])
+
+  async function handleDelete() {
+    setError(''); setLoading(true)
+    try { await adminDeleteTenant(tenant.id, confirm); onDeleted(); onClose() }
+    catch (err) { let m = 'Verwijderen mislukt'; try { m = JSON.parse(err.message)?.detail || m } catch {} setError(m) }
+    finally { setLoading(false) }
+  }
+
+  const row = (label, val) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' }}>
+      <span style={{ color: 'var(--text3)' }}>{label}</span><strong>{val}</strong>
+    </div>
+  )
+  const match = confirm.trim() === tenant.name
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '32px 36px', width: 480, maxWidth: '90vw' }}>
+        <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4, color: '#dc2626' }}>Organisatie definitief verwijderen</h3>
+        <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 18 }}>
+          <strong>{tenant.name}</strong> en alle onderstaande gegevens worden permanent verwijderd. Dit kan niet ongedaan worden gemaakt.
+        </p>
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 18 }}>
+          {!impact ? <span style={{ fontSize: 13, color: 'var(--text3)' }}>Impact laden…</span> : (
+            <>
+              {row('Gebruikers', impact.user_count ?? 0)}
+              {row('Licenties', impact.license_count ?? 0)}
+              {row('App-toewijzingen', impact.app_count ?? 0)}
+              {row('Taken', impact.task_count ?? 0)}
+              <div style={{ borderTop: '1px dashed #fecaca', margin: '6px 0' }} />
+              {row('Scans (blijven bewaard, geanonimiseerd)', impact.scan_count ?? 0)}
+            </>
+          )}
+        </div>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 14 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Typ ter bevestiging de organisatienaam: <code style={{ color: '#dc2626' }}>{tenant.name}</code></span>
+          <input value={confirm} onChange={e => setConfirm(e.target.value)} placeholder={tenant.name}
+            style={{ padding: '9px 13px', borderRadius: 'var(--radius)', border: '1.5px solid var(--border)', fontSize: 13, fontFamily: 'var(--font)', width: '100%', boxSizing: 'border-box' }} autoFocus />
+        </label>
+        <ErrBox msg={error} />
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button type="button" onClick={onClose} style={{ flex: 1, ...btnGhost }}>Annuleren</button>
+          <button type="button" onClick={handleDelete} disabled={!match || loading}
+            style={{ flex: 2, padding: '9px 18px', background: match ? '#dc2626' : '#fca5a5', color: '#fff', border: 'none', borderRadius: 'var(--radius)', cursor: match ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 700, fontFamily: 'var(--font)' }}>
+            {loading ? 'Verwijderen…' : 'Definitief verwijderen'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -341,6 +403,14 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
   const [resetUser,      setResetUser]      = useState(null)
   const [createUserTenant, setCreateUserTenant] = useState(null)
   const [editUser,         setEditUser]         = useState(null)
+  const [deleteTenant,     setDeleteTenant]     = useState(null)
+
+  async function handleToggleTenant(t) {
+    const next = !t.is_active
+    if (!window.confirm(next ? `Organisatie "${t.name}" activeren?` : `Organisatie "${t.name}" deactiveren? Alle gebruikers worden op inactief gezet.`)) return
+    try { await adminToggleTenantActive(t.id, next); onReload() }
+    catch (err) { let m = err.message; try { m = JSON.parse(err.message)?.detail || m } catch {} alert('Mislukt: ' + m) }
+  }
 
   async function loadTenantDetails(tid) {
     if (expandedTid === tid) { setExpandedTid(null); return }
@@ -417,9 +487,11 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                     <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? '#fff' : 'var(--bg)' }}><Badge active={t.is_active} /></td>
                     <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text3)', borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? '#fff' : 'var(--bg)' }}>{new Date(t.created_at).toLocaleDateString('nl-NL')}</td>
                     <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? '#fff' : 'var(--bg)' }}>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         <button onClick={() => loadTenantDetails(t.id)} style={btnGhost}>{expandedTid === t.id ? '▲' : '▼'} Detail</button>
                         <button onClick={() => setAssignTenant(t)} style={btnGhost}>+ App</button>
+                        <button onClick={() => handleToggleTenant(t)} style={{ ...btnGhost, color: t.is_active ? '#d97706' : '#059669', borderColor: t.is_active ? '#fcd34d' : '#6ee7b7' }}>{t.is_active ? 'Deactiveren' : 'Activeren'}</button>
+                        <button onClick={() => setDeleteTenant(t)} style={{ padding: '7px 14px', background: 'none', color: '#dc2626', border: '1.5px solid #fecaca', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font)' }}>🗑️ Verwijderen</button>
                       </div>
                     </td>
                   </tr>
@@ -508,6 +580,7 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
       </div>
 
       {resetUser && <AdminResetPasswordModal user={resetUser} onClose={() => setResetUser(null)} />}
+      {deleteTenant && <DeleteTenantModal tenant={deleteTenant} onClose={() => setDeleteTenant(null)} onDeleted={onReload} />}
       {showCreate && <CreateTenantModal onClose={() => setShowCreate(false)} onCreated={onReload} />}
       {createUserTenant && (
         <AdminCreateUserModal

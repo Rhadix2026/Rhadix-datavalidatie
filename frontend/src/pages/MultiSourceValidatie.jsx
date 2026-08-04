@@ -325,11 +325,7 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
                       <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text3)' }}>Taken worden toegewezen aan een gebruiker van je organisatie; die krijgt een e-mailnotificatie.</div>
                       <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 8 }}>Uitwisselprofiel toetsen — kunnen alle indicatoren beantwoord worden?</div>
-                        {onProfiles && (
-                          <button onClick={() => onProfiles(b)} style={{ ...reportBtn, marginBottom: 10 }}>
-                            🔎 Uitwisselprofielen importeren &amp; per indicator toetsen (volledig)
-                          </button>
-                        )}
+
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                           <select value={upSel} onChange={e => setUpSel(e.target.value)} style={{ padding: '8px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, fontFamily: 'var(--font)', minWidth: 300, background: '#fff' }}>
                             <option value="">— Kies een uitwisselprofiel —</option>
@@ -351,6 +347,33 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
                             </div>
                           )
                         })()}
+                        {upResult && Array.isArray(upResult.heatmap) && (
+                          <div style={{ marginTop: 12, maxHeight: 300, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                            {upResult.heatmap.map((ind, i) => {
+                              const st = ind.readiness
+                              const icon = st === 'fully' ? '✅' : st === 'partially' ? '🟡' : '🔴'
+                              const doms = Object.entries(ind).filter(([k, v]) => !['indicator_id', 'title', 'readiness'].includes(k) && (v === 'blocked' || v === 'partially'))
+                              return (
+                                <div key={i} style={{ padding: '8px 12px', borderTop: i ? '1px solid var(--border)' : 'none', fontSize: 12.5 }}>
+                                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                                    <span>{icon}</span>
+                                    <span style={{ flex: 1, color: 'var(--text)' }}>{ind.title || ind.indicator_id}</span>
+                                  </div>
+                                  {doms.length > 0 && (
+                                    <div style={{ marginLeft: 24, marginTop: 2, fontSize: 11.5, color: 'var(--text3)' }}>
+                                      probleem bij: {doms.map(([k, v]) => `${k} (${v === 'blocked' ? 'ontbreekt' : 'deels'})`).join(', ')}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                        {upResult && Array.isArray(upResult.top_blocking_fields) && upResult.top_blocking_fields.length > 0 && (
+                          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text3)' }}>
+                            <b>Belangrijkste ontbrekende velden:</b> {upResult.top_blocking_fields.slice(0, 8).map(f => (typeof f === 'string' ? f : (f.field || f.name || JSON.stringify(f)))).join(', ')}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

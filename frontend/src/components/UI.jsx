@@ -76,7 +76,7 @@ export function TreeDecoration({ opacity = 0.35, style: sx = {} }) {
 
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
-export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
+export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin, onRsoAdmin,
                       onDashboard, onOrgDashboard, onPlatformDashboard, onHome, onBack }) {
   return (
     <header style={{
@@ -126,6 +126,14 @@ export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin,
                 color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                 fontFamily: 'var(--font)', letterSpacing: '.03em',
               }}>Beheer</button>
+            )}
+            {authUser.role === 'RSO_ADMIN' && onRsoAdmin && (
+              <button onClick={onRsoAdmin} style={{
+                background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)',
+                borderRadius: 'var(--radius)', padding: '5px 12px',
+                color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'var(--font)', letterSpacing: '.03em',
+              }}>Beheer (RSO)</button>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{

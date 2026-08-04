@@ -342,6 +342,86 @@ export async function adminDeleteTenant(tenantId, confirmName) {
 }
 
 // ---------------------------------------------------------------------------
+// RSO-beheerder (samenwerkingsorganisatie) — gescoped op eigen RSO + kinderen
+// ---------------------------------------------------------------------------
+
+export async function rsoListOrganisations() {
+  const res = await apiFetch(`${BASE}/rso/organisations`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function rsoCreateOrganisation(data) {
+  const res = await apiFetch(`${BASE}/rso/organisations`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function rsoListOrgUsers(tenantId) {
+  const res = await apiFetch(`${BASE}/rso/organisations/${tenantId}/users`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function rsoCreateUser(tenantId, data) {
+  const res = await apiFetch(`${BASE}/rso/organisations/${tenantId}/users`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function rsoUpdateUser(userId, data) {
+  const res = await apiFetch(`${BASE}/rso/users/${userId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function rsoToggleUserActive(userId) {
+  const res = await apiFetch(`${BASE}/rso/users/${userId}/deactivate`, { method: 'PATCH' })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function rsoResetUserPassword(userId, newPassword) {
+  const res = await apiFetch(`${BASE}/rso/users/${userId}/reset-password`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_password: newPassword }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+export async function rsoListApplications() {
+  const res = await apiFetch(`${BASE}/rso/applications`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function rsoListOrgApps(tenantId) {
+  const res = await apiFetch(`${BASE}/rso/organisations/${tenantId}/applications`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function rsoAssignApp(tenantId, applicationId) {
+  const res = await apiFetch(`${BASE}/rso/organisations/${tenantId}/applications`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ application_id: applicationId }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function rsoRevokeApp(tenantId, appId) {
+  const res = await apiFetch(`${BASE}/rso/organisations/${tenantId}/applications/${appId}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(await res.text())
+}
+
+// ---------------------------------------------------------------------------
 // Applications (RHADIX_ADMIN)
 // ---------------------------------------------------------------------------
 

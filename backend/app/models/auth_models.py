@@ -8,7 +8,7 @@ import uuid
 
 from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -18,6 +18,7 @@ from app.database import Base
 
 class UserRole(str, enum.Enum):
     RHADIX_ADMIN = "RHADIX_ADMIN"   # Rhadix platform staff — sees everything
+    RSO_ADMIN    = "RSO_ADMIN"      # Samenwerkingsorganisatie (bv. RSO) — beheert eigen RSO + onderliggende organisaties
     ORG_ADMIN    = "ORG_ADMIN"      # Organisation administrator
     ORG_USER     = "ORG_USER"       # Regular organisation user
 
@@ -32,12 +33,19 @@ class Tenant(Base):
     slug       = Column(String(63), unique=True, nullable=False, index=True)
     name       = Column(String(255), nullable=False)
     is_active  = Column(Boolean, default=True, nullable=False)
+    # tenant_type: 'ORG' = zorgorganisatie (default), 'RSO' = samenwerkingsorganisatie, 'PLATFORM' = Rhadix
+    tenant_type      = Column(String(16), nullable=False, server_default="ORG", default="ORG")
+    # Ouder-tenant: een zorgorganisatie kan onder één RSO hangen (self-referential).
+    parent_tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    users               = relationship("User", back_populates="tenant", cascade="all, delete-orphan")
+    users               = relationship("User", back_populates="tenant", cascade="all, delete-orphan",
+                                        foreign_keys="[User.tenant_id]")
     licenses            = relationship("License", back_populates="tenant", cascade="all, delete-orphan")
     tenant_applications = relationship("TenantApplication", back_populates="tenant", cascade="all, delete-orphan")
+    # Onderliggende organisaties (kinderen) van deze RSO; verwijderen van de RSO zet parent op NULL (geen cascade).
+    children = relationship("Tenant", backref=backref("parent", remote_side=[id]))
 
 
 # ── User ──────────────────────────────────────────────────────────────────────

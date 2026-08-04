@@ -9,6 +9,7 @@ from app.auth.router import router as auth_router
 from app.routers import validate, history, reference, export, reports, profiles, tasks
 from app.routers.admin import router as admin_router
 from app.routers.org import router as org_router
+from app.routers.rso import router as rso_router
 from app.routers.dashboard import router as dashboard_router
 from app.reconciliation.router import router as recon_router
 
@@ -120,6 +121,35 @@ def _ensure_auth_tokens() -> None:
         log.error("Kon auth_tokens/email_verified niet borgen:\n%s", traceback.format_exc())
 
 _ensure_auth_tokens()
+
+def _ensure_rso_schema() -> None:
+    """Borg de RSO-uitbreiding: tenants.tenant_type + parent_tenant_id en de rol RSO_ADMIN.
+    Idempotent en veilig op Postgres én SQLite."""
+    try:
+        from app.database import engine
+        dialect = engine.dialect.name
+        if dialect == "postgresql":
+            with engine.begin() as conn:
+                conn.exec_driver_sql(
+                    "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS tenant_type VARCHAR(16) NOT NULL DEFAULT 'ORG'"
+                )
+                conn.exec_driver_sql(
+                    "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS parent_tenant_id UUID "
+                    "REFERENCES tenants(id) ON DELETE SET NULL"
+                )
+            # ALTER TYPE ... ADD VALUE mag niet in een transactieblok → AUTOCOMMIT.
+            with engine.connect() as conn:
+                conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+                try:
+                    conn.exec_driver_sql("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'RSO_ADMIN'")
+                except Exception:
+                    pass  # bestaat al of enum niet-native — geen probleem
+        log.info("RSO-schema geborgd (tenant_type/parent_tenant_id/RSO_ADMIN).")
+    except Exception:
+        import traceback
+        log.error("Kon RSO-schema niet borgen:\n%s", traceback.format_exc())
+
+_ensure_rso_schema()
 
 
 # ---------------------------------------------------------------------------
@@ -338,6 +368,7 @@ app.include_router(admin_router,      prefix="/api/admin",         tags=["Admin"
 
 # ── Org admin (ORG_ADMIN + RHADIX_ADMIN) ─────────────────────────────────────
 app.include_router(org_router,        prefix="/api/org",           tags=["Org"])
+app.include_router(rso_router,        prefix="/api/rso",           tags=["RSO"])
 
 # ── Dashboard (alle rollen, met per-endpoint autorisatie) ─────────────────────
 app.include_router(tasks.router,      prefix="/api/tasks",         tags=["Tasks"])

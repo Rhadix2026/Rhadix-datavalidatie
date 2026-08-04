@@ -45,42 +45,66 @@ function StatCard({ label, value, color = 'var(--blue)' }) {
 // Modals
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function CreateTenantModal({ onClose, onCreated }) {
-  const [form,    setForm]    = useState({ name: '', slug: '', admin_email: '', admin_password: '', admin_full_name: '' })
+function CreateTenantModal({ onClose, onCreated, tenants = [] }) {
+  const [form,    setForm]    = useState({ name: '', slug: '', admin_email: '', admin_password: '', admin_full_name: '', tenant_type: 'ORG', parent_tenant_id: '' })
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
+
+  const rsos = tenants.filter(t => (t.tenant_type || 'ORG') === 'RSO')
 
   const set = (k, v) => {
     const next = { ...form, [k]: v }
     if (k === 'name' && !form.slug)
       next.slug = v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    if (k === 'tenant_type' && v === 'RSO') next.parent_tenant_id = ''   // een RSO valt niet onder een RSO
     setForm(next)
   }
 
   async function handleSubmit(e) {
     e.preventDefault(); setError(''); setLoading(true)
-    try { const r = await createAdminTenant(form); onCreated(r); onClose() }
+    try {
+      const payload = { ...form, parent_tenant_id: form.parent_tenant_id || null }
+      const r = await createAdminTenant(payload); onCreated(r); onClose()
+    }
     catch (err) { let m = 'Aanmaken mislukt'; try { m = JSON.parse(err.message)?.detail || m } catch {} setError(m) }
     finally { setLoading(false) }
   }
 
+  const isRso = form.tenant_type === 'RSO'
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
       <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '36px 40px', width: 480, maxWidth: '90vw' }}>
         <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 24 }}>Nieuwe organisatie aanmaken</h3>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Type</span>
+            <select value={form.tenant_type} onChange={e => set('tenant_type', e.target.value)} style={inputStyle}>
+              <option value="ORG">Zorgorganisatie</option>
+              <option value="RSO">Samenwerkingsorganisatie (RSO)</option>
+            </select>
+          </label>
+          {!isRso && rsos.length > 0 && (
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Valt onder RSO (optioneel)</span>
+              <select value={form.parent_tenant_id} onChange={e => set('parent_tenant_id', e.target.value)} style={inputStyle}>
+                <option value="">— geen —</option>
+                {rsos.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </label>
+          )}
           {[
-            { k: 'name',            label: 'Organisatienaam',   type: 'text',     ph: 'Zorggroep Noord' },
-            { k: 'slug',            label: 'Slug (URL-naam)',   type: 'text',     ph: 'zorggroep-noord' },
-            { k: 'admin_email',     label: 'Admin e-mailadres', type: 'email',    ph: 'admin@zorggroep.nl' },
-            { k: 'admin_password',  label: 'Admin wachtwoord',  type: 'password', ph: 'min. 12 tekens' },
-            { k: 'admin_full_name', label: 'Admin naam',        type: 'text',     ph: 'Jan de Vries (optioneel)' },
+            { k: 'name',            label: 'Organisatienaam',   type: 'text',     ph: isRso ? 'RSO Noord' : 'Zorggroep Noord' },
+            { k: 'slug',            label: 'Slug (URL-naam)',   type: 'text',     ph: isRso ? 'rso-noord' : 'zorggroep-noord' },
+            { k: 'admin_email',     label: isRso ? 'RSO-beheerder e-mail' : 'Admin e-mailadres', type: 'email',    ph: 'admin@zorggroep.nl' },
+            { k: 'admin_password',  label: 'Beheerder wachtwoord',  type: 'password', ph: 'min. 12 tekens' },
+            { k: 'admin_full_name', label: 'Beheerder naam',        type: 'text',     ph: 'Jan de Vries (optioneel)' },
           ].map(({ k, label, type, ph }) => (
             <label key={k} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>{label}</span>
               <input type={type} required={k !== 'admin_full_name'} value={form[k]} onChange={e => set(k, e.target.value)} placeholder={ph} style={inputStyle} />
             </label>
           ))}
+          {isRso && <p style={{ fontSize: 12, color: 'var(--text3)', margin: 0 }}>De beheerder krijgt de rol <strong>RSO-beheerder</strong> en kan zelf organisaties + gebruikers toevoegen.</p>}
           <ErrBox msg={error} />
           <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, ...btnGhost }}>Annuleren</button>
@@ -581,7 +605,7 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
 
       {resetUser && <AdminResetPasswordModal user={resetUser} onClose={() => setResetUser(null)} />}
       {deleteTenant && <DeleteTenantModal tenant={deleteTenant} onClose={() => setDeleteTenant(null)} onDeleted={onReload} />}
-      {showCreate && <CreateTenantModal onClose={() => setShowCreate(false)} onCreated={onReload} />}
+      {showCreate && <CreateTenantModal tenants={tenants} onClose={() => setShowCreate(false)} onCreated={onReload} />}
       {createUserTenant && (
         <AdminCreateUserModal
           tenant={createUserTenant}

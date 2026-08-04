@@ -16,7 +16,7 @@ const SOURCES = [
 
 const STANDARD_SLUGS = { kikv: 'kikv-validator', zib: 'zib-validator', algemeen: 'algemeen-validator' }
 
-export default function SelectSystems({ onNext, onBack, authUser, onTasks, onDashboard, onAdmin, onOrgAdmin, onOrgDashboard, onPlatformDashboard, onLogout }) {
+export default function SelectSystems({ onNext, onBack, authUser, onTasks, onDashboard, onAdmin, onOrgAdmin, onRsoAdmin, onOrgDashboard, onPlatformDashboard, onLogout }) {
   const [selected, setSelected] = useState([])
 
   const hasAppAccess = (std) => {
@@ -54,6 +54,7 @@ export default function SelectSystems({ onNext, onBack, authUser, onTasks, onDas
         onDashboard={onDashboard}
         onAdmin={onAdmin}
         onOrgAdmin={onOrgAdmin}
+        onRsoAdmin={onRsoAdmin}
         onOrgDashboard={onOrgDashboard}
         onPlatformDashboard={onPlatformDashboard}
       />

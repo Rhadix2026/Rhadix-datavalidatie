@@ -104,6 +104,8 @@ class CreateTenantRequest(BaseModel):
     admin_email: str
     admin_password: str
     admin_full_name: Optional[str] = None
+    tenant_type: str = "ORG"                 # 'ORG' of 'RSO'
+    parent_tenant_id: Optional[str] = None   # optioneel: onder welke RSO valt deze organisatie
 
 
 @router.get("/tenants/")
@@ -122,6 +124,8 @@ def list_tenants(
             "slug":       t.slug,
             "name":       t.name,
             "is_active":  t.is_active,
+            "tenant_type":      getattr(t, "tenant_type", "ORG") or "ORG",
+            "parent_tenant_id": str(t.parent_tenant_id) if getattr(t, "parent_tenant_id", None) else None,
             "created_at": t.created_at.isoformat(),
             "user_count": user_count,
             "scan_count": scan_count,
@@ -143,23 +147,40 @@ def create_tenant(
     if len(body.admin_password) < 12:
         raise HTTPException(422, "Password must be at least 12 characters")
 
-    tenant = Tenant(id=uuid.uuid4(), slug=body.slug, name=body.name, is_active=True)
+    ttype = (body.tenant_type or "ORG").upper()
+    if ttype not in ("ORG", "RSO"):
+        raise HTTPException(422, f"Invalid tenant_type: {body.tenant_type}")
+
+    parent_id = None
+    if body.parent_tenant_id:
+        parent_id = _parse_uuid(body.parent_tenant_id, "parent_tenant_id")
+        parent = db.query(Tenant).filter(Tenant.id == parent_id).first()
+        if not parent:
+            raise HTTPException(404, "Parent (RSO) not found")
+        if (getattr(parent, "tenant_type", "ORG") or "ORG").upper() != "RSO":
+            raise HTTPException(422, "Parent must be a samenwerkingsorganisatie (RSO)")
+
+    tenant = Tenant(id=uuid.uuid4(), slug=body.slug, name=body.name, is_active=True,
+                    tenant_type=ttype, parent_tenant_id=parent_id)
     db.add(tenant)
     db.flush()   # get tenant.id before creating user
 
+    # Een RSO krijgt een RSO_ADMIN als eerste beheerder; een organisatie een ORG_ADMIN.
+    admin_role = UserRole.RSO_ADMIN if ttype == "RSO" else UserRole.ORG_ADMIN
     user = User(
         id            = uuid.uuid4(),
         tenant_id     = tenant.id,
         email         = body.admin_email.lower().strip(),
         password_hash = hash_password(body.admin_password),
         full_name     = body.admin_full_name,
-        role          = UserRole.ORG_ADMIN,
+        role          = admin_role,
         is_active     = True,
     )
     db.add(user)
     db.commit()
     db.refresh(tenant)
-    return {"id": str(tenant.id), "slug": tenant.slug, "name": tenant.name, "admin_user_id": str(user.id)}
+    return {"id": str(tenant.id), "slug": tenant.slug, "name": tenant.name,
+            "tenant_type": ttype, "admin_user_id": str(user.id), "admin_role": admin_role.value}
 
 
 @router.get("/tenants/{tenant_id}/users")

@@ -27,6 +27,7 @@ import AppPortal          from './pages/AppPortal'
 import PlatformLanding    from './pages/PlatformLanding'
 import AdminDashboard     from './pages/AdminDashboard'
 import OrgAdminDashboard  from './pages/OrgAdminDashboard'
+import RsoDashboard       from './pages/RsoDashboard'
 import UserDashboard      from './pages/UserDashboard'
 import Taken             from './pages/Taken'
 import OrgDashboard       from './pages/OrgDashboard'
@@ -279,6 +280,7 @@ export default function App() {
           onDashboard={() => setStep('user_dashboard')}
           onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
           onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
+          onRsoAdmin={authUser?.role === 'RSO_ADMIN' ? () => setStep('rso_admin') : null}
           onLogout={handleLogout}
           onReconciliation={canReconciliation ? () => setStep('reconciliation') : null}
         />
@@ -287,6 +289,10 @@ export default function App() {
 
       {step === 'admin' && (
         <AdminDashboard onBack={() => setStep('systems')} />
+      )}
+
+      {step === 'rso_admin' && (
+        <RsoDashboard onBack={() => setStep('portal')} authUser={authUser} />
       )}
 
       {step === 'tasks' && (
@@ -310,6 +316,7 @@ export default function App() {
           onDashboard={() => setStep('user_dashboard')}
           onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
           onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
+          onRsoAdmin={authUser?.role === 'RSO_ADMIN' ? () => setStep('rso_admin') : null}
           onOrgDashboard={(authUser?.role === 'ORG_ADMIN' || authUser?.role === 'RHADIX_ADMIN') ? () => setStep('org_dashboard') : null}
           onPlatformDashboard={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('platform_dashboard') : null}
           onLogout={handleLogout}

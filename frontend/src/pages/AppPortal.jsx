@@ -9,7 +9,7 @@ const CRM_URL = import.meta.env.VITE_CRM_URL || (IS_PROD ? 'https://crm.rhadix.n
 const CRM_ACTIVE = true  // CRM live op staging én productie
 
 // Post-login portal: de drie applicaties als kaart-grid (zoals 'Kies een standaard').
-export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onLogout, onTasks, onReconciliation }) {
+export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onRsoAdmin, onLogout, onTasks, onReconciliation }) {
   const withBrand = (url) => {
     if (brand !== 'kikv' || !url) return url
     try { const u = new URL(url); u.searchParams.set('brand', 'kikv'); return u.toString() }
@@ -46,7 +46,7 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <Nav authUser={authUser} onDashboard={onDashboard} onAdmin={onAdmin} onOrgAdmin={onOrgAdmin}
+      <Nav authUser={authUser} onDashboard={onDashboard} onAdmin={onAdmin} onOrgAdmin={onOrgAdmin} onRsoAdmin={onRsoAdmin}
            onLogout={onLogout} right={sureSyncToggle} />
       <Page>
         <PageTitle title="Kies een applicatie" sub="De Rhadix-applicaties binnen het platform — in dienst van de Rhadix Index." />

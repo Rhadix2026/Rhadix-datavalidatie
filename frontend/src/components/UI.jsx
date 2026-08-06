@@ -114,7 +114,7 @@ export function Nav({ right, authUser, onLogout, onAdmin, onOrgAdmin, onRsoAdmin
               <button onClick={onOrgDashboard} style={_navBtn}>🏢 Organisatie</button>
             )}
             {authUser.role === 'RHADIX_ADMIN' && onPlatformDashboard && (
-              <button onClick={onPlatformDashboard} style={_navBtn}>🌐 Platform</button>
+              <button onClick={onPlatformDashboard} style={_navBtn}>🌐 Platform-dashboard</button>
             )}
             {/* Admin / beheer links */}
             {authUser.role === 'RHADIX_ADMIN' && onAdmin && (

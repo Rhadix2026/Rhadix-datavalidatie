@@ -293,7 +293,7 @@ export default function App() {
 
 
       {step === 'admin' && (
-        <AdminDashboard onBack={() => setStep('systems')} />
+        <AdminDashboard onBack={() => setStep('portal')} />
       )}
 
       {step === 'rso_admin' && (
@@ -305,7 +305,7 @@ export default function App() {
       )}
 
       {step === 'org_admin' && (
-        <OrgAdminDashboard onBack={() => setStep('systems')} authUser={authUser} />
+        <OrgAdminDashboard onBack={() => setStep('portal')} authUser={authUser} />
       )}
 
       {step === 'systems' && (

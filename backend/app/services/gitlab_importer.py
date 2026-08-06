@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 import json
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -164,25 +165,45 @@ def import_profile(
         ind_id = _indicator_id(item["name"])
         groups.setdefault(ind_id, []).append(item)
 
-    # 4. Fetch and parse each file
+    # 4. Fetch file contents CONCURRENTLY (I/O-bound → threadpool), daarna parsen.
+    #    Grote profielen (bv. MEVA) hebben veel bestanden; sequentieel ophalen duurde
+    #    te lang en veroorzaakte 502's. Parallel ophalen houdt het ruim binnen de tijd.
     parse_errors: list[dict] = []
     indicators: dict[str, Any] = {}
 
-    for ind_id, items in sorted(groups.items()):
-        ind_entry: dict[str, Any] = {
-            "id": ind_id,
-            "files": {},
-            "metadata": {},
-        }
+    fetch_jobs = [item for _iid, items in sorted(groups.items()) for item in items]
+    contents:   dict[str, str] = {}
+    fetch_errs: dict[str, str] = {}
 
+    def _job(item):
+        try:
+            return item["path"], _fetch_file_content(repo, ref, item["path"], token, timeout), None
+        except Exception as exc:
+            return item["path"], None, str(exc)
+
+    if fetch_jobs:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for path, content, err in ex.map(_job, fetch_jobs):
+                if err is None:
+                    contents[path] = content
+                else:
+                    fetch_errs[path] = err
+
+    for ind_id, items in sorted(groups.items()):
+        ind_entry: dict[str, Any] = {"id": ind_id, "files": {}, "metadata": {}}
         for item in items:
             fname = item["name"]
             fpath = item["path"]
-            ext   = fname.lower().rsplit('.', 1)[-1]
+            content = contents.get(fpath)
+            if content is None:
+                parse_errors.append({
+                    "indicator_id": ind_id, "filename": fname, "path": fpath,
+                    "error": fetch_errs.get(fpath, "bestand kon niet worden opgehaald"),
+                })
+                continue
             try:
-                content = _fetch_file_content(repo, ref, fpath, token, timeout)
-                parsed  = parse_file(fname, content)
-                ftype   = parsed["type"]
+                parsed = parse_file(fname, content)
+                ftype  = parsed["type"]
                 ind_entry["files"][ftype] = {
                     "filename": fname,
                     "path": fpath,
@@ -191,10 +212,7 @@ def import_profile(
                 }
             except Exception as exc:
                 parse_errors.append({
-                    "indicator_id": ind_id,
-                    "filename": fname,
-                    "path": fpath,
-                    "error": str(exc),
+                    "indicator_id": ind_id, "filename": fname, "path": fpath, "error": str(exc),
                 })
 
         # Merge parsed metadata into a flat summary

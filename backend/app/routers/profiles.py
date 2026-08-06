@@ -65,9 +65,14 @@ class ProfileSummary(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.post("/import-gitlab", summary="Import KIK-V profile from GitLab")
-async def import_from_gitlab(body: ImportRequest):
+def import_from_gitlab(body: ImportRequest):
     """
     Fetches files from GitLab, parses them, and stores the profile locally.
+
+    Sync (def) op zet: de import doet blokkerende, sequentiële GitLab-calls; door
+    het endpoint synchroon te houden draait FastAPI het in een threadpool, zodat de
+    event loop (en de health-check) responsief blijft en er geen 502 optreedt bij
+    grotere profielen.
 
     - `repo`   — GitLab project path (default: kik-v/...)
     - `ref`    — branch or tag (default: 1.3.4)

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from 'recharts'
 import ScoreBadge   from '../components/dashboard/ScoreBadge'
+import { NavBack }  from '../components/UI'
 import { getAuthToken } from '../services/api'
 
 const API = import.meta.env.VITE_API_URL ?? ''

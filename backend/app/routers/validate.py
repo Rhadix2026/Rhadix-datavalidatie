@@ -244,11 +244,12 @@ async def upload_and_validate(
     # Authenticated users must have the relevant application assigned.
     # Anonymous (demo) users bypass this check.
     if current_user is not None:
-        from app.models.auth_models import UserApplication, Application as _App, UserRole
+        from app.models.auth_models import UserApplication, TenantApplication, Application as _App, UserRole
         from fastapi import HTTPException as _HTTPEx
         if current_user.role != UserRole.RHADIX_ADMIN:
             # Toegang volgt het product Datavalidatie; de losse per-standaard
-            # validator-module blijft als legacy-fallback geldig.
+            # validator-module blijft als legacy-fallback geldig. Toewijzing op
+            # organisatieniveau (TenantApplication) telt net zo goed als op gebruikersniveau.
             allowed = ["datavalidatie"]
             std_slug = _STANDARD_TO_APP_SLUG.get(standard)
             if std_slug:
@@ -257,10 +258,16 @@ async def upload_and_validate(
                 _App.slug.in_(allowed), _App.is_active == True).all()]
             has_access = False
             if app_ids:
-                has_access = db.query(UserApplication).filter(
-                    UserApplication.user_id == current_user.id,
-                    UserApplication.application_id.in_(app_ids),
-                ).first() is not None
+                has_access = (
+                    db.query(TenantApplication).filter(
+                        TenantApplication.tenant_id == current_user.tenant_id,
+                        TenantApplication.application_id.in_(app_ids),
+                    ).first() is not None
+                    or db.query(UserApplication).filter(
+                        UserApplication.user_id == current_user.id,
+                        UserApplication.application_id.in_(app_ids),
+                    ).first() is not None
+                )
             if not has_access:
                 raise _HTTPEx(
                     status_code=403,

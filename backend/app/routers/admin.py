@@ -688,6 +688,24 @@ def update_license(
     return _license_to_dict(lic, db)
 
 
+@router.delete("/licenses/{license_id}", status_code=204)
+def delete_license(
+    license_id: str,
+    db: Session = Depends(get_db),
+    _:  User    = Depends(require_role(UserRole.RHADIX_ADMIN)),
+):
+    """Licentie verwijderen. Eventuele app-koppelingen die eraan hangen worden losgekoppeld
+    (license_id -> NULL); de app-toewijzing zelf blijft bestaan."""
+    lid = _parse_uuid(license_id, "license_id")
+    lic = db.query(License).filter(License.id == lid).first()
+    if not lic:
+        raise HTTPException(404, "License not found")
+    db.query(TenantApplication).filter(TenantApplication.license_id == lid).update(
+        {TenantApplication.license_id: None}, synchronize_session=False)
+    db.delete(lic)
+    db.commit()
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Tenant ↔ Application assignments  (Phase 2)
 # ═══════════════════════════════════════════════════════════════════════════════

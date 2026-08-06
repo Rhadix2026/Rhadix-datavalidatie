@@ -259,6 +259,14 @@ def _ensure_apps() -> None:
                     db.add(Application(id=uuid.uuid4(), slug=slug, name=name,
                                        description=desc, is_active=True, sort_order=order))
             db.commit()
+            # Dedup: de canonieke reconciliatie-app is 'reconciliation-engine' (zo checkt de
+            # code de toegang). Een oudere losse 'reconciliation'-rij op inactief zetten zodat
+            # die niet dubbel in de lijsten verschijnt.
+            if db.query(Application).filter(Application.slug == "reconciliation-engine").first():
+                legacy = db.query(Application).filter(Application.slug == "reconciliation").first()
+                if legacy and legacy.is_active:
+                    legacy.is_active = False
+                    db.commit()
         finally:
             db.close()
     except Exception:

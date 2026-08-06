@@ -527,6 +527,11 @@ export async function updateAdminLicense(licenseId, data) {
   return res.json()
 }
 
+export async function deleteAdminLicense(licenseId) {
+  const res = await apiFetch(`${BASE}/admin/licenses/${licenseId}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(await res.text())
+}
+
 // ---------------------------------------------------------------------------
 // Tenant ↔ Application assignments (RHADIX_ADMIN)
 // ---------------------------------------------------------------------------

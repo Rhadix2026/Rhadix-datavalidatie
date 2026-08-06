@@ -38,12 +38,25 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def _app_slugs_for(user, db) -> list[str]:
-    """Slugs van apps waartoe de gebruiker toegang heeft (RHADIX_ADMIN => alle actieve)."""
+    """Slugs van apps waartoe de gebruiker toegang heeft (RHADIX_ADMIN => alle actieve).
+
+    Toegang = wat aan de **organisatie** is toegewezen (TenantApplication) PLUS eventuele
+    losse toewijzingen op **gebruikersniveau** (UserApplication). Zo werkt een toewijzing
+    op organisatieniveau automatisch door naar alle gebruikers van die organisatie.
+    """
+    from app.models.auth_models import Application, TenantApplication
     if user.role == UserRole.RHADIX_ADMIN:
-        from app.models.auth_models import Application
         return [a.slug for a in db.query(Application).filter(Application.is_active == True).all()]
-    uas = db.query(UserApplication).filter(UserApplication.user_id == user.id).all()
-    return [ua.application.slug for ua in uas if ua.application]
+    slugs = set()
+    # organisatie-brede toewijzingen
+    for ta in db.query(TenantApplication).filter(TenantApplication.tenant_id == user.tenant_id).all():
+        if ta.application:
+            slugs.add(ta.application.slug)
+    # losse toewijzingen op gebruikersniveau
+    for ua in db.query(UserApplication).filter(UserApplication.user_id == user.id).all():
+        if ua.application:
+            slugs.add(ua.application.slug)
+    return list(slugs)
 
 
 def _get_client_ip(request: Request) -> str:

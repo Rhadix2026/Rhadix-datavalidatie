@@ -3,7 +3,7 @@ import { Nav, NavBack } from '../components/UI'
 import {
   getAdminStats, getAdminTenants, createAdminTenant,
   getAdminApplications, updateAdminApplication,
-  getAdminLicenses, createAdminLicense,
+  getAdminLicenses, createAdminLicense, updateAdminLicense, deleteAdminLicense,
   getAdminTenantApps, assignAppToTenant, revokeAppFromTenant,
   getAdminTenantLicenses, getAdminTenantUsers,
   adminToggleUserActive, adminDeleteUser, adminResetUserPassword,
@@ -783,10 +783,68 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
 // Tab: Licenses
 // ═══════════════════════════════════════════════════════════════════════════════
 
+function EditLicenseModal({ license, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    name: license.name || '',
+    valid_until: license.valid_until ? license.valid_until.slice(0, 10) : '',
+    max_users: license.max_users != null ? String(license.max_users) : '',
+    notes: license.notes || '',
+    is_active: license.is_active,
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  async function submit(e) {
+    e.preventDefault(); setError(''); setLoading(true)
+    try {
+      await updateAdminLicense(license.id, {
+        name: form.name,
+        valid_until: form.valid_until || null,
+        max_users: form.max_users ? parseInt(form.max_users) : null,
+        notes: form.notes || null,
+        is_active: form.is_active,
+      })
+      onSaved(); onClose()
+    } catch (err) { let m = 'Opslaan mislukt'; try { m = JSON.parse(err.message)?.detail || m } catch {} setError(m) }
+    finally { setLoading(false) }
+  }
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '32px 36px', width: 460, maxWidth: '90vw' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 20 }}>Licentie bewerken</h3>
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {[
+            { k: 'name', label: 'Licentienaam', type: 'text' },
+            { k: 'valid_until', label: 'Geldig tot (leeg = onbeperkt)', type: 'date' },
+            { k: 'max_users', label: 'Max. gebruikers (leeg = onbeperkt)', type: 'number' },
+            { k: 'notes', label: 'Notities', type: 'text' },
+          ].map(({ k, label, type }) => (
+            <label key={k} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>{label}</span>
+              <input type={type} value={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} style={inputStyle} />
+            </label>
+          ))}
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Status</span>
+            <select value={String(form.is_active)} onChange={e => setForm(f => ({ ...f, is_active: e.target.value === 'true' }))} style={inputStyle}>
+              <option value="true">Actief</option><option value="false">Inactief</option>
+            </select>
+          </label>
+          <ErrBox msg={error} />
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, ...btnGhost }}>Annuleren</button>
+            <button type="submit" disabled={loading} style={{ flex: 2, ...btnPrimary }}>{loading ? 'Opslaan…' : 'Opslaan'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function TabLicenses({ tenants }) {
   const [licenses,   setLicenses]   = useState([])
   const [loading,    setLoading]    = useState(true)
   const [showCreate, setShowCreate] = useState(false)
+  const [editLicense, setEditLicense] = useState(null)
   const [error,      setError]      = useState('')
 
   async function load() {
@@ -795,6 +853,12 @@ function TabLicenses({ tenants }) {
     finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
+
+  async function handleDelete(l) {
+    if (!window.confirm(`Licentie "${l.name}" verwijderen?`)) return
+    try { await deleteAdminLicense(l.id); load() }
+    catch (err) { let m = err.message; try { m = JSON.parse(err.message)?.detail || m } catch {} alert('Verwijderen mislukt: ' + m) }
+  }
 
   const tenantMap = Object.fromEntries(tenants.map(t => [t.id, t.name]))
 
@@ -816,7 +880,7 @@ function TabLicenses({ tenants }) {
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['Naam', 'Organisatie', 'Geldig tot', 'Max. gebruikers', 'Applicaties', 'Status', 'Aangemaakt'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+              <tr>{['Naam', 'Organisatie', 'Geldig tot', 'Max. gebruikers', 'Applicaties', 'Status', 'Aangemaakt', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {licenses.map((l, i) => (
@@ -828,6 +892,12 @@ function TabLicenses({ tenants }) {
                   <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', borderBottom: '1px solid var(--border)' }}>{(l.app_slugs || []).join(', ') || '—'}</td>
                   <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}><Badge active={l.is_active} /></td>
                   <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>{new Date(l.created_at).toLocaleDateString('nl-NL')}</td>
+                  <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => setEditLicense(l)} style={btnGhost}>Bewerken</button>
+                      <button onClick={() => handleDelete(l)} style={{ padding: '7px 14px', background: 'none', color: '#dc2626', border: '1.5px solid #fecaca', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font)' }}>🗑️</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -835,6 +905,7 @@ function TabLicenses({ tenants }) {
         )}
       </div>
       {showCreate && <CreateLicenseModal tenants={tenants} onClose={() => setShowCreate(false)} onCreated={load} />}
+      {editLicense && <EditLicenseModal license={editLicense} onClose={() => setEditLicense(null)} onSaved={load} />}
     </>
   )
 }

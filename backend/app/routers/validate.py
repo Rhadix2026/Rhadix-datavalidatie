@@ -244,23 +244,28 @@ async def upload_and_validate(
     # Authenticated users must have the relevant application assigned.
     # Anonymous (demo) users bypass this check.
     if current_user is not None:
-        from app.auth.dependencies import require_app_access as _rac
-        from app.models.auth_models import UserApplication, Application as _App
+        from app.models.auth_models import UserApplication, Application as _App, UserRole
         from fastapi import HTTPException as _HTTPEx
-        slug = _STANDARD_TO_APP_SLUG.get(standard)
-        if slug:
-            _app = db.query(_App).filter(_App.slug == slug, _App.is_active == True).first()
-            from app.models.auth_models import UserRole
-            if _app and current_user.role != UserRole.RHADIX_ADMIN:
-                _ua = db.query(UserApplication).filter(
+        if current_user.role != UserRole.RHADIX_ADMIN:
+            # Toegang volgt het product Datavalidatie; de losse per-standaard
+            # validator-module blijft als legacy-fallback geldig.
+            allowed = ["datavalidatie"]
+            std_slug = _STANDARD_TO_APP_SLUG.get(standard)
+            if std_slug:
+                allowed.append(std_slug)
+            app_ids = [a.id for a in db.query(_App).filter(
+                _App.slug.in_(allowed), _App.is_active == True).all()]
+            has_access = False
+            if app_ids:
+                has_access = db.query(UserApplication).filter(
                     UserApplication.user_id == current_user.id,
-                    UserApplication.application_id == _app.id,
-                ).first()
-                if not _ua:
-                    raise _HTTPEx(
-                        status_code=403,
-                        detail=f"U heeft geen toegang tot '{_app.name}'. Neem contact op met uw organisatiebeheerder.",
-                    )
+                    UserApplication.application_id.in_(app_ids),
+                ).first() is not None
+            if not has_access:
+                raise _HTTPEx(
+                    status_code=403,
+                    detail="U heeft geen toegang tot Rhadix Datavalidatie. Neem contact op met uw beheerder.",
+                )
 
     parsed = []
     truncation_warnings = []

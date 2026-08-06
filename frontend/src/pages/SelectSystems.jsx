@@ -15,15 +15,19 @@ const SOURCES = [
 ]
 
 const STANDARD_SLUGS = { kikv: 'kikv-validator', zib: 'zib-validator', algemeen: 'algemeen-validator' }
+const DATAVALIDATIE_SLUG = 'datavalidatie'
 
 export default function SelectSystems({ onNext, onBack, authUser, onTasks, onDashboard, onAdmin, onOrgAdmin, onRsoAdmin, onOrgDashboard, onPlatformDashboard, onLogout }) {
   const [selected, setSelected] = useState([])
 
   const hasAppAccess = (std) => {
     if (!authUser) return true
+    const slugs = authUser.assigned_app_slugs || []
+    // Toegang volgt het product Rhadix Datavalidatie (Rhadix-beheerder krijgt alle slugs).
+    if (slugs.includes(DATAVALIDATIE_SLUG)) return true
+    // Legacy: losse per-standaard validator-module (indien nog toegewezen).
     const slug = STANDARD_SLUGS[std]
-    if (!slug) return true
-    return (authUser.assigned_app_slugs || []).includes(slug)
+    return !slug || slugs.includes(slug)
   }
 
   const toggle = (src) => {

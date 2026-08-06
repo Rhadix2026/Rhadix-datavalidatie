@@ -369,6 +369,9 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
                           </select>
                           <button onClick={toetsUP} disabled={!upSel || upBusy} style={{ ...reportBtn, opacity: (!upSel || upBusy) ? 0.6 : 1 }}>{upBusy ? 'Bezig…' : 'Toets uitwisselprofiel'}</button>
                           <button onClick={ververs} disabled={impBusy} style={{ ...reportBtn, opacity: impBusy ? 0.6 : 1 }} title="Haal de laatste versie van alle uitwisselprofielen uit GitLab">{impBusy ? 'Ophalen…' : '⟳ Ververs uit GitLab'}</button>
+                          {onProfiles && (
+                            <button onClick={() => onProfiles(benchmark.result)} style={reportBtn} title="Open de volledige profielbibliotheek: importeer profielen en lees alle indicatoren door">📚 Uitgebreid: profielbibliotheek</button>
+                          )}
                         </div>
                         {impMsg && <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--text3)' }}>{impMsg}</div>}
                         {upErr && <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--red)' }}>{upErr}</div>}

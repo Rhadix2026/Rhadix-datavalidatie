@@ -460,7 +460,7 @@ function CatalogCard({ entry, imported, selected, onImport, onSelect, onDelete, 
           <div style={{ fontWeight: 700, fontSize: 13, color: "#1e3a5f", lineHeight: 1.3 }}>
             {entry.name}
           </div>
-          <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap' " }}>
+          <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
             <span style={{
               fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 9999,
               background: entry.sectorColor + "22", color: entry.sectorColor,
@@ -571,7 +571,7 @@ export default function KIKVProfileImport({ onBack, onAnalyze, scanResult }) {
   // ── Load profile list ──
   useEffect(() => {
     apiGet("/api/profiles/")
-      .then(setProfiles)
+      .then(d => setProfiles(Array.isArray(d) ? d : []))
       .catch(err => setPageErr(err.message))
   }, [])
 
@@ -671,11 +671,12 @@ export default function KIKVProfileImport({ onBack, onAnalyze, scanResult }) {
   // ── Filter indicators ──
   const indicators = useMemo(() => {
     if (!fullData?.indicators) return []
+    const all = Object.values(fullData.indicators).filter(Boolean)
     const q = search.trim().toLowerCase()
-    return Object.values(fullData.indicators).filter(ind => {
-      if (!q) return true
+    if (!q) return all
+    return all.filter(ind => {
       const title = (ind.metadata?.title || "").toLowerCase()
-      return ind.id.toLowerCase().includes(q) || title.includes(q)
+      return String(ind.id || "").toLowerCase().includes(q) || title.includes(q)
     })
   }, [fullData, search])
 
@@ -925,7 +926,7 @@ export default function KIKVProfileImport({ onBack, onAnalyze, scanResult }) {
                       </tr>
                     ) : (
                       indicators.map((ind, i) => (
-                        <IndicatorRow key={ind.id} ind={ind} index={i} />
+                        <IndicatorRow key={ind.id || i} ind={ind} index={i} />
                       ))
                     )}
                   </tbody>

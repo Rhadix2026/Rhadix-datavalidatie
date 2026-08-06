@@ -172,19 +172,21 @@ class TestRsoApps:
         assert r2.status_code == 204
 
     def test_assignable_list_only_products(self, client, db, rso_token):
-        # conftest seedt kikv/zib/algemeen-validator + reconciliation; voeg producten toe.
-        for slug, name in [("uitvraag", "Rhadix Uitvraag"), ("rhadix-crm", "Rhadix CRM")]:
+        # conftest seedt kikv/zib/algemeen-validator + 'reconciliation' (oude slug).
+        for slug, name in [("uitvraag", "Rhadix Uitvraag"), ("rhadix-crm", "Rhadix CRM"),
+                           ("reconciliation-engine", "Reconciliation Engine")]:
             if not db.query(Application).filter(Application.slug == slug).first():
                 db.add(Application(id=uuid.uuid4(), slug=slug, name=name, is_active=True))
         db.commit()
         resp = client.get("/api/rso/applications", headers=auth(rso_token))
         assert resp.status_code == 200
-        slugs = {a["slug"] for a in resp.json()}
-        assert "uitvraag" in slugs               # product zichtbaar
-        assert "rhadix-crm" in slugs             # CRM-tegel zichtbaar
-        assert "reconciliation" in slugs         # reconciliatie-tegel zichtbaar
-        assert "kikv-validator" not in slugs     # validatie-sub-module verborgen
-        assert "zib-validator" not in slugs
+        slugs = [a["slug"] for a in resp.json()]
+        assert "uitvraag" in slugs                        # product zichtbaar
+        assert "rhadix-crm" in slugs                      # CRM-tegel zichtbaar
+        assert "reconciliation-engine" in slugs           # canonieke reconciliatie-tegel
+        assert "reconciliation" not in slugs              # oude dubbele slug verborgen
+        assert "kikv-validator" not in slugs              # validatie-sub-module verborgen
+        assert slugs.count("reconciliation-engine") == 1  # niet dubbel
 
     def test_cannot_assign_app_to_foreign_org(self, client, db, other_rso_org, rso_token):
         app = Application(id=uuid.uuid4(), slug="kikv-y", name="KIK-V Y", is_active=True)

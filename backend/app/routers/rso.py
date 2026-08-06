@@ -319,8 +319,8 @@ def reset_rso_user_password(
 # Toewijsbare producten = de portaal-tegels (Datavalidatie/Uitvraag/Datastation/CRM/
 # Reconciliation Engine). De validatie-sub-modules (KIK-V/ZIB/Algemeen Validator) zijn
 # interne toegangschakelaars en horen niet in de toewijs-lijst.
-PRODUCT_SLUGS = {"datavalidatie", "uitvraag", "datastation", "rhadix-crm", "crm",
-                 "reconciliation-engine", "reconciliation"}
+PRODUCT_SLUGS = {"datavalidatie", "uitvraag", "datastation", "rhadix-crm",
+                 "reconciliation-engine"}
 
 
 @router.get("/applications")

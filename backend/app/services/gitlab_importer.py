@@ -15,10 +15,11 @@ Entry point:
 """
 from __future__ import annotations
 
+import io
 import re
 import json
+import tarfile
 import urllib.parse
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -112,6 +113,44 @@ def _fetch_file_content(repo: str, ref: str, file_path: str, token: Optional[str
     return resp.text
 
 
+def _fetch_folder_files(repo: str, ref: str, folder: str, token: Optional[str], timeout: int) -> dict[str, str]:
+    """Download the profile folder as a single tar.gz archive and return {path: text}.
+
+    Eén verzoek i.p.v. tientallen/honderden losse raw-calls. Dat is veel sneller en
+    voorkomt gateway-timeouts (502) en GitLab-rate-limiting bij grotere profielen.
+    """
+    if not HAS_REQUESTS:
+        raise RuntimeError("requests library is not installed. Run: pip install requests")
+
+    url = (
+        f"{GITLAB_API}/projects/{_encoded_path(repo)}/repository/archive.tar.gz"
+        f"?sha={urllib.parse.quote(ref)}&path={urllib.parse.quote(folder)}"
+    )
+    resp = _requests.get(url, headers=_headers(token), timeout=timeout)
+    resp.raise_for_status()
+
+    out: dict[str, str] = {}
+    with tarfile.open(fileobj=io.BytesIO(resp.content), mode="r:gz") as tar:
+        for member in tar.getmembers():
+            if not member.isfile():
+                continue
+            # Strip the archive-root component (<project>-<ref>-<sha>/…)
+            rel = member.name.split("/", 1)[1] if "/" in member.name else member.name
+            if not any(rel.lower().endswith(ext) for ext in SUPPORTED_EXTS):
+                continue
+            # Zeker weten dat we binnen de gevraagde map blijven
+            if folder and folder not in rel:
+                continue
+            fh = tar.extractfile(member)
+            if fh is None:
+                continue
+            try:
+                out[rel] = fh.read().decode("utf-8", errors="replace")
+            except Exception:
+                continue
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Core importer
 # ---------------------------------------------------------------------------
@@ -150,55 +189,33 @@ def import_profile(
       }
     }
     """
-    # 1. Fetch directory tree
-    tree_items = _fetch_tree(repo, ref, folder, token, timeout)
+    # 1. Download de hele map in ÉÉN tar.gz-archief (i.p.v. tree + N×3 losse raw-calls).
+    #    Dit is veel sneller en voorkomt gateway-timeouts (502) bij grote profielen (MEVA).
+    files_by_path = _fetch_folder_files(repo, ref, folder, token, timeout)
 
-    # 2. Filter to supported extensions
-    supported = [
-        item for item in tree_items
-        if any(item["name"].lower().endswith(ext) for ext in SUPPORTED_EXTS)
-    ]
-
-    # 3. Group by indicator ID
+    # 2. Filter naar ondersteunde extensies + groepeer per indicator
     groups: dict[str, list[dict]] = {}
-    for item in supported:
-        ind_id = _indicator_id(item["name"])
-        groups.setdefault(ind_id, []).append(item)
+    for fpath in files_by_path:
+        fname = fpath.rsplit("/", 1)[-1]
+        if not any(fname.lower().endswith(ext) for ext in SUPPORTED_EXTS):
+            continue
+        ind_id = _indicator_id(fname)
+        groups.setdefault(ind_id, []).append({"name": fname, "path": fpath})
 
-    # 4. Fetch file contents CONCURRENTLY (I/O-bound → threadpool), daarna parsen.
-    #    Grote profielen (bv. MEVA) hebben veel bestanden; sequentieel ophalen duurde
-    #    te lang en veroorzaakte 502's. Parallel ophalen houdt het ruim binnen de tijd.
+    # 3. Parse per indicator (inhoud staat al lokaal in files_by_path — geen extra calls)
     parse_errors: list[dict] = []
     indicators: dict[str, Any] = {}
-
-    fetch_jobs = [item for _iid, items in sorted(groups.items()) for item in items]
-    contents:   dict[str, str] = {}
-    fetch_errs: dict[str, str] = {}
-
-    def _job(item):
-        try:
-            return item["path"], _fetch_file_content(repo, ref, item["path"], token, timeout), None
-        except Exception as exc:
-            return item["path"], None, str(exc)
-
-    if fetch_jobs:
-        with ThreadPoolExecutor(max_workers=8) as ex:
-            for path, content, err in ex.map(_job, fetch_jobs):
-                if err is None:
-                    contents[path] = content
-                else:
-                    fetch_errs[path] = err
 
     for ind_id, items in sorted(groups.items()):
         ind_entry: dict[str, Any] = {"id": ind_id, "files": {}, "metadata": {}}
         for item in items:
             fname = item["name"]
             fpath = item["path"]
-            content = contents.get(fpath)
+            content = files_by_path.get(fpath)
             if content is None:
                 parse_errors.append({
                     "indicator_id": ind_id, "filename": fname, "path": fpath,
-                    "error": fetch_errs.get(fpath, "bestand kon niet worden opgehaald"),
+                    "error": "bestand niet in archief",
                 })
                 continue
             try:

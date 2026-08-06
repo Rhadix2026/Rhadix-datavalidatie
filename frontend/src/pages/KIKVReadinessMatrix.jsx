@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { NavBack } from "../components/UI";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -307,6 +308,13 @@ function Heatmap({ rows, onSelect, selectedId }) {
 
 function IndicatorDetail({ ind }) {
   const rc = READINESS_COLORS[ind.readiness] || {};
+  const requiredDomains  = ind.required_domains || [];
+  const missingDomains   = ind.missing_domains || [];
+  const requiredFields   = ind.required_fields || {};
+  const missingFields    = ind.missing_fields || {};
+  const requiredRels     = ind.required_relationships || [];
+  const blockingIssues   = ind.blocking_issues || [];
+  const warnings         = ind.warnings || [];
   return (
     <div style={{
       background: "#fff", border: `2px solid ${rc.border || "#e5e7eb"}`,
@@ -336,15 +344,15 @@ function IndicatorDetail({ ind }) {
       <div style={{ padding: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         {/* Required domains */}
         <DetailSection title="Vereiste brondomein" icon="🗂">
-          {ind.required_domains.length === 0
+          {requiredDomains.length === 0
             ? <Muted>Geen specifieke domeinen gevonden</Muted>
-            : ind.required_domains.map(d => (
+            : requiredDomains.map(d => (
                 <div key={d} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  {ind.missing_domains.includes(d)
+                  {missingDomains.includes(d)
                     ? <span style={{ color: "#ef4444", fontWeight: 700 }}>✕</span>
                     : <span style={{ color: "#10b981", fontWeight: 700 }}>✓</span>}
                   <span style={{ fontSize: 13 }}>{DOMAIN_LABELS[d] || d}</span>
-                  {ind.missing_domains.includes(d) &&
+                  {missingDomains.includes(d) &&
                     <span style={{ fontSize: 11, color: "#ef4444" }}>(niet geüpload)</span>}
                 </div>
               ))}
@@ -352,16 +360,16 @@ function IndicatorDetail({ ind }) {
 
         {/* Required fields */}
         <DetailSection title="Vereiste velden" icon="📋">
-          {Object.keys(ind.required_fields).length === 0
+          {Object.keys(requiredFields).length === 0
             ? <Muted>Geen velden geëxtraheerd</Muted>
-            : Object.entries(ind.required_fields).map(([domain, fields]) => (
+            : Object.entries(requiredFields).map(([domain, fields]) => (
                 <div key={domain} style={{ marginBottom: 8 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", marginBottom: 3 }}>
                     {DOMAIN_LABELS[domain] || domain}
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {fields.map(f => {
-                      const isMissing = (ind.missing_fields[domain] || []).includes(f);
+                    {(fields || []).map(f => {
+                      const isMissing = (missingFields[domain] || []).includes(f);
                       return (
                         <code key={f} style={{
                           fontSize: 11, padding: "2px 7px", borderRadius: 4,
@@ -380,9 +388,9 @@ function IndicatorDetail({ ind }) {
 
         {/* Required relationships */}
         <DetailSection title="Vereiste relaties (FK)" icon="🔗">
-          {ind.required_relationships.length === 0
+          {requiredRels.length === 0
             ? <Muted>Geen relaties vereist</Muted>
-            : ind.required_relationships.map((rel, i) => (
+            : requiredRels.map((rel, i) => (
                 <div key={i} style={{ fontSize: 13, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ color: "#6366f1" }}>↔</span>
                   <code style={{ fontSize: 12 }}>{rel.from_domain}.{rel.from_field}</code>
@@ -414,16 +422,16 @@ function IndicatorDetail({ ind }) {
       </div>
 
       {/* Blocking issues */}
-      {ind.blocking_issues.length > 0 && (
+      {blockingIssues.length > 0 && (
         <IssueList
-          items={ind.blocking_issues}
+          items={blockingIssues}
           type="blocking"
           title="Blokkerende problemen"
         />
       )}
-      {ind.warnings.length > 0 && (
+      {warnings.length > 0 && (
         <IssueList
-          items={ind.warnings}
+          items={warnings}
           type="warning"
           title="Waarschuwingen"
         />
@@ -481,12 +489,12 @@ export default function KIKVReadinessMatrix({ matrix, onBack, profileName }) {
 
   const filteredIndicators = useMemo(() => {
     const q = search.toLowerCase();
-    return Object.values(indResults).filter(ind => {
+    return Object.values(indResults).filter(Boolean).filter(ind => {
       const matchStatus = filterStatus === "all" || ind.readiness === filterStatus;
       const matchSearch = !q ||
-        ind.id.toLowerCase().includes(q) ||
+        String(ind.id || "").toLowerCase().includes(q) ||
         (ind.title || "").toLowerCase().includes(q) ||
-        ind.blocking_issues.some(b => b.toLowerCase().includes(q));
+        (ind.blocking_issues || []).some(b => String(b).toLowerCase().includes(q));
       return matchStatus && matchSearch;
     });
   }, [indResults, filterStatus, search]);
@@ -615,7 +623,7 @@ export default function KIKVReadinessMatrix({ matrix, onBack, profileName }) {
             ) : filteredIndicators.map((ind, i) => {
               const rc = READINESS_COLORS[ind.readiness] || {};
               const isSelected = selectedId === ind.id;
-              const missingCount = Object.values(ind.missing_fields).reduce((s, f) => s + f.length, 0);
+              const missingCount = Object.values(ind.missing_fields || {}).reduce((s, f) => s + (f?.length || 0), 0);
               return (
                 <tr
                   key={ind.id}
@@ -660,13 +668,13 @@ export default function KIKVReadinessMatrix({ matrix, onBack, profileName }) {
                       : <span style={{ color: "#10b981", fontSize: 12 }}>✓ Compleet</span>}
                   </td>
                   <td style={td}>
-                    {ind.blocking_issues.length > 0
+                    {(ind.blocking_issues || []).length > 0
                       ? <span style={{ color: "#ef4444", fontSize: 12 }}>
-                          {ind.blocking_issues.length} blokkade{ind.blocking_issues.length !== 1 ? "s" : ""}
+                          {(ind.blocking_issues || []).length} blokkade{(ind.blocking_issues || []).length !== 1 ? "s" : ""}
                         </span>
-                      : ind.warnings.length > 0
+                      : (ind.warnings || []).length > 0
                         ? <span style={{ color: "#f59e0b", fontSize: 12 }}>
-                            {ind.warnings.length} waarschuwing{ind.warnings.length !== 1 ? "en" : ""}
+                            {(ind.warnings || []).length} waarschuwing{(ind.warnings || []).length !== 1 ? "en" : ""}
                           </span>
                         : <span style={{ color: "#10b981", fontSize: 12 }}>✓ Schoon</span>}
                   </td>

@@ -246,9 +246,11 @@ def _ensure_apps() -> None:
         from app.database import SessionLocal
         from app.models.auth_models import Application
         wanted = [
-            ("datavalidatie", "Rhadix Datavalidatie", "Datakwaliteit & validatie (readiness scan).", 10),
-            ("uitvraag",      "Rhadix Uitvraag",      "Afnemerskant: gevalideerde vragen uitzetten.", 11),
-            ("datastation",   "Rhadix Datastation",   "Rekenhart: lokale SPARQL/Fuseki bij de bron.", 12),
+            ("datavalidatie",         "Rhadix Datavalidatie", "Datakwaliteit & validatie (readiness scan).", 10),
+            ("uitvraag",              "Rhadix Uitvraag",      "Afnemerskant: gevalideerde vragen uitzetten.", 11),
+            ("datastation",           "Rhadix Datastation",   "Rekenhart: lokale SPARQL/Fuseki bij de bron.", 12),
+            ("rhadix-crm",            "Rhadix CRM",           "Relatie- en krachtenveldbeheer rond RSO's en zorgaanbieders.", 13),
+            ("reconciliation-engine", "Reconciliation Engine", "Vergelijk verwachte en actuele indicatorwaarden op recordniveau.", 14),
         ]
         db = SessionLocal()
         try:

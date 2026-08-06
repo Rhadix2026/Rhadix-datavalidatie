@@ -316,10 +316,11 @@ def reset_rso_user_password(
 # App-toewijzingen (binnen de eigen boom)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Interne toegangs-/module-slugs: geen losse producten, wel door de code gebruikt
-# om functies binnen Datavalidatie te ontsluiten. Niet tonen in de toewijs-lijst.
-INTERNAL_MODULE_SLUGS = {"kikv-validator", "zib-validator", "algemeen-validator",
-                         "reconciliation-engine", "reconciliation"}
+# Toewijsbare producten = de portaal-tegels (Datavalidatie/Uitvraag/Datastation/CRM/
+# Reconciliation Engine). De validatie-sub-modules (KIK-V/ZIB/Algemeen Validator) zijn
+# interne toegangschakelaars en horen niet in de toewijs-lijst.
+PRODUCT_SLUGS = {"datavalidatie", "uitvraag", "datastation", "rhadix-crm", "crm",
+                 "reconciliation-engine", "reconciliation"}
 
 
 @router.get("/applications")
@@ -327,11 +328,11 @@ def list_assignable_apps(
     db: Session = Depends(get_db),
     user: User  = Depends(_require_rso),
 ):
-    """Actieve, toewijsbare producten (interne modules worden verborgen)."""
+    """Actieve, toewijsbare producten (de portaal-tegels)."""
     apps = db.query(Application).filter(Application.is_active == True).order_by(  # noqa: E712
         Application.sort_order, Application.name).all()
     return [{"id": str(a.id), "slug": a.slug, "name": a.name}
-            for a in apps if a.slug not in INTERNAL_MODULE_SLUGS]
+            for a in apps if a.slug in PRODUCT_SLUGS]
 
 
 @router.get("/organisations/{tenant_id}/applications")

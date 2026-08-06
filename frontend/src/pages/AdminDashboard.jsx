@@ -13,8 +13,9 @@ import {
   uploadTenantLogo, deleteTenantLogo, tenantLogoUrl,
 } from '../services/api'
 
-// Interne module-/toegangs-slugs — geen losse producten; verbergen in de toewijs-lijst.
-const MODULE_SLUGS = new Set(['kikv-validator', 'zib-validator', 'algemeen-validator', 'reconciliation-engine', 'reconciliation'])
+// Toewijsbare producten = de portaal-tegels. Validatie-sub-modules (KIK-V/ZIB/Algemeen
+// Validator) zijn interne toegangschakelaars en worden niet in de lijst getoond.
+const PRODUCT_SLUGS = new Set(['datavalidatie', 'uitvraag', 'datastation', 'rhadix-crm', 'crm', 'reconciliation-engine', 'reconciliation'])
 
 const BRAND_PRESETS = {
   rhadix: { label: 'Rhadix (standaard)', primary_color: '#1A2847', accent_color: '#1A2847' },
@@ -212,7 +213,7 @@ function AssignAppModal({ tenant, applications, onClose, onAssigned }) {
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Applicatie</span>
             <select required value={appId} onChange={e => setAppId(e.target.value)} style={inputStyle}>
               <option value="">— kies applicatie —</option>
-              {applications.filter(a => !MODULE_SLUGS.has(a.slug)).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {applications.filter(a => PRODUCT_SLUGS.has(a.slug)).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </label>
           <ErrBox msg={error} />

@@ -171,6 +171,18 @@ class TestRsoApps:
                             headers=auth(rso_token))
         assert r2.status_code == 204
 
+    def test_assignable_list_hides_internal_modules(self, client, db, rso_token):
+        # 'kikv-validator' e.a. zijn al geseed (conftest); voeg één echt product toe.
+        if not db.query(Application).filter(Application.slug == "uitvraag").first():
+            db.add(Application(id=uuid.uuid4(), slug="uitvraag", name="Rhadix Uitvraag", is_active=True))
+            db.commit()
+        resp = client.get("/api/rso/applications", headers=auth(rso_token))
+        assert resp.status_code == 200
+        slugs = {a["slug"] for a in resp.json()}
+        assert "uitvraag" in slugs               # echt product zichtbaar
+        assert "kikv-validator" not in slugs     # interne module verborgen
+        assert "zib-validator" not in slugs
+
     def test_cannot_assign_app_to_foreign_org(self, client, db, other_rso_org, rso_token):
         app = Application(id=uuid.uuid4(), slug="kikv-y", name="KIK-V Y", is_active=True)
         db.add(app); db.commit()

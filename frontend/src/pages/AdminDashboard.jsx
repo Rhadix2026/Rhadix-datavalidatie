@@ -371,7 +371,9 @@ function AdminCreateUserModal({ tenant, onClose, onCreated }) {
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Rol</span>
             <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} style={inp}>
               <option value="ORG_USER">ORG_USER — gebruiker</option>
-              <option value="ORG_ADMIN">ORG_ADMIN — beheerder</option>
+              <option value="ORG_ADMIN">ORG_ADMIN — organisatiebeheerder</option>
+              <option value="RSO_ADMIN">RSO_ADMIN — samenwerkingsorganisatie</option>
+              <option value="RHADIX_ADMIN">RHADIX_ADMIN — Rhadix-beheerder (alle rechten)</option>
             </select>
           </label>
           <ErrBox msg={error} />
@@ -415,7 +417,9 @@ function AdminEditUserModal({ user, onClose, onSaved }) {
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Rol</span>
             <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} style={inp}>
               <option value="ORG_USER">ORG_USER — gebruiker</option>
-              <option value="ORG_ADMIN">ORG_ADMIN — beheerder</option>
+              <option value="ORG_ADMIN">ORG_ADMIN — organisatiebeheerder</option>
+              <option value="RSO_ADMIN">RSO_ADMIN — samenwerkingsorganisatie</option>
+              <option value="RHADIX_ADMIN">RHADIX_ADMIN — Rhadix-beheerder (alle rechten)</option>
             </select>
           </label>
           <ErrBox msg={error} />

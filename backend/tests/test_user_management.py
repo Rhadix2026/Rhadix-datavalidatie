@@ -246,3 +246,15 @@ class TestAdminUserManagement:
         resp = client.delete(f"/api/admin/users/{uuid.uuid4()}",
                              headers=auth(token_rhadix_admin))
         assert resp.status_code == 404
+
+    def test_admin_can_promote_user_to_rhadix_admin(self, client, user_org_user, token_rhadix_admin):
+        # Voorkom single-point-of-failure: een tweede Rhadix-beheerder aanwijzen.
+        resp = client.patch(f"/api/admin/users/{user_org_user.id}",
+                            json={"role": "RHADIX_ADMIN"}, headers=auth(token_rhadix_admin))
+        assert resp.status_code == 200
+        assert resp.json()["role"] == "RHADIX_ADMIN"
+
+    def test_org_admin_cannot_promote(self, client, user_org_user, token_org_admin):
+        resp = client.patch(f"/api/admin/users/{user_org_user.id}",
+                            json={"role": "RHADIX_ADMIN"}, headers=auth(token_org_admin))
+        assert resp.status_code == 403

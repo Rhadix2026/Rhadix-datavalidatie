@@ -111,6 +111,21 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
     db.commit()
 
     app_slugs = _app_slugs_for(user, db)
+    # Branding meesturen zodat sub-apps (Uitvraag/Datastation) dezelfde look-and-feel
+    # tonen zonder cross-origin call. Logo als absolute URL naar het publieke endpoint.
+    from app.services.branding import resolve_effective_branding
+    _b = resolve_effective_branding(db, user.tenant)
+    _base = (os.getenv("PUBLIC_BASE_URL", "") or "").rstrip("/")
+    _logo_url = None
+    if _b.get("logo_tenant_id") and _base:
+        _v = f"?v={_b['logo_version']}" if _b.get("logo_version") else ""
+        _logo_url = f"{_base}/api/branding/{_b['logo_tenant_id']}/logo{_v}"
+    _branding = {
+        "primary_color": _b.get("primary_color"),
+        "accent_color":  _b.get("accent_color"),
+        "wordmark":      _b.get("wordmark"),
+        "logo_url":      _logo_url,
+    }
     token = create_access_token({
         "sub":         str(user.id),
         "role":        user.role.value,
@@ -119,6 +134,7 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
         "email":       user.email,
         "name":        user.full_name or user.email,
         "apps":        app_slugs,
+        "branding":    _branding,
     })
     # SSO-cookie op het gedeelde domein (alleen als SSO_COOKIE_DOMAIN gezet is,
     # bv. ".rhadix.nl"); maakt cross-app SSO mogelijk zonder opnieuw inloggen.

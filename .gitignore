@@ -1,3 +1,9 @@
+# Credentials (nooit committen)
+.crm-creds
+
+# Tijdelijke werkbestanden / handmatige back-ups
+_to_delete/
+
 # Python
 __pycache__/
 *.pyc

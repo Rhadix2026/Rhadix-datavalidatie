@@ -2,7 +2,13 @@
 
 Dit bestand wordt automatisch gelezen bij elke nieuwe sessie. Het bevat alle projectkennis zodat er geen context verloren gaat bij restarts.
 
-**Instructie voor Claude:** Lees dit bestand aan het begin van elke sessie. Werk de sessie-log bij aan het einde van elke sessie met een korte samenvatting van wat er gedaan is, en commit de update naar main + staging.
+**Instructie voor Claude:** Lees dit bestand aan het begin van elke sessie. Werk de sessie-log bij aan het einde van elke sessie met een korte samenvatting van wat er gedaan is, en commit die update op `staging`.
+
+> **Git-workflow:** de centrale werkinstructies in `~/Developer/CLAUDE.md` zijn leidend.
+> Kort: `staging` is de ontwikkel- en integratiebranch; nooit rechtstreeks werken op of
+> pushen naar `main`; `main` wijzigen, mergen of taggen alleen op expliciete opdracht van
+> de gebruiker; bepaal vóór de eerste push de route (branch protection/rulesets) en omzeil
+> branchregels nooit. Dit bestand bevat alleen repo-specifieke kennis.
 
 ---
 
@@ -45,14 +51,17 @@ git config user.name "Rhadix2026"
 | `staging` | Staging (poort 5175/8011) | Push naar staging = automatisch |
 | `v*.*.*` tag op main | Productie (poort 5174/8010) | Tag aanmaken, GitHub Actions, handmatige goedkeuring |
 
-### Na elke wijziging op main ook naar staging pushen:
-```bash
-git checkout staging && git merge main --no-edit && git push origin staging && git checkout main
-```
+### Ontwikkelen
+Werk en push uitsluitend op `staging`. Bepaal vóór de eerste push de route zoals
+beschreven in `~/Developer/CLAUDE.md` (branch protection en rulesets controleren);
+voor deze repo is `staging` momenteel onbeschermd, dus een gecontroleerde directe push
+na een groene `--dry-run`.
 
-### Nieuwe productie-release:
+### Naar main / nieuwe productie-release
+Alleen op **expliciete opdracht van de gebruiker**, per keer. Dit geldt zowel voor de
+merge `staging` → `main` als voor de tag die de productie-deploy start:
 ```bash
-git tag v1.5.X && git push origin v1.5.X
+git tag v1.5.X && git push origin v1.5.X   # NIET zelfstandig uitvoeren
 ```
 
 **Huidige versie:** v1.8.1
@@ -105,7 +114,7 @@ RHADIX_LICENSE_KEY=<zie PROD_LICENSE_KEY in GitHub Secrets>
 ## Bekende issues & oplossingen
 
 - **Git lock-files in sandbox:** altijd naar `/tmp/` klonen, nooit naar gemounte Downloads-map
-- **Staging toont oude versie:** pushes naar `main` deployen NIET naar staging — altijd handmatig mergen naar `staging` branch na een main-push
+- **Staging toont oude versie:** alleen een push naar `staging` deployt naar staging; een commit die op `main` blijft staan komt daar niet terecht. Werk daarom op `staging` (zie de Git-workflow bovenaan) in plaats van achteraf vanuit `main` te mergen.
 - **Browser-cache (immutable assets):** na logo/asset-updates altijd hard refresh `Cmd+Shift+R`
 - **Auth-bootstrap (was destructieve testopzet):** bij startup wordt `admin@rhadix.nl` **niet-destructief** geborgd (aangemaakt als die ontbreekt; nooit `TRUNCATE` van users). `AUTH_RESET=0` slaat het over. Wachtwoord stond hardcoded en is gelekt — bij gelegenheid wijzigen.
 - **AFAS-import JSON:** de import-kant accepteert sinds 2026-06-17 ook AFAS GetConnector JSON (`{skip,take,rows}`), naast XML. JSON- en XML-parser leveren identieke rijen (pariteit getest).

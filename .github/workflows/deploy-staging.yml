@@ -146,13 +146,45 @@ jobs:
 
             # ── Schrijf staging env-file (overschrijft vorige versie) ──────────
             # Secrets komen uit GitHub — nooit in Git opgeslagen
-            cat > /opt/rhadix-app/.env.staging << 'ENVEOF'
+            #
+            # VOLGORDE IS BEPALEND: bij een dubbele sleutel in een --env-file wint de
+            # LAATSTE regel. Daarom staat de persistente server-config bovenaan en
+            # komen de expliciete staging-waarden en secrets daarna: die winnen altijd.
+            #
+            # ISOLATIE: staging leest uitsluitend mail.staging.env, nooit het gedeelde
+            # mail.env (dat ook door de productie-deploy wordt gelezen).
+            : > /opt/rhadix-app/.env.staging
+            chmod 600 /opt/rhadix-app/.env.staging
+
+            # Eenmalige migratie: bestaat er nog geen staging-eigen mail-config, dan
+            # die afsplitsen van het gedeelde bestand. Daarna zijn ze onafhankelijk.
+            if [ ! -f /opt/rhadix-app/mail.staging.env ] && [ -f /opt/rhadix-app/mail.env ]; then
+              cp /opt/rhadix-app/mail.env /opt/rhadix-app/mail.staging.env
+              chmod 600 /opt/rhadix-app/mail.staging.env
+              echo "mail.staging.env afgesplitst van gedeeld mail.env (eenmalig)"
+            fi
+
+            # ── Persistente staging-mailconfig als BASIS (laagste prioriteit) ──
+            if [ -f /opt/rhadix-app/mail.staging.env ]; then
+              cat /opt/rhadix-app/mail.staging.env >> /opt/rhadix-app/.env.staging
+              echo "mail.staging.env toegevoegd als basis"
+            else
+              echo "LET OP: geen mail.staging.env — staging-mail blijft uit"
+            fi
+
+            # ── Expliciete staging-waarden (winnen van het serverbestand) ──────
+            cat >> /opt/rhadix-app/.env.staging << 'ENVEOF'
             GHCR_ORG=rhadix2026
             STAGING_DB_USER=kikv_staging
             STAGING_DB_NAME=kikv_staging
             STAGING_FRONTEND_PORT=5175
             STAGING_BACKEND_PORT=8011
             SSO_COOKIE_DOMAIN=.rhadix.nl
+            PUBLIC_BASE_URL=https://app-staging.rhadix.nl
+            # NB: AUTH_RESET wordt bewust NIET gezet. De compose geeft die variabele
+            # niet door aan de backend, dus de code-default (1) geldt en de platform-
+            # admin wordt bij elke start geborgd uit RHADIX_ADMIN_PASSWORD. Een waarde
+            # in de persistente server-config kan de container hierdoor niet bereiken.
             ENVEOF
 
             # Voeg secrets toe (apart, zodat ze niet in bash history staan)
@@ -161,13 +193,11 @@ jobs:
             echo "STAGING_JWT_SECRET_KEY=${{ secrets.STAGING_JWT_SECRET_KEY }}" >> /opt/rhadix-app/.env.staging
             # Centrale identiteit (SureSync ID): RS256-privésleutel (base64). Leeg = RS256 uit.
             echo "STAGING_JWT_PRIVATE_KEY=${{ secrets.STAGING_JWT_PRIVATE_KEY }}" >> /opt/rhadix-app/.env.staging
+            # Platform-admin: verplicht (compose faalt hard als deze ontbreekt)
+            echo "STAGING_ADMIN_PASSWORD=${{ secrets.STAGING_ADMIN_PASSWORD }}" >> /opt/rhadix-app/.env.staging
 
             # Beveilig het env-bestand (alleen root leesbaar)
             chmod 600 /opt/rhadix-app/.env.staging
-            # ── Optioneel: persistent mail-config (Scaleway SMTP) toevoegen ──
-            if [ -f /opt/rhadix-app/mail.env ]; then
-              cat /opt/rhadix-app/mail.env >> /opt/rhadix-app/.env.staging
-            fi
 
             # ── Login bij GHCR ──────────────────────────────────────────────────
             echo "${{ secrets.GITHUB_TOKEN }}" | \

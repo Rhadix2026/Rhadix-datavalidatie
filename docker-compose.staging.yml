@@ -66,9 +66,11 @@ services:
       SMTP_FROM:       ${SMTP_FROM:-noreply@rhadix.nl}
       SMTP_FROM_NAME:  ${SMTP_FROM_NAME:-Rhadix}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://app-staging.rhadix.nl}
-      # ── Platform-admin + auth-mail (optioneel; uit .env / mail.env) ──
+      # ── Platform-admin + auth-mail (uit .env.staging; zie deploy-staging.yml) ──
       RHADIX_ADMIN_EMAIL:    ${RHADIX_ADMIN_EMAIL:-}
-      RHADIX_ADMIN_PASSWORD: ${RHADIX_ADMIN_PASSWORD:-}
+      # Fail-closed: zonder STAGING_ADMIN_PASSWORD start staging NIET. Voorkomt dat
+      # de applicatie stilzwijgend terugvalt op een hardcoded standaardwachtwoord.
+      RHADIX_ADMIN_PASSWORD: ${STAGING_ADMIN_PASSWORD:?Stel STAGING_ADMIN_PASSWORD in (GitHub-secret, staging)}
       SMTP_REPLY_TO:         ${SMTP_REPLY_TO:-}
       AUTH_RESET_TTL_MIN:    ${AUTH_RESET_TTL_MIN:-60}
       AUTH_INVITE_TTL_DAYS:  ${AUTH_INVITE_TTL_DAYS:-7}

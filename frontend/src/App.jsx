@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import EnvironmentBanner, { BANNER_HEIGHT } from './components/EnvironmentBanner'
 import { setAuthToken, clearAuthToken, login as apiLogin, getMe } from './services/api'
+import { centraleLogoutUrl } from './lib/sessie'
 import Landing                 from './pages/Landing'
 import { getInitialBrand } from './brand'
 import SelectSystems           from './pages/SelectSystems'
@@ -95,15 +96,25 @@ export default function App() {
     setEntry('login')
   }
 
-  const handleLogout = () => {
+  // Alleen de lokale state opruimen. Gebruikt als het token halverwege verloopt;
+  // dan is er niets uit te loggen en zou navigeren een lus opleveren.
+  const resetAuthState = () => {
     clearAuthToken()
     setAuthUser(null)
     setStep('login')
   }
 
+  // Uitloggen loopt via de centrale uitgang: die trekt het SSO-cookie in en zet de
+  // gebruiker weer op het Platform. Zonder die stap blijft het cookie staan en logt
+  // de eerstvolgende paginalading opnieuw in.
+  const handleLogout = () => {
+    resetAuthState()
+    window.location.replace(centraleLogoutUrl())
+  }
+
   // Re-login when token expires mid-session
   useEffect(() => {
-    const handler = () => handleLogout()
+    const handler = () => resetAuthState()
     window.addEventListener('rhadix:unauthorized', handler)
     return () => window.removeEventListener('rhadix:unauthorized', handler)
   }, [])

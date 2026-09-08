@@ -7,6 +7,7 @@ PATCH /api/auth/me/password — change own password
 """
 import os
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -20,7 +21,7 @@ from app.audit import (
 )
 from app.auth.brute_force import is_blocked, record_failure, record_success, seconds_until_unblocked
 from app.auth.token_blocklist import block_token
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_optional_user
 from app.auth.schemas import (
     LoginRequest, PasswordChangeRequest, TokenResponse, UserResponse,
     ForgotPasswordRequest, ResetPasswordRequest, SetPasswordRequest, VerifyEmailRequest,
@@ -205,26 +206,116 @@ def change_password(
         import logging; logging.getLogger("rhadix.mail").exception("password-changed mail faalde")
 
 
-@router.post("/logout", status_code=204)
-def logout(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
-    current_user: User = Depends(get_current_user),
-):
-    """Invalideer het huidige JWT token (voeg toe aan blocklist)."""
+# ── Uitloggen ────────────────────────────────────────────────────────────────
+#
+# Datavalidatie geeft het centrale `rhadix_sso`-cookie uit en is daarmee de enige
+# plek die het weer kan intrekken. De resource-apps accepteren dat cookie als
+# volwaardig bewijs van identiteit; blijft het na uitloggen staan, dan logt de
+# eerstvolgende paginalading de gebruiker gewoon weer in.
+#
+# Daarom loggen alle vier de applicaties uit via deze route. Zij wissen zelf
+# alleen hun eigen frontendstate; het beëindigen van de sessie gebeurt hier.
+
+def _sso_cookie_naam() -> str:
+    return os.getenv("SSO_COOKIE_NAME", "rhadix_sso")
+
+
+def _wis_sso_cookie(response: Response) -> None:
+    """Trek het centrale SSO-cookie in.
+
+    Naam, domein en pad moeten exact overeenkomen met wat `login` heeft gezet —
+    daarop matcht de browser. Wijkt er één af, dan blijft het oude cookie staan en
+    verandert er niets. De overige attributen (secure/httponly/samesite) spelen bij
+    het intrekken geen rol en laten we weg.
+    """
+    response.delete_cookie(
+        _sso_cookie_naam(),
+        path="/",
+        domain=os.getenv("SSO_COOKIE_DOMAIN") or None,
+    )
+
+
+def _trek_token_in(request: Request, credentials) -> None:
+    """Zet het aangeboden token op de blocklist van dit proces.
+
+    Aanvullend op het wissen van het cookie, niet in plaats daarvan: de blocklist
+    is procesintern en geldt dus niet voor Uitvraag, Datastation en CRM. Die
+    valideren het token zelfstandig op handtekening. Het intrekken van het cookie
+    is wat over alle applicaties heen werkt.
+    """
     from app.auth.security import decode_access_token
     import time
 
+    tok = None
+    if credentials is not None:
+        tok = credentials.credentials
+    if not tok:
+        tok = request.cookies.get(_sso_cookie_naam())
+    if not tok:
+        return
     try:
-        payload = decode_access_token(credentials.credentials)
+        payload = decode_access_token(tok)
         exp = payload.get("exp", time.time() + 3600)
-        jti = payload.get("jti") or credentials.credentials
-        block_token(jti, float(exp))
+        block_token(payload.get("jti") or tok, float(exp))
     except Exception:
-        pass  # Token was al ongeldig — logout succesvol
+        pass  # Token was al ongeldig — uitloggen is dan alsnog geslaagd.
 
-    audit_log(LOGOUT, request, user_id=str(current_user.id), email=current_user.email,
-              tenant_id=str(current_user.tenant_id))
+
+def _platform_url() -> str:
+    """Waar de gebruiker na uitloggen hoort te staan: het centrale Platform."""
+    return ((os.getenv("PUBLIC_BASE_URL", "") or "").rstrip("/")) + "/"
+
+
+@router.post("/logout", status_code=204)
+def logout(
+    request: Request,
+    response: Response,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+    current_user: Optional[User] = Depends(get_optional_user),
+):
+    """Beëindig de sessie: trek het SSO-cookie in en blokkeer het token.
+
+    Bewust zonder verplichte authenticatie. Uitloggen hoort idempotent te zijn:
+    een verlopen of al ingetrokken sessie mag geen 401 opleveren, want dan blijft
+    het cookie juist staan bij de gebruiker die er vanaf wil.
+    """
+    _trek_token_in(request, credentials)
+    _wis_sso_cookie(response)
+    response.headers["Cache-Control"] = "no-store"
+
+    if current_user is not None:
+        audit_log(LOGOUT, request, user_id=str(current_user.id), email=current_user.email,
+                  tenant_id=str(current_user.tenant_id))
+
+
+@router.get("/logout", include_in_schema=True)
+def logout_en_terug_naar_platform(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+    current_user: Optional[User] = Depends(get_optional_user),
+):
+    """Uitloggen via een gewone paginanavigatie, met terugkeer naar het Platform.
+
+    Dit is de uitgang die de vier frontends gebruiken. Een navigatie in plaats van
+    een fetch, om twee redenen: de browser verwerkt het intrekken van het cookie
+    dan gegarandeerd (ook cross-site, zonder CORS-constructie), en de gebruiker
+    komt in dezelfde beweging op het Platform uit in plaats van achter te blijven
+    op de applicatie-URL.
+
+    Het doel komt uit PUBLIC_BASE_URL en niet uit de aanvraag: een meegegeven
+    bestemming zou deze route in een open redirect veranderen.
+    """
+    from fastapi.responses import RedirectResponse
+
+    response = RedirectResponse(url=_platform_url(), status_code=status.HTTP_303_SEE_OTHER)
+    _trek_token_in(request, credentials)
+    _wis_sso_cookie(response)
+    response.headers["Cache-Control"] = "no-store"
+
+    if current_user is not None:
+        audit_log(LOGOUT, request, user_id=str(current_user.id), email=current_user.email,
+                  tenant_id=str(current_user.tenant_id))
+    return response
 
 
 @router.get("/jwks", include_in_schema=True)

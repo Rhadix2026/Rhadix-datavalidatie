@@ -1,5 +1,6 @@
 import { Nav, Page, PageTitle } from '../components/UI'
 import { MijnTakenWidget } from '../components/TaskUI'
+import { appStatus, isKlikbaar, actieLabel, GEEN_TOEGANG } from '../lib/appBeschikbaarheid'
 
 const IS_PROD = (import.meta.env.VITE_RHADIX_ENV || 'production') === 'production'
 const UITVRAAG_URL    = import.meta.env.VITE_UITVRAAG_URL    || (IS_PROD ? 'https://uitvraag.rhadix.nl'    : 'https://uitvraag-staging.rhadix.nl')
@@ -16,29 +17,36 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
     catch { return url + (url.includes('?') ? '&' : '?') + 'brand=kikv' }
   }
 
+  // `slug` = centrale applicatie-slug waarop de apps-claim wordt beoordeeld.
+  // `uitgerold` = deploymentstatus, bewust losgehouden van de toewijzing.
   const APPS = [
-    { id: 'dv', icon: '🏥', label: 'Rhadix Datavalidatie', laag: 'Bij de bron · Datakwaliteit',
+    { id: 'dv', slug: 'datavalidatie', icon: '🏥', label: 'Rhadix Datavalidatie', laag: 'Bij de bron · Datakwaliteit',
       color: '#1F9D6B', bg: '#E8F7F0', border: '#BCEAD5', actie: 'Openen →',
       desc: 'Pre-screening: is de datahuishouding van de zorgaanbieder klaar om gevalideerde vragen te beantwoorden? Berekent de Rhadix Index.' },
-    { id: 'u', icon: '📡', label: 'Rhadix Uitvraag', laag: 'Afnemerskant',
+    { id: 'u', slug: 'uitvraag', icon: '📡', label: 'Rhadix Uitvraag', laag: 'Afnemerskant',
       color: 'var(--blue)', bg: 'var(--blue-light)', border: 'var(--blue-mid)', actie: 'Openen →',
       desc: 'Gevalideerde vragen uitzetten aan zorgaanbieders en de antwoorden inzien, vergelijken en analyseren.' },
-    { id: 'ds', icon: '🧮', label: 'Rhadix Datastation', laag: 'Bij de bron · Rekenkracht',
-      color: '#D98324', bg: '#FDF3E3', border: '#F5D9A8', actie: DATASTATION_ACTIVE ? 'Openen →' : 'Binnenkort',
+    { id: 'ds', slug: 'datastation', uitgerold: DATASTATION_ACTIVE, icon: '🧮', label: 'Rhadix Datastation', laag: 'Bij de bron · Rekenkracht',
+      color: '#D98324', bg: '#FDF3E3', border: '#F5D9A8', actie: 'Openen →',
       desc: 'Berekent het antwoord lokaal (SPARQL/Fuseki) bij de zorgaanbieder; de data blijft bij de bron.' },
-    { id: 'crm', icon: '\u{1F91D}', label: 'Rhadix CRM', laag: 'Relatie \u00b7 Krachtenveld',
-      color: '#7C3AED', bg: '#F3EEFF', border: '#DDD0FB', actie: CRM_ACTIVE ? 'Openen \u2192' : 'Binnenkort',
+    { id: 'crm', slug: 'rhadix-crm', uitgerold: CRM_ACTIVE, icon: '\u{1F91D}', label: 'Rhadix CRM', laag: 'Relatie \u00b7 Krachtenveld',
+      color: '#7C3AED', bg: '#F3EEFF', border: '#DDD0FB', actie: 'Openen \u2192',
       desc: 'Stakeholder- en relatiebeheer rond RSO\u2019s en zorgaanbieders, met krachtenveld-analyse (invloed \u00d7 betrokkenheid).' },
-    { id: 'recon', icon: '🔁', label: 'Reconciliation Engine', laag: 'Bij de bron \u00b7 Vergelijking',
+    { id: 'recon', slug: 'reconciliation-engine', icon: '🔁', label: 'Reconciliation Engine', laag: 'Bij de bron \u00b7 Vergelijking',
       color: '#0E7490', bg: '#ECFEFF', border: '#A5F3FC', actie: 'Openen \u2192',
       desc: 'Vergelijk verwachte indicatorwaarden uit brondata met actuele SPARQL-uitkomsten en analyseer afwijkingen op recordniveau.' },
   ]
 
-  const open = (id) => {
+  // Beschikbaarheid per tegel: deploymentstatus én toewijzing, in die volgorde.
+  const statusVan = (a) => appStatus(a, authUser)
+
+  const open = (a) => {
+    if (!isKlikbaar(statusVan(a))) return   // niet uitgerold of niet toegewezen
+    const id = a.id
     if (id === 'dv') onLogin()
     else if (id === 'u') window.location.href = withBrand(UITVRAAG_URL)
-    else if (id === 'ds' && DATASTATION_ACTIVE) window.location.href = withBrand(DATASTATION_URL)
-    else if (id === 'crm' && CRM_ACTIVE) window.location.href = withBrand(CRM_URL)
+    else if (id === 'ds') window.location.href = withBrand(DATASTATION_URL)
+    else if (id === 'crm') window.location.href = withBrand(CRM_URL)
     else if (id === 'recon' && onReconciliation) onReconciliation()
   }
 
@@ -55,9 +63,15 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
           {APPS.map(a => {
-            const locked = (a.id === 'ds' && !DATASTATION_ACTIVE) || (a.id === 'crm' && !CRM_ACTIVE)
+            const status = statusVan(a)
+            const locked = !isKlikbaar(status)
+            const geenToegang = status === GEEN_TOEGANG
             return (
-              <div key={a.id} onClick={() => !locked && open(a.id)}
+              <div key={a.id} onClick={() => open(a)}
+                title={geenToegang
+                  ? `Geen toegang tot ${a.label}. Vraag uw beheerder om deze applicatie aan uw account of organisatie toe te wijzen.`
+                  : undefined}
+                aria-disabled={locked || undefined}
                 style={{ background: locked ? '#f8fafc' : '#fff', borderRadius: 'var(--radius-xl)',
                   border: `2px solid ${locked ? '#e2e8f0' : 'var(--border)'}`, padding: '28px 24px',
                   cursor: locked ? 'not-allowed' : 'pointer', transition: 'all .15s', opacity: locked ? 0.75 : 1 }}
@@ -70,7 +84,7 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700,
                   color: locked ? 'var(--text3)' : a.color, background: locked ? '#eef1f5' : a.bg,
                   border: `1px solid ${locked ? '#e2e8f0' : a.border}`, padding: '6px 14px', borderRadius: 20 }}>
-                  {a.actie}
+                  {actieLabel(status, a.actie)}
                 </div>
               </div>
             )

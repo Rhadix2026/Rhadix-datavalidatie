@@ -464,6 +464,23 @@ async def happy_flow_batch(
     skipped_files = []  # bestanden waarvoor geen regels gevonden zijn
     matched_files = set()
 
+    # Parse-cache, uitsluitend binnen déze aanroep. Meerdere regels werken op hetzelfde
+    # bestand; zonder cache werd elk bestand per regel opnieuw volledig ingelezen. Bij
+    # een echte AFAS-export van 35 MB kostte dat 32 s per keer, drie keer, waarmee de
+    # aanroep de gateway-timeout niet haalde.
+    #
+    # De cache leeft in deze functie en verdwijnt met het antwoord: hij wordt nooit
+    # gedeeld tussen gebruikers, organisaties of afzonderlijke validatieruns. Een
+    # mislukte inleesbeurt wordt niet opgeslagen, zodat een fout nooit als geslaagd
+    # resultaat blijft hangen; die regel valt dan in dezelfde foutafhandeling als
+    # voorheen.
+    geparsed: dict[str, object] = {}
+
+    def _ingelezen(filename: str, inhoud: bytes):
+        if filename not in geparsed:
+            geparsed[filename] = DataLoader.load(io.BytesIO(inhoud))
+        return geparsed[filename]
+
     for rule in happy_flow_rules:
         # Een bron komt onder meerdere namen binnen: als voorbeeldbestand en als
         # echte export van de GET-connector. De regel draagt die namen zelf
@@ -479,7 +496,7 @@ async def happy_flow_batch(
         matched_filename, contents = match
         matched_files.add(matched_filename)
         try:
-            calc = _calc_engine.calculate(rule, source=io.BytesIO(contents))
+            calc = _calc_engine.calculate(rule, dataframe=_ingelezen(matched_filename, contents))
             # Maak een ReconciliationResult zonder SPARQL (status UNKNOWN)
             recon = _recon_engine.reconcile(rule, calc, actual_value=None)
             # Voeg de SPARQL-query toe als vrije tekst (niet uitvoerbaar)

@@ -207,8 +207,16 @@ class CalculationEngine:
     def __init__(self, data_dir=None) -> None:
         self.data_dir = Path(data_dir) if data_dir else None
 
-    def calculate(self, rule: IndicatorRule, source=None) -> CalcResult:
-        df = self._load_data(rule, source)
+    def calculate(self, rule: IndicatorRule, source=None, dataframe=None) -> CalcResult:
+        """Bereken de indicator.
+
+        `dataframe` maakt het mogelijk een al ingelezen bestand te hergebruiken voor
+        meerdere regels op diezelfde bron, zodat het niet per regel opnieuw wordt
+        geparseerd. Er wordt bewust met een KOPIE gewerkt: `_apply_filters` zet de
+        peildatumkolom om en zou anders het gedeelde parse-resultaat aanpassen voor de
+        volgende regel. Met de kopie is de uitkomst identiek aan een verse inleesbeurt.
+        """
+        df = dataframe.copy() if dataframe is not None else self._load_data(rule, source)
         df_included, df_excluded = self._apply_filters(df, rule)
         expected_value = self._aggregate(df_included, rule.aggregation)
         return CalcResult(

@@ -13,6 +13,7 @@ import { Nav, NavBack } from '../components/UI'
 import {
   getMyTenantApps, getOrgUsers, getUserApps, assignAppToUser, revokeAppFromUser,
   createOrgUser, toggleUserActive, deleteOrgUser, resetOrgUserPassword,
+  changeOwnPassword,
 } from '../services/api'
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -116,6 +117,74 @@ function ResetPasswordModal({ user, onClose, onDone }) {
   )
 }
 
+// ── Eigen wachtwoord wijzigen ─────────────────────────────────────────────────
+//
+// Voor het eigen account is de beheerdersreset niet de juiste route: die zet een
+// wachtwoord voor een ánder en vraagt niet om het huidige. Voor jezelf bestaat al de
+// zelfbedieningsroute (PATCH /auth/me/password), die het huidige wachtwoord wél
+// controleert. Deze modal gebruikt die route; er komt geen nieuwe inlogweg bij.
+
+function EigenWachtwoordModal({ user, onClose }) {
+  const [huidig,  setHuidig]  = useState('')
+  const [nieuw,   setNieuw]   = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+  const [klaar,   setKlaar]   = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault(); setError(''); setLoading(true)
+    try { await changeOwnPassword(huidig, nieuw); setKlaar(true) }
+    catch (err) {
+      let m = 'Wijzigen mislukt'
+      try { m = JSON.parse(err.message)?.detail || err.message || m } catch { m = err.message || m }
+      setError(m === 'Current password is incorrect' ? 'Het huidige wachtwoord klopt niet.' : m)
+    }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div style={overlayStyle}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '32px 36px', width: 420, maxWidth: '90vw' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Eigen wachtwoord wijzigen</h3>
+        {klaar ? (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 20 }}>
+              Het wachtwoord van <strong>{user.email}</strong> is gewijzigd.
+            </p>
+            <button onClick={onClose} style={{ width: '100%', ...btnPrimary }}>Sluiten</button>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 20 }}>
+              U wijzigt het wachtwoord van uw eigen account (<strong>{user.email}</strong>).
+              Ter controle vragen we eerst uw huidige wachtwoord.
+            </p>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Huidig wachtwoord</span>
+                <input type="password" required placeholder="••••••••••••" value={huidig}
+                  onChange={e => setHuidig(e.target.value)} style={inputStyle} autoFocus />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Nieuw wachtwoord (min. 12 tekens)</span>
+                <input type="password" required placeholder="••••••••••••" value={nieuw}
+                  onChange={e => setNieuw(e.target.value)} style={inputStyle} />
+              </label>
+              <ErrBox msg={error} />
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button type="button" onClick={onClose} style={{ flex: 1, ...btnGhost }}>Annuleren</button>
+                <button type="submit" disabled={loading} style={{ flex: 2, ...btnPrimary }}>
+                  {loading ? 'Wijzigen…' : 'Wachtwoord wijzigen'}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── User row ──────────────────────────────────────────────────────────────────
 
 function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
@@ -125,6 +194,7 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
   const [loading,    setLoading]   = useState(false)
   const [error,      setError]     = useState('')
   const [showReset,  setShowReset] = useState(false)
+  const [showEigen,  setShowEigen] = useState(false)
   const [confirming, setConfirming] = useState(false)
 
   async function toggle() {
@@ -173,6 +243,9 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
       {showReset && (
         <ResetPasswordModal user={user} onClose={() => setShowReset(false)} onDone={() => {}} />
       )}
+      {showEigen && (
+        <EigenWachtwoordModal user={user} onClose={() => setShowEigen(false)} />
+      )}
 
       <tr style={{ background: rowBg, opacity: loading ? 0.7 : 1 }}>
         <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14, borderBottom: expanded ? 'none' : '1px solid var(--border)' }}>
@@ -194,9 +267,16 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
             <button onClick={toggle} style={btnGhost} disabled={loading}>
               {expanded ? '▲ Apps' : '▼ Apps'}
             </button>
-            <button onClick={() => setShowReset(true)} style={btnWarn} disabled={loading || isSelf} title="Wachtwoord resetten">
-              🔑 Reset
-            </button>
+            {isSelf ? (
+              <button onClick={() => setShowEigen(true)} style={btnWarn} disabled={loading}
+                      title="Uw eigen wachtwoord wijzigen — vraagt om uw huidige wachtwoord">
+                🔑 Wachtwoord wijzigen
+              </button>
+            ) : (
+              <button onClick={() => setShowReset(true)} style={btnWarn} disabled={loading} title="Wachtwoord resetten">
+                🔑 Reset
+              </button>
+            )}
             {!isSelf && (
               <button onClick={handleToggleActive} style={user.is_active ? btnDanger : btnGhost} disabled={loading}>
                 {user.is_active ? 'Deactiveer' : 'Activeer'}

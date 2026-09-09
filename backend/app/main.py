@@ -240,18 +240,58 @@ _ensure_admin()
 # Borg de product-Applications (centrale toegangssturing voor het hele platform).
 # Idempotent; veilig op elke omgeving.
 # ---------------------------------------------------------------------------
+# De vijf product-applicaties van het platform: (slug, weergavenaam, omschrijving, volgorde).
+# De SLUG is de sleutel — daarop beoordelen de resource-apps de apps-claim. De NAAM is
+# uitsluitend weergave. Let op de asymmetrie in de slugs: alleen CRM heeft een
+# 'rhadix-'-voorvoegsel. Die slugs staan vast en mogen hier niet wijzigen.
+PRODUCT_APPS: list[tuple[str, str, str, int]] = [
+    ("datavalidatie",         "Rhadix Datavalidatie",  "Datakwaliteit & validatie (readiness scan).", 10),
+    ("uitvraag",              "Rhadix Uitvraag",       "Afnemerskant: gevalideerde vragen uitzetten.", 11),
+    ("datastation",           "Rhadix Datastation",    "Rekenhart: lokale SPARQL/Fuseki bij de bron.", 12),
+    ("rhadix-crm",            "Rhadix CRM",            "Relatie- en krachtenveldbeheer rond RSO's en zorgaanbieders.", 13),
+    ("reconciliation-engine", "Rhadix Reconciliatie",  "Vergelijk verwachte en actuele indicatorwaarden op recordniveau.", 14),
+]
+
+# Eenmalige naamcorrecties: {slug: (oude naam, nieuwe naam)}.
+#
+# De seed hieronder maakt alleen ontbrekende rijen aan en laat bestaande met rust, dus
+# een verkeerd gekozen naam blijft anders eeuwig staan in elke bestaande omgeving.
+# Alleen hernoemen als de oude naam er nog staat: heeft een beheerder de naam bewust
+# aangepast via het beheerscherm, dan blijft die keuze staan.
+NAAMCORRECTIES: dict[str, tuple[str, str]] = {
+    # 'Reconciliation Engine' viel als enige buiten de Rhadix-naamgeving van de andere
+    # vier applicaties (bevinding 5 uit het bevindingenregister).
+    "reconciliation-engine": ("Reconciliation Engine", "Rhadix Reconciliatie"),
+}
+
+
+def corrigeer_applicatienamen(db) -> list[str]:
+    """Trek achterhaalde weergavenamen bij. Geeft de gecorrigeerde slugs terug.
+
+    Raakt uitsluitend `name`. Slug, is_active en de toewijzingen blijven ongemoeid —
+    de apps-claim en de autorisatie merken hier dus niets van.
+    """
+    from app.models.auth_models import Application
+
+    gecorrigeerd = []
+    for slug, (oud, nieuw) in NAAMCORRECTIES.items():
+        rij = (db.query(Application)
+                 .filter(Application.slug == slug, Application.name == oud)
+                 .first())
+        if rij is not None:
+            rij.name = nieuw
+            gecorrigeerd.append(slug)
+    if gecorrigeerd:
+        db.commit()
+    return gecorrigeerd
+
+
 def _ensure_apps() -> None:
     try:
         import uuid
         from app.database import SessionLocal
         from app.models.auth_models import Application
-        wanted = [
-            ("datavalidatie",         "Rhadix Datavalidatie", "Datakwaliteit & validatie (readiness scan).", 10),
-            ("uitvraag",              "Rhadix Uitvraag",      "Afnemerskant: gevalideerde vragen uitzetten.", 11),
-            ("datastation",           "Rhadix Datastation",   "Rekenhart: lokale SPARQL/Fuseki bij de bron.", 12),
-            ("rhadix-crm",            "Rhadix CRM",           "Relatie- en krachtenveldbeheer rond RSO's en zorgaanbieders.", 13),
-            ("reconciliation-engine", "Reconciliation Engine", "Vergelijk verwachte en actuele indicatorwaarden op recordniveau.", 14),
-        ]
+        wanted = PRODUCT_APPS
         db = SessionLocal()
         try:
             for slug, name, desc, order in wanted:
@@ -259,6 +299,7 @@ def _ensure_apps() -> None:
                     db.add(Application(id=uuid.uuid4(), slug=slug, name=name,
                                        description=desc, is_active=True, sort_order=order))
             db.commit()
+            corrigeer_applicatienamen(db)
             # Dedup: de canonieke reconciliatie-app is 'reconciliation-engine' (zo checkt de
             # code de toegang). Een oudere losse 'reconciliation'-rij op inactief zetten zodat
             # die niet dubbel in de lijsten verschijnt.

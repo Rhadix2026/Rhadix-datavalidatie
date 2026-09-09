@@ -32,7 +32,7 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
     { id: 'crm', slug: 'rhadix-crm', uitgerold: CRM_ACTIVE, icon: '\u{1F91D}', label: 'Rhadix CRM', laag: 'Relatie \u00b7 Krachtenveld',
       color: '#7C3AED', bg: '#F3EEFF', border: '#DDD0FB', actie: 'Openen \u2192',
       desc: 'Stakeholder- en relatiebeheer rond RSO\u2019s en zorgaanbieders, met krachtenveld-analyse (invloed \u00d7 betrokkenheid).' },
-    { id: 'recon', slug: 'reconciliation-engine', icon: '🔁', label: 'Reconciliation Engine', laag: 'Bij de bron \u00b7 Vergelijking',
+    { id: 'recon', slug: 'reconciliation-engine', icon: '🔁', label: 'Rhadix Reconciliatie', laag: 'Bij de bron \u00b7 Vergelijking',
       color: '#0E7490', bg: '#ECFEFF', border: '#A5F3FC', actie: 'Openen \u2192',
       desc: 'Vergelijk verwachte indicatorwaarden uit brondata met actuele SPARQL-uitkomsten en analyseer afwijkingen op recordniveau.' },
   ]

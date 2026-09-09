@@ -3,6 +3,8 @@ import { Nav, Page, PageTitle, BtnPrimary } from '../components/UI'
 import { uploadFiles, happyFlowBatch, listProfiles, profileReadiness, importProfileGitlab,
   exportKikvReadinessRapportPdf, exportBeschikbaarheidsRapportPdf, exportManagementRapportPdf } from '../services/api'
 import { MaakTakenButton } from '../components/TaskUI'
+import { FileCard } from './AlgemeenDashboard'
+import { bestandenUit, telPerErnst, verzamelMeldingen } from '../lib/validatiemeldingen'
 import { PROFILE_CATALOG } from './KIKVProfileImport'
 
 // Bron-metadata: label, bron-parameter voor de fase-1 validatie, en de happy-flow
@@ -32,16 +34,6 @@ const reportBtn = {
   cursor: 'pointer', fontFamily: 'var(--font)',
 }
 
-// Verzamel alle issues (met severity) recursief uit een validatie-respons.
-function collectIssues(obj, acc = []) {
-  if (!obj || typeof obj !== 'object') return acc
-  if (Array.isArray(obj)) { obj.forEach(x => collectIssues(x, acc)); return acc }
-  for (const [k, v] of Object.entries(obj)) {
-    if (k === 'issues' && Array.isArray(v)) v.forEach(i => { if (i && i.severity) acc.push(i) })
-    else if (v && typeof v === 'object') collectIssues(v, acc)
-  }
-  return acc
-}
 
 function evalCheck(c, vals) {
   const a = vals[c.a], b = vals[c.b]
@@ -118,11 +110,14 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
         if (!arr.length) { perSource[sid] = { files: 0, errors: 0, warnings: 0, empty: true }; continue }
         setPhase(`Valideren — ${SYS[sid].label}…`)
         const res = await uploadFiles(arr, `Multi-bron — ${SYS[sid].label}`, 'algemeen', 30, SYS[sid].source)
-        const issues = collectIssues(res)
+        const meldingen = verzamelMeldingen(res)
+        // Naast de aantallen ook de bestandsresultaten bewaren: die dragen de
+        // meldingen zelf, met veld, aantal, tekst en voorbeelden. Zonder dat kan het
+        // scherm alleen badges tonen en niet waaróm er fouten zijn.
         perSource[sid] = {
           files: arr.length,
-          errors: issues.filter(i => i.severity === 'error').length,
-          warnings: issues.filter(i => i.severity === 'warning').length,
+          bestanden: bestandenUit(res),
+          ...telPerErnst(meldingen),
         }
       }
       // 2) Cross-checks via de reconciliatie-batch over álle bestanden
@@ -233,6 +228,17 @@ export default function MultiSourceValidatie({ systems = [], onBack, authUser, o
                   <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: ps.errors ? 'var(--red)' : 'var(--green)', background: ps.errors ? 'var(--red-bg)' : '#ecfdf5', border: `1px solid ${ps.errors ? 'var(--red-light)' : '#bbf7d0'}`, padding: '3px 10px', borderRadius: 20 }}>{ps.errors} fouten</span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', padding: '3px 10px', borderRadius: 20 }}>{ps.warnings} waarschuwingen</span>
+                  </div>
+                )}
+                {/* Meldingen per bestand — hetzelfde component als in de
+                    enkelvoudige validatieflow, dus uitklapbaar met scrollbare
+                    voorbeelden. Een bestand zonder meldingen krijgt vanzelf geen
+                    detailblok. */}
+                {ps && !ps.empty && (ps.bestanden || []).length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    {(ps.bestanden || []).map((fr, i) => (
+                      <FileCard key={fr.filename || i} result={fr} />
+                    ))}
                   </div>
                 )}
               </div>

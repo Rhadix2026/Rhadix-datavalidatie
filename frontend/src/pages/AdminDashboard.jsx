@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import AppToewijzing from '../components/AppToewijzing'
+import { NIVEAU_ORGANISATIE } from '../lib/appToewijzing'
 import { Nav, NavBack } from '../components/UI'
 import {
   getAdminStats, getAdminTenants, createAdminTenant,
@@ -184,44 +186,6 @@ function DeleteTenantModal({ tenant, onClose, onDeleted }) {
             {loading ? 'Verwijderen…' : 'Definitief verwijderen'}
           </button>
         </div>
-      </div>
-    </div>
-  )
-}
-
-function AssignAppModal({ tenant, applications, onClose, onAssigned }) {
-  const [appId,   setAppId]   = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState('')
-
-  async function handleSubmit(e) {
-    e.preventDefault(); setError(''); setLoading(true)
-    try {
-      await assignAppToTenant(tenant.id, { application_id: appId, license_id: null })
-      onAssigned(); onClose()
-    } catch (err) {
-      let m = 'Toewijzing mislukt'; try { m = JSON.parse(err.message)?.detail || m } catch {} setError(m)
-    } finally { setLoading(false) }
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '32px 36px', width: 420, maxWidth: '90vw' }}>
-        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 20 }}>Applicatie toewijzen aan {tenant.name}</h3>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Applicatie</span>
-            <select required value={appId} onChange={e => setAppId(e.target.value)} style={inputStyle}>
-              <option value="">— kies applicatie —</option>
-              {applications.filter(a => PRODUCT_SLUGS.has(a.slug)).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </label>
-          <ErrBox msg={error} />
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, ...btnGhost }}>Annuleren</button>
-            <button type="submit" disabled={loading || !appId} style={{ flex: 2, ...btnPrimary }}>{loading ? 'Bezig…' : 'Toewijzen →'}</button>
-          </div>
-        </form>
       </div>
     </div>
   )
@@ -551,7 +515,6 @@ function parseErrLocal(err) { let m = err.message; try { m = JSON.parse(err.mess
 
 function TabOrganisations({ stats, tenants, applications, onReload }) {
   const [showCreate,     setShowCreate]     = useState(false)
-  const [assignTenant,   setAssignTenant]   = useState(null)
   const [expandedTid,    setExpandedTid]    = useState(null)
   const [tenantApps,     setTenantApps]     = useState({})
   const [tenantLicenses, setTenantLicenses] = useState({})
@@ -596,8 +559,17 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
     } catch (err) { alert('Verwijderen mislukt: ' + err.message) }
   }
 
+  // De bevestiging staat in AppToewijzing, zodat alle drie de beheerschermen dezelfde
+  // tekst tonen — mét de naam van de applicatie (bevinding 16).
+  async function handleAssign(tenantId, appId) {
+    try {
+      await assignAppToTenant(tenantId, { application_id: appId, license_id: null })
+      const apps = await getAdminTenantApps(tenantId)
+      setTenantApps(p => ({ ...p, [tenantId]: apps }))
+    } catch (err) { alert('Toewijzing mislukt: ' + err.message) }
+  }
+
   async function handleRevoke(tenantId, appId) {
-    if (!window.confirm('Weet u zeker dat u deze applicatietoewijzing wilt verwijderen?')) return
     try {
       await revokeAppFromTenant(tenantId, appId)
       const apps = await getAdminTenantApps(tenantId)
@@ -645,7 +617,6 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                     <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? '#fff' : 'var(--bg)' }}>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         <button onClick={() => loadTenantDetails(t.id)} style={btnGhost}>{expandedTid === t.id ? '▲' : '▼'} Detail</button>
-                        <button onClick={() => setAssignTenant(t)} style={btnGhost}>+ App</button>
                         <button onClick={() => handleToggleTenant(t)} style={{ ...btnGhost, color: t.is_active ? '#d97706' : '#059669', borderColor: t.is_active ? '#fcd34d' : '#6ee7b7' }}>{t.is_active ? 'Deactiveren' : 'Activeren'}</button>
                         <button onClick={() => setDeleteTenant(t)} style={{ padding: '7px 14px', background: 'none', color: '#dc2626', border: '1.5px solid #fecaca', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font)' }}>🗑️ Verwijderen</button>
                       </div>
@@ -657,20 +628,17 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                     <tr key={`${t.id}-detail`}>
                       <td colSpan={7} style={{ padding: '20px 24px', background: '#f8fafc', borderBottom: '1px solid var(--border)' }}>
 
-                        {/* Apps */}
-                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>Toegewezen applicaties</div>
-                        {(tenantApps[t.id] || []).length === 0 ? (
-                          <p style={{ fontSize: 13, color: 'var(--text3)', margin: '0 0 16px' }}>Geen applicaties toegewezen.</p>
-                        ) : (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                            {(tenantApps[t.id] || []).map(ta => (
-                              <div key={ta.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#e0f2fe', borderRadius: 20, padding: '4px 12px 4px 14px', fontSize: 13, fontWeight: 600, color: '#0369a1' }}>
-                                {ta.application_name}
-                                <button onClick={() => handleRevoke(t.id, ta.application_id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 16, lineHeight: 1, padding: 0 }} title="Intrekken">×</button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {/* Organisatieniveau: applicaties van deze organisatie. */}
+                        <div style={{ marginBottom: 16 }}>
+                          <AppToewijzing
+                            toegewezen={tenantApps[t.id] || []}
+                            aanbod={applications.filter(a => PRODUCT_SLUGS.has(a.slug))}
+                            doelNaam={t.name}
+                            niveau={NIVEAU_ORGANISATIE}
+                            onToewijzen={(appId) => handleAssign(t.id, appId)}
+                            onIntrekken={(appId) => handleRevoke(t.id, appId)}
+                          />
+                        </div>
 
                         {/* Licenses */}
                         {(tenantLicenses[t.id] || []).length > 0 && (
@@ -762,19 +730,6 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
             if (tid) {
               const users = await getAdminTenantUsers(tid)
               setTenantUsers(p => ({ ...p, [tid]: users }))
-            }
-          }}
-        />
-      )}
-      {assignTenant && (
-        <AssignAppModal
-          tenant={assignTenant}
-          applications={applications}
-          onClose={() => setAssignTenant(null)}
-          onAssigned={async () => {
-            if (expandedTid === assignTenant.id) {
-              const apps = await getAdminTenantApps(assignTenant.id)
-              setTenantApps(p => ({ ...p, [assignTenant.id]: apps }))
             }
           }}
         />

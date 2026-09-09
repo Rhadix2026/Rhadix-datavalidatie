@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Nav, NavBack } from '../components/UI'
+import AppToewijzing from '../components/AppToewijzing'
+import { NIVEAU_ORGANISATIE } from '../lib/appToewijzing'
 import {
   rsoListOrganisations, rsoCreateOrganisation,
   rsoListOrgUsers, rsoCreateUser, rsoUpdateUser, rsoToggleUserActive, rsoResetUserPassword,
@@ -202,8 +204,9 @@ export default function RsoDashboard({ onBack, authUser }) {
     try { await rsoAssignApp(tid, appId); await refreshDetail(tid) }
     catch (err) { alert('Mislukt: ' + parseErr(err, err.message)) }
   }
+  // De bevestiging staat in AppToewijzing, zodat alle drie de beheerschermen dezelfde
+  // tekst tonen — mét de naam van de applicatie (bevinding 16).
   async function revokeApp(tid, appId) {
-    if (!window.confirm('App-toewijzing intrekken?')) return
     try { await rsoRevokeApp(tid, appId); await refreshDetail(tid) }
     catch (err) { alert('Mislukt: ' + parseErr(err, err.message)) }
   }
@@ -258,26 +261,19 @@ export default function RsoDashboard({ onBack, authUser }) {
                   )]
                   if (expanded === t.id) {
                     const d = detail[t.id] || { users: [], apps: [] }
-                    const unassigned = apps.filter(a => !(d.apps || []).some(x => x.application_id === a.id))
                     rows.push(
                       <tr key={`${t.id}-d`}>
                         <td colSpan={6} style={{ padding: '20px 24px', background: '#f8fafc', borderBottom: '1px solid var(--border)' }}>
-                          {/* Apps */}
-                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>Applicaties</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 18 }}>
-                            {(d.apps || []).length === 0 && <span style={{ fontSize: 13, color: 'var(--text3)' }}>Geen apps toegewezen.</span>}
-                            {(d.apps || []).map(ta => (
-                              <div key={ta.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#e0f2fe', borderRadius: 20, padding: '4px 12px 4px 14px', fontSize: 13, fontWeight: 600, color: '#0369a1' }}>
-                                {ta.application_name}
-                                <button onClick={() => revokeApp(t.id, ta.application_id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 16, lineHeight: 1, padding: 0 }} title="Intrekken">×</button>
-                              </div>
-                            ))}
-                            {unassigned.length > 0 && (
-                              <select defaultValue="" onChange={e => { assignApp(t.id, e.target.value); e.target.value = '' }} style={{ ...inp, width: 'auto', padding: '6px 10px' }}>
-                                <option value="">+ App toewijzen…</option>
-                                {unassigned.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                              </select>
-                            )}
+                          {/* Organisatieniveau: applicaties van de aangesloten organisatie. */}
+                          <div style={{ marginBottom: 18 }}>
+                            <AppToewijzing
+                              toegewezen={d.apps || []}
+                              aanbod={apps}
+                              doelNaam={t.name}
+                              niveau={NIVEAU_ORGANISATIE}
+                              onToewijzen={(appId) => assignApp(t.id, appId)}
+                              onIntrekken={(appId) => revokeApp(t.id, appId)}
+                            />
                           </div>
 
                           {/* Users */}

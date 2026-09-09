@@ -10,6 +10,8 @@
  */
 import { useState, useEffect } from 'react'
 import { Nav, NavBack } from '../components/UI'
+import AppToewijzing from '../components/AppToewijzing'
+import { NIVEAU_GEBRUIKER } from '../lib/appToewijzing'
 import {
   getMyTenantApps, getOrgUsers, getUserApps, assignAppToUser, revokeAppFromUser,
   createOrgUser, toggleUserActive, deleteOrgUser, resetOrgUserPassword,
@@ -219,9 +221,6 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
     catch (err) { let m = 'Verwijderen mislukt'; try { m = JSON.parse(err.message)?.detail || m } catch {} setError(m); setLoading(false) }
   }
 
-  const assignedIds = new Set((userApps || []).map(ua => ua.application_id))
-  const availableToAssign = tenantApps.filter(ta => !assignedIds.has(ta.application_id))
-
   async function handleAssign(appId) {
     setLoading(true); setError('')
     try { await assignAppToUser(user.id, appId); setUserApps(await getUserApps(user.id)) }
@@ -303,38 +302,16 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
       {expanded && (
         <tr style={{ background: '#f8fafc' }}>
           <td colSpan={5} style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>
-              Toegewezen applicaties
-            </div>
-            {(userApps || []).length === 0 ? (
-              <p style={{ fontSize: 13, color: 'var(--text3)', margin: '0 0 16px' }}>Geen applicaties toegewezen.</p>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                {(userApps || []).map(ua => (
-                  <div key={ua.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#e0f2fe', borderRadius: 20, padding: '5px 10px 5px 14px', fontSize: 13, fontWeight: 600, color: '#0369a1' }}>
-                    {ua.application_name}
-                    <button onClick={() => handleRevoke(ua.application_id)} disabled={loading}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 16, lineHeight: 1, padding: 0 }}
-                      title="Toegang intrekken">×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {availableToAssign.length > 0 && (
-              <>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>
-                  Beschikbaar om toe te wijzen
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {availableToAssign.map(ta => (
-                    <button key={ta.application_id} onClick={() => handleAssign(ta.application_id)}
-                      disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.6 : 1 }}>
-                      + {ta.application_name}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+            {/* Gebruikersniveau: het aanbod is wat de organisatie heeft, nooit meer. */}
+            <AppToewijzing
+              toegewezen={userApps || []}
+              aanbod={tenantApps}
+              doelNaam={user.full_name || user.email}
+              niveau={NIVEAU_GEBRUIKER}
+              bezig={loading}
+              onToewijzen={handleAssign}
+              onIntrekken={handleRevoke}
+            />
           </td>
         </tr>
       )}

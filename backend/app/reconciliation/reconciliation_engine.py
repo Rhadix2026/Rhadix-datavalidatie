@@ -101,7 +101,7 @@ class ReconciliationEngine:
 
         abs_diff, pct_diff, status, confidence = self._compare(
             calc_result.expected_value, actual_value, rule.tolerance)
-        drill_down = DifferenceAnalyzer.analyze(
+        drill_down, drill_down_totalen = DifferenceAnalyzer.analyze(
             calc_result.included_records, calc_result.excluded_records, rule)
 
         return ReconciliationResult(
@@ -118,6 +118,7 @@ class ReconciliationEngine:
             metadata={"record_count": calc_result.record_count,
                       "peildatum": rule.peildatum,
                       "tolerance": rule.tolerance.dict(),
+                      **drill_down_totalen,
                       **calc_result.metadata},
         )
 
@@ -148,19 +149,52 @@ class ReconciliationEngine:
         return round(abs_diff, 4), round(pct_diff, 4), status, round(min(confidence, 100.0), 2)
 
 
+# Hoeveel detailrecords er per indicator worden teruggegeven.
+#
+# De berekening gaat ALTIJD over de volledige dataset: aantallen, scores, afwijkingen
+# en totalen zijn ongewijzigd. Alleen de individuele voorbeeldrecords die naar de
+# frontend gaan zijn begrensd. Zonder die grens leverde één echte AFAS-export van
+# 32.599 verzuimrecords een antwoord van ruim 100 MB op, waarmee de aanroep in de
+# gateway-timeout liep en er dus helemaal geen resultaat meer terugkwam.
+MAX_DRILL_DOWN = 100
+
+
 class DifferenceAnalyzer:
     @staticmethod
-    def analyze(included_records, excluded_records, rule):
-        issues = []
+    def analyze(included_records, excluded_records, rule, maximum: int = MAX_DRILL_DOWN):
+        """Detailrecords bij een indicator.
+
+        Geeft (voorbeelden, totalen) terug. Elk record wordt beoordeeld — de telling is
+        volledig — maar er worden hoogstens `maximum` voorbeelden opgebouwd.
+        """
+        issues: list[dict] = []
+        afwijkingen = 0
+
+        def _voeg_toe(item):
+            nonlocal afwijkingen
+            afwijkingen += 1
+            if len(issues) < maximum:
+                issues.append(item())
+
         for rec in excluded_records:
-            issues.append({"category": DifferenceAnalyzer._classify(rec, rule),
-                           "source": "brondata", "record": _safe_record(rec)})
+            _voeg_toe(lambda rec=rec: {
+                "category": DifferenceAnalyzer._classify(rec, rule),
+                "source": "brondata", "record": _safe_record(rec)})
         for rec in included_records:
             bad = DifferenceAnalyzer._check_invalid_codes(rec)
             if bad:
-                issues.append({"category": "invalid_codes", "source": "brondata",
-                               "record": _safe_record(rec), "invalid_fields": bad})
-        return issues
+                _voeg_toe(lambda rec=rec, bad=bad: {
+                    "category": "invalid_codes", "source": "brondata",
+                    "record": _safe_record(rec), "invalid_fields": bad})
+
+        totalen = {
+            "records_gecontroleerd": len(included_records) + len(excluded_records),
+            "afwijkingen_totaal": afwijkingen,
+            "drill_down_getoond": len(issues),
+            "drill_down_maximum": maximum,
+            "drill_down_begrensd": afwijkingen > len(issues),
+        }
+        return issues, totalen
 
     @staticmethod
     def _classify(rec, rule):

@@ -19,6 +19,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
+from app.auth.app_toegang import wijs_organisatie_apps_toe
 from app.auth.schemas import AssignUserAppRequest
 from app.auth.security import hash_password
 from app.database import get_db
@@ -106,6 +107,9 @@ class CreateOrgUserRequest(BaseModel):
     full_name: Optional[str] = None
     password:  str
     role:      str = "ORG_USER"   # ORG_USER or ORG_ADMIN
+    # Standaard krijgt een nieuwe gebruiker de applicaties die zijn organisatie
+    # beschikbaar heeft; zonder die toewijzingen zou hij nergens in kunnen.
+    apps_toewijzen: bool = True
 
 class ResetPasswordRequest(BaseModel):
     new_password: str
@@ -144,6 +148,9 @@ def create_org_user(
         is_active     = True,
     )
     db.add(user)
+    db.flush()
+    if body.apps_toewijzen:
+        wijs_organisatie_apps_toe(db, user)
     db.commit()
     db.refresh(user)
     return {

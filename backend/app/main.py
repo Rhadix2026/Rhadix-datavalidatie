@@ -348,6 +348,7 @@ def _ensure_demo_user() -> None:
                 db.add(tenant)
                 db.flush()
             user = db.query(User).filter(User.email == email).first()
+            nieuwe_gebruiker = user is None
             if not user:
                 user = User(id=uuid.uuid4(), tenant_id=tenant.id, email=email,
                             password_hash=hash_password(password),
@@ -355,7 +356,12 @@ def _ensure_demo_user() -> None:
                             role=UserRole.ORG_ADMIN, is_active=True)
                 db.add(user)
                 db.flush()
-            # App-toegang voor alle actieve applicaties (idempotent).
+            # App-toegang voor alle actieve applicaties.
+            #
+            # De organisatietoewijzingen worden altijd geborgd; de PERSOONLIJKE
+            # toewijzingen alleen bij het aanmaken van de demo-gebruiker. Deze functie
+            # draait bij elke start, en een bewust ingetrokken persoonlijke toegang mag
+            # nooit door zo'n automatische synchronisatie terugkomen (bevinding 8).
             for app_row in db.query(Application).filter(Application.is_active == True).all():
                 ta = db.query(TenantApplication).filter(
                     TenantApplication.tenant_id == tenant.id,
@@ -365,6 +371,8 @@ def _ensure_demo_user() -> None:
                                            application_id=app_row.id)
                     db.add(ta)
                     db.flush()
+                if not nieuwe_gebruiker:
+                    continue
                 ua = db.query(UserApplication).filter(
                     UserApplication.user_id == user.id,
                     UserApplication.application_id == app_row.id).first()

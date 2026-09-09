@@ -22,6 +22,7 @@ from app.audit import (
 from app.auth.brute_force import is_blocked, record_failure, record_success, seconds_until_unblocked
 from app.auth.token_blocklist import block_token
 from app.auth.dependencies import get_current_user, get_optional_user
+from app.auth.app_toegang import app_slugs_voor
 from app.auth.schemas import (
     LoginRequest, PasswordChangeRequest, TokenResponse, UserResponse,
     ForgotPasswordRequest, ResetPasswordRequest, SetPasswordRequest, VerifyEmailRequest,
@@ -39,25 +40,17 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def _app_slugs_for(user, db) -> list[str]:
-    """Slugs van apps waartoe de gebruiker toegang heeft (RHADIX_ADMIN => alle actieve).
+    """Slugs van de applicaties waartoe de gebruiker toegang heeft.
 
-    Toegang = wat aan de **organisatie** is toegewezen (TenantApplication) PLUS eventuele
-    losse toewijzingen op **gebruikersniveau** (UserApplication). Zo werkt een toewijzing
-    op organisatieniveau automatisch door naar alle gebruikers van die organisatie.
+    De regel staat in `auth/app_toegang.py`, omdat hij ook door de uploadpoort van
+    Datavalidatie wordt gebruikt en eerder op twee plekken uit elkaar was gelopen.
+
+    Kort: een organisatietoewijzing bepaalt WELKE applicaties de organisatie
+    beschikbaar heeft; een persoonlijke toewijzing bepaalt tot welke daarvan de
+    gebruiker daadwerkelijk toegang heeft. De claim is de doorsnede. RHADIX_ADMIN
+    krijgt onveranderd alle actieve applicaties.
     """
-    from app.models.auth_models import Application, TenantApplication
-    if user.role == UserRole.RHADIX_ADMIN:
-        return [a.slug for a in db.query(Application).filter(Application.is_active == True).all()]
-    slugs = set()
-    # organisatie-brede toewijzingen
-    for ta in db.query(TenantApplication).filter(TenantApplication.tenant_id == user.tenant_id).all():
-        if ta.application:
-            slugs.add(ta.application.slug)
-    # losse toewijzingen op gebruikersniveau
-    for ua in db.query(UserApplication).filter(UserApplication.user_id == user.id).all():
-        if ua.application:
-            slugs.add(ua.application.slug)
-    return list(slugs)
+    return app_slugs_voor(user, db)
 
 
 def _get_client_ip(request: Request) -> str:

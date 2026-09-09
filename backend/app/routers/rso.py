@@ -31,6 +31,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
+from app.auth.app_toegang import wijs_toe_aan_bestaande_gebruikers
 from app.auth.security import hash_password, validate_password_strength
 from app.database import get_db
 from app.models.auth_models import (
@@ -376,10 +377,16 @@ def assign_rso_app(
     ta = TenantApplication(id=uuid.uuid4(), tenant_id=tid, application_id=aid,
                            license_id=None, assigned_by_id=user.id)
     db.add(ta)
+    db.flush()
+    # Zelfde standaardgedrag als bij het platformbeheer: de applicatie wordt
+    # beschikbaar én meteen bruikbaar voor de huidige gebruikers van de organisatie.
+    # Daarna kan de organisatiebeheerder per gebruiker intrekken.
+    aantal = wijs_toe_aan_bestaande_gebruikers(db, ta)
     db.commit()
     db.refresh(ta)
     return {"id": str(ta.id), "tenant_id": str(ta.tenant_id),
             "application_id": str(ta.application_id),
+            "toegewezen_aan_gebruikers": aantal,
             "application_name": ta.application.name if ta.application else None}
 
 

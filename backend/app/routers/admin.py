@@ -33,6 +33,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
+from app.auth.app_toegang import (
+    wijs_organisatie_apps_toe,
+    wijs_toe_aan_bestaande_gebruikers,
+)
 from app.auth.schemas import (
     AssignTenantAppRequest,
     CreateApplicationRequest,
@@ -422,6 +426,8 @@ class AdminCreateUserRequest(BaseModel):
     password:  str
     full_name: Optional[str] = None
     role:      str = "ORG_USER"
+    # Standaard krijgt een nieuwe gebruiker de applicaties van zijn organisatie.
+    apps_toewijzen: bool = True
 
 
 @router.post("/tenants/{tenant_id}/users", status_code=201)
@@ -456,6 +462,11 @@ def admin_create_user(
         is_active     = True,
     )
     db.add(user)
+    db.flush()
+    # Standaard krijgt een nieuwe gebruiker de applicaties die zijn organisatie
+    # beschikbaar heeft; zonder deze stap zou hij nergens in kunnen.
+    if getattr(body, "apps_toewijzen", True):
+        wijs_organisatie_apps_toe(db, user)
     db.commit()
     db.refresh(user)
     audit_log(USER_CREATED, user_id=str(user.id), email=user.email,
@@ -769,12 +780,24 @@ def assign_app_to_tenant(
         assigned_by_id = current_user.id,
     )
     db.add(ta)
+    db.flush()
+
+    # Een organisatietoewijzing maakt de applicatie beschikbaar. Standaard krijgen de
+    # huidige gebruikers van de organisatie hem ook meteen, zoals beheerders gewend
+    # zijn; daarna kan de organisatiebeheerder per gebruiker intrekken en heeft dat
+    # effect. Zet `toewijzen_aan_bestaande_gebruikers` op false om alleen beschikbaar
+    # te maken.
+    aantal_gebruikers = 0
+    if getattr(body, "toewijzen_aan_bestaande_gebruikers", True):
+        aantal_gebruikers = wijs_toe_aan_bestaande_gebruikers(db, ta)
+
     db.commit()
     db.refresh(ta)
     return {
         "id":               str(ta.id),
         "tenant_id":        str(ta.tenant_id),
         "application_id":   str(ta.application_id),
+        "toegewezen_aan_gebruikers": aantal_gebruikers,
         "application_slug": ta.application.slug if ta.application else None,
         "application_name": ta.application.name if ta.application else None,
         "license_id":       str(ta.license_id) if ta.license_id else None,

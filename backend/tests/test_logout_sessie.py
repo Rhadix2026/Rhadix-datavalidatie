@@ -211,8 +211,14 @@ class TestGeenNevenschade:
             app_rij = Application(id=_uuid.uuid4(), slug="datavalidatie",
                                   name="Rhadix Datavalidatie", is_active=True)
             db.add(app_rij); db.flush()
-        db.add(TenantApplication(id=_uuid.uuid4(), tenant_id=tenant_a.id,
-                                 application_id=app_rij.id))
+        ta = TenantApplication(id=_uuid.uuid4(), tenant_id=tenant_a.id,
+                               application_id=app_rij.id)
+        db.add(ta)
+        db.flush()
+        # Sinds bevinding 8/11 is de claim de doorsnede: de organisatietoewijzing maakt
+        # de applicatie beschikbaar, de persoonlijke toewijzing geeft toegang.
+        from app.auth.app_toegang import wijs_toe_aan_bestaande_gebruikers
+        wijs_toe_aan_bestaande_gebruikers(db, ta)
         db.commit()
 
         res = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token_org_user}"})

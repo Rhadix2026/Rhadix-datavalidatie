@@ -133,6 +133,9 @@ class LicenseResponse(BaseModel):
 class AssignTenantAppRequest(BaseModel):
     application_id: str
     license_id: Optional[str] = None   # null = no license requirement
+    # Standaard krijgen de huidige gebruikers van de organisatie de applicatie ook
+    # meteen; zet op false om hem alleen beschikbaar te maken.
+    toewijzen_aan_bestaande_gebruikers: bool = True
 
 
 class TenantApplicationResponse(BaseModel):

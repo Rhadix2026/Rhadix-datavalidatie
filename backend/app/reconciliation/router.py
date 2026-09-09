@@ -426,7 +426,8 @@ async def happy_flow_batch(
     Upload meerdere happy flow CSV-bestanden tegelijk.
 
     Het systeem herkent automatisch welke berekeningsregels van toepassing zijn
-    op basis van de bestandsnaam (source_dataset in de YAML-regels).
+    op basis van de bestandsnaam (source_dataset en source_aliases in de
+    YAML-regels), waarbij de extensie niet meetelt.
 
     Optioneel: geef een profile_filename mee om per indicator ook de bijbehorende
     SPARQL-query uit het geïmporteerde KIK-V-profiel terug te krijgen.
@@ -464,7 +465,15 @@ async def happy_flow_batch(
     matched_files = set()
 
     for rule in happy_flow_rules:
-        match = contents_by_stem.get(_stem(rule.source_dataset))
+        # Een bron komt onder meerdere namen binnen: als voorbeeldbestand en als
+        # echte export van de GET-connector. De regel draagt die namen zelf
+        # (source_dataset + source_aliases); matching blijft op de stam zónder
+        # extensie, zodat dezelfde alias XML, JSON en CSV dekt.
+        match = None
+        for naam in rule.bronnamen():
+            match = contents_by_stem.get(_stem(naam))
+            if match is not None:
+                break
         if match is None:
             continue
         matched_filename, contents = match

@@ -34,6 +34,16 @@ class IndicatorRule(BaseModel):
     name: str
     description: str = ""
     source_dataset: str
+    # Extra bestandsnamen waarop deze regel ook mag matchen.
+    #
+    # Nodig omdat een bron onder verschillende namen wordt aangeleverd: een
+    # voorbeeldbestand (Profit_Employees_150_voorbeeld.xml) en de echte export van de
+    # GET-connector (Profit_Employees.json). De matching gaat op de bestandsstam
+    # zónder extensie, dus één alias zonder extensie dekt XML, JSON én CSV in één keer.
+    #
+    # Bewust additief: `source_dataset` blijft de primaire naam en wordt gebruikt waar
+    # een enkel bestand moet worden geladen (calculation_engine._load_data).
+    source_aliases: list[str] = Field(default_factory=list)
     peildatum_field: str | None = None
     peildatum: str | None = None
     dayfirst: bool = False          # True voor Nederlandse datumnotatie dd/MM/yyyy
@@ -49,6 +59,12 @@ class IndicatorRule(BaseModel):
         if " " in v:
             raise ValueError("indicator_id mag geen spaties bevatten")
         return v
+
+    def bronnamen(self) -> list[str]:
+        """Alle bestandsnamen waarop deze regel mag matchen, primaire naam eerst."""
+        namen = [self.source_dataset]
+        namen.extend(a for a in self.source_aliases if a and a not in namen)
+        return namen
 
 
 class RuleEngine:

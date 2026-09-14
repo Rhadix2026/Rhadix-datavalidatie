@@ -33,6 +33,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
+from app.auth.rolbescherming import controleer_rolwijziging
 from app.auth.app_toegang import (
     wijs_organisatie_apps_toe,
     wijs_toe_aan_bestaande_gebruikers,
@@ -495,9 +496,14 @@ def admin_update_user(
         user.full_name = body.full_name
     if body.role is not None:
         try:
-            user.role = UserRole(body.role)
+            nieuwe_rol = UserRole(body.role)
         except ValueError:
             raise HTTPException(422, f"Invalid role: {body.role}")
+        # Dezelfde bescherming als op de org- en RSO-route: een organisatie mag niet
+        # zonder beheerder komen te zitten, en het platform niet zonder Rhadix-beheerder.
+        # Deze route kende die controle alleen bij deactiveren en verwijderen.
+        controleer_rolwijziging(db, user, nieuwe_rol)
+        user.role = nieuwe_rol
     db.commit()
     db.refresh(user)
     audit_log(USER_UPDATED, user_id=str(user.id), email=user.email,

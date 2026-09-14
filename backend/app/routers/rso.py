@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
 from app.auth.app_toegang import wijs_toe_aan_bestaande_gebruikers
+from app.auth.rolbescherming import controleer_rolwijziging
 from app.auth.security import hash_password, validate_password_strength
 from app.database import get_db
 from app.models.auth_models import (
@@ -255,6 +256,9 @@ def update_rso_user(
             raise HTTPException(422, f"Ongeldige rol: {body.role}")
         if new_role not in allowed:
             raise HTTPException(403, "Deze rol mag je hier niet toekennen")
+        # Zelfde bescherming als op de org- en adminroute: de laatste actieve beheerder
+        # van een organisatie mag niet worden gedegradeerd.
+        controleer_rolwijziging(db, target, new_role)
         target.role = new_role
     db.commit()
     db.refresh(target)

@@ -15,7 +15,7 @@ import { NIVEAU_GEBRUIKER } from '../lib/appToewijzing'
 import {
   getMyTenantApps, getOrgUsers, getUserApps, assignAppToUser, revokeAppFromUser,
   createOrgUser, toggleUserActive, deleteOrgUser, resetOrgUserPassword,
-  changeOwnPassword,
+  changeOwnPassword, updateOrgUser,
 } from '../services/api'
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -119,6 +119,63 @@ function ResetPasswordModal({ user, onClose, onDone }) {
   )
 }
 
+// ── Rol wijzigen ──────────────────────────────────────────────────────────────
+//
+// Een organisatiebeheerder kon een rol alleen bij het AANMAKEN zetten; daarna was er
+// geen weg meer (bevinding 14). Bewust alleen de twee rollen die binnen een organisatie
+// bestaan: Rhadix- en RSO-beheerder worden een niveau hoger beheerd, en de backend
+// weigert ze hier ook.
+
+function RolModal({ user, onClose, onDone }) {
+  const [rol,     setRol]     = useState(user.role)
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  const ongewijzigd = rol === user.role
+
+  async function handleSubmit(e) {
+    e.preventDefault(); setError(''); setLoading(true)
+    try { await updateOrgUser(user.id, { role: rol }); onDone(rol); onClose() }
+    catch (err) {
+      let m = 'Wijzigen mislukt'
+      try { m = JSON.parse(err.message)?.detail || m } catch { /* laat de standaardtekst staan */ }
+      setError(m)
+    }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div style={overlayStyle}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '32px 36px', width: 420, maxWidth: '90vw' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Rol wijzigen</h3>
+        <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 20 }}>
+          Voor <strong>{user.full_name || user.email}</strong>.
+        </p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Rol</span>
+            <select value={rol} onChange={e => setRol(e.target.value)} style={inputStyle}>
+              <option value="ORG_USER">Gebruiker</option>
+              <option value="ORG_ADMIN">Beheerder</option>
+            </select>
+          </label>
+          <div style={{ fontSize: 12, color: 'var(--text3)' }}>
+            Een beheerder kan gebruikers aanmaken, applicaties toewijzen en wachtwoorden
+            opnieuw instellen binnen deze organisatie.
+          </div>
+          <ErrBox msg={error} />
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, ...btnGhost }}>Annuleren</button>
+            <button type="submit" disabled={loading || ongewijzigd} style={{ flex: 2, ...btnPrimary, opacity: (loading || ongewijzigd) ? 0.6 : 1 }}>
+              {loading ? 'Opslaan…' : 'Opslaan'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Eigen wachtwoord wijzigen ─────────────────────────────────────────────────
 //
 // Voor het eigen account is de beheerdersreset niet de juiste route: die zet een
@@ -197,6 +254,7 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
   const [error,      setError]     = useState('')
   const [showReset,  setShowReset] = useState(false)
   const [showEigen,  setShowEigen] = useState(false)
+  const [showRol,    setShowRol]   = useState(false)
   const [confirming, setConfirming] = useState(false)
 
   async function toggle() {
@@ -245,6 +303,10 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
       {showEigen && (
         <EigenWachtwoordModal user={user} onClose={() => setShowEigen(false)} />
       )}
+      {showRol && (
+        <RolModal user={user} onClose={() => setShowRol(false)}
+                  onDone={(rol) => setUser(u => ({ ...u, role: rol }))} />
+      )}
 
       <tr style={{ background: rowBg, opacity: loading ? 0.7 : 1 }}>
         <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14, borderBottom: expanded ? 'none' : '1px solid var(--border)' }}>
@@ -265,6 +327,10 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button onClick={toggle} style={btnGhost} disabled={loading}>
               {expanded ? '▲ Apps' : '▼ Apps'}
+            </button>
+            <button onClick={() => setShowRol(true)} style={btnGhost} disabled={loading}
+                    title="Rol wijzigen tussen gebruiker en beheerder">
+              👤 Rol
             </button>
             {isSelf ? (
               <button onClick={() => setShowEigen(true)} style={btnWarn} disabled={loading}

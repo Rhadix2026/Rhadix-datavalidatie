@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
 from app.auth.app_toegang import wijs_organisatie_apps_toe
+from app.auth.rolbescherming import controleer_rolwijziging
 from app.auth.schemas import AssignUserAppRequest
 from app.auth.security import hash_password
 from app.database import get_db
@@ -111,6 +112,11 @@ class CreateOrgUserRequest(BaseModel):
     # beschikbaar heeft; zonder die toewijzingen zou hij nergens in kunnen.
     apps_toewijzen: bool = True
 
+class UpdateOrgUserRequest(BaseModel):
+    full_name: Optional[str] = None
+    role:      Optional[str] = None
+
+
 class ResetPasswordRequest(BaseModel):
     new_password: str
 
@@ -151,6 +157,64 @@ def create_org_user(
     db.flush()
     if body.apps_toewijzen:
         wijs_organisatie_apps_toe(db, user)
+    db.commit()
+    db.refresh(user)
+    return {
+        "id":        str(user.id),
+        "email":     user.email,
+        "full_name": user.full_name,
+        "role":      user.role.value,
+        "is_active": user.is_active,
+    }
+
+
+# Rollen die een organisatiebeheerder mag toekennen. RHADIX_ADMIN en RSO_ADMIN staan er
+# bewust niet in: die worden op platform- respectievelijk RSO-niveau beheerd. Zelfde
+# afbakening als bij het AANMAKEN van een gebruiker hierboven.
+ROLLEN_VOOR_ORG_ADMIN = {UserRole.ORG_USER, UserRole.ORG_ADMIN}
+
+
+@router.patch("/users/{user_id}")
+def update_org_user(
+    user_id: str,
+    body:         UpdateOrgUserRequest,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(_org_roles),
+):
+    """Naam en/of rol van een gebruiker in de eigen organisatie wijzigen.
+
+    Een organisatiebeheerder kon een rol alleen bij het AANMAKEN zetten; daarna was er
+    geen weg meer en moest hij escaleren naar Rhadix (bevinding 14).
+
+    De grenzen volgen de bestaande routes in dit bestand: alleen binnen de eigen
+    organisatie, en alleen de rollen die een organisatiebeheerder ook bij het aanmaken
+    mag kiezen. De laatste actieve beheerder wordt beschermd via auth/rolbescherming.py,
+    zodat dezelfde regel geldt op alle drie de routes waarlangs een rol te wijzigen is.
+    """
+    uid  = _parse_uuid(user_id, "user_id")
+    user = db.query(User).filter(User.id == uid, User.tenant_id == current_user.tenant_id).first()
+    if not user:
+        raise HTTPException(404, "Gebruiker niet gevonden in uw organisatie")
+
+    if body.full_name is not None:
+        user.full_name = body.full_name
+
+    if body.role is not None:
+        try:
+            nieuwe_rol = UserRole(body.role)
+        except ValueError:
+            raise HTTPException(422, f"Ongeldige rol: {body.role!r}")
+
+        # Zowel de nieuwe als de huidige rol moet binnen het bereik vallen: een
+        # organisatiebeheerder mag een Rhadix- of RSO-beheerder niet degraderen.
+        if nieuwe_rol not in ROLLEN_VOOR_ORG_ADMIN:
+            raise HTTPException(403, "Deze rol kan hier niet worden toegekend")
+        if user.role not in ROLLEN_VOOR_ORG_ADMIN:
+            raise HTTPException(403, "De rol van deze gebruiker kan hier niet worden gewijzigd")
+
+        controleer_rolwijziging(db, user, nieuwe_rol)
+        user.role = nieuwe_rol
+
     db.commit()
     db.refresh(user)
     return {

@@ -639,6 +639,22 @@ export async function deleteOrgUser(userId) {
   if (!res.ok) throw new Error(await res.text())
 }
 
+/**
+ * Naam en/of rol van een gebruiker in de eigen organisatie wijzigen.
+ *
+ * Een organisatiebeheerder kan uitsluitend wisselen tussen ORG_USER en ORG_ADMIN; de
+ * backend weigert al het andere. Dit is een andere route dan de beheerdersvariant op
+ * /admin/users/{id}, die alle rollen aanbiedt en RHADIX_ADMIN vereist.
+ */
+export async function updateOrgUser(userId, data) {
+  const res = await apiFetch(`${BASE}/org/users/${userId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 export async function resetOrgUserPassword(userId, newPassword) {
   const res = await apiFetch(`${BASE}/org/users/${userId}/reset-password`, {
     method: 'POST',

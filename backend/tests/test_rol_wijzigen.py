@@ -24,6 +24,8 @@ import uuid
 
 import pytest
 
+from tests.conftest import make_token
+
 from app.auth.security import hash_password
 from app.models.auth_models import Tenant, User, UserRole
 
@@ -204,6 +206,96 @@ class TestLaatstePlatformbeheerder:
         res = client.patch(f"/api/admin/users/{user_rhadix_admin.id}",
                            json={"role": "ORG_USER"}, headers=auth(token_rhadix_admin))
         assert res.status_code == 200, res.text
+
+
+# ── De RSO-route ────────────────────────────────────────────────────────────
+
+@pytest.fixture()
+def rso(db):
+    t = Tenant(id=uuid.uuid4(), slug="rso-rolwijziging", name="RSO Rolwijziging",
+               tenant_type="RSO", is_active=True)
+    db.add(t); db.commit(); db.refresh(t)
+    return t
+
+
+@pytest.fixture()
+def rso_token(db, rso):
+    u = User(id=uuid.uuid4(), tenant_id=rso.id, email="beheer@rso-rolwijziging.nl",
+             password_hash=hash_password("EenVoldoendeLangWachtwoord1!"),
+             role=UserRole.RSO_ADMIN, is_active=True)
+    db.add(u); db.commit(); db.refresh(u)
+    return make_token(u)
+
+
+@pytest.fixture()
+def kind_org(db, rso):
+    """Een organisatie onder de RSO, met precies één actieve beheerder."""
+    t = Tenant(id=uuid.uuid4(), slug="kind-rolwijziging", name="Kind Rolwijziging",
+               tenant_type="ORG", parent_tenant_id=rso.id, is_active=True)
+    db.add(t); db.commit(); db.refresh(t)
+    beheerder = _gebruiker(db, t, "enige.beheerder@kind.nl", UserRole.ORG_ADMIN)
+    gebruiker = _gebruiker(db, t, "gewone.gebruiker@kind.nl", UserRole.ORG_USER)
+    return t, beheerder, gebruiker
+
+
+class TestRsoRouteBeschermtDeLaatsteBeheerder:
+    """De derde route waarlangs een rol te wijzigen is.
+
+    Deze route kende de bescherming niet: `update_rso_user` beperkte wél welke rollen
+    toegekend mochten worden, maar controleerde niet of de organisatie een beheerder
+    overhield. Zonder deze tests leunde die route uitsluitend op handmatig testen.
+    """
+
+    def test_rso_admin_kan_een_rol_wijzigen_in_een_onderliggende_organisatie(
+        self, client, db, kind_org, rso_token
+    ):
+        """Vertrekpunt: de route werkt gewoon."""
+        _, _, gebruiker = kind_org
+        res = client.patch(f"/api/rso/users/{gebruiker.id}",
+                           json={"role": "ORG_ADMIN"}, headers=auth(rso_token))
+        assert res.status_code == 200, res.text
+        assert _rol_van(db, gebruiker.id) == UserRole.ORG_ADMIN
+
+    def test_de_laatste_beheerder_kan_niet_worden_gedegradeerd(self, client, db, kind_org, rso_token):
+        """De kern: dezelfde blokkade als op de org- en de adminroute."""
+        _, beheerder, _ = kind_org
+        res = client.patch(f"/api/rso/users/{beheerder.id}",
+                           json={"role": "ORG_USER"}, headers=auth(rso_token))
+        assert res.status_code == 400, res.text
+        assert "laatste actieve beheerder" in res.json()["detail"]
+        assert _rol_van(db, beheerder.id) == UserRole.ORG_ADMIN
+
+    def test_met_een_tweede_beheerder_mag_het_wel(self, client, db, kind_org, rso_token):
+        org, beheerder, gebruiker = kind_org
+        client.patch(f"/api/rso/users/{gebruiker.id}",
+                     json={"role": "ORG_ADMIN"}, headers=auth(rso_token))
+        res = client.patch(f"/api/rso/users/{beheerder.id}",
+                           json={"role": "ORG_USER"}, headers=auth(rso_token))
+        assert res.status_code == 200, res.text
+        assert _rol_van(db, beheerder.id) == UserRole.ORG_USER
+
+    def test_een_inactieve_tweede_beheerder_telt_niet_mee(self, client, db, kind_org, rso_token):
+        org, beheerder, _ = kind_org
+        _gebruiker(db, org, "slapend@kind.nl", UserRole.ORG_ADMIN, actief=False)
+        res = client.patch(f"/api/rso/users/{beheerder.id}",
+                           json={"role": "ORG_USER"}, headers=auth(rso_token))
+        assert res.status_code == 400, res.text
+
+    def test_naam_wijzigen_raakt_de_bescherming_niet(self, client, db, kind_org, rso_token):
+        _, beheerder, _ = kind_org
+        res = client.patch(f"/api/rso/users/{beheerder.id}",
+                           json={"full_name": "Andere Naam"}, headers=auth(rso_token))
+        assert res.status_code == 200, res.text
+        assert _rol_van(db, beheerder.id) == UserRole.ORG_ADMIN
+
+    def test_een_organisatie_buiten_de_eigen_rso_blijft_buiten_bereik(
+        self, client, db, tenant_a, user_org_admin, rso_token
+    ):
+        """tenant_a hangt niet onder deze RSO."""
+        res = client.patch(f"/api/rso/users/{user_org_admin.id}",
+                           json={"role": "ORG_USER"}, headers=auth(rso_token))
+        assert res.status_code == 404, res.text
+        assert _rol_van(db, user_org_admin.id) == UserRole.ORG_ADMIN
 
 
 # ── Wat niet mag veranderen ─────────────────────────────────────────────────

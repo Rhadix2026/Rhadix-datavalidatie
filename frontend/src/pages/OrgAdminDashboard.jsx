@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react'
 import { Nav, NavBack } from '../components/UI'
 import AppToewijzing from '../components/AppToewijzing'
 import { NIVEAU_GEBRUIKER } from '../lib/appToewijzing'
-import { gebruikTekst, isVol, maxUsersTekst } from '../lib/licentieweergave'
+import { gebruikTekst, isVol, maxUsersTekst, periodeTekst, statusWeergave } from '../lib/licentieweergave'
 import {
   getMyTenantApps, getOrgUsers, getUserApps, assignAppToUser, revokeAppFromUser,
   createOrgUser, toggleUserActive, deleteOrgUser, resetOrgUserPassword,
@@ -476,6 +476,14 @@ export default function OrgAdminDashboard({ onBack, authUser }) {
               {licentie.heeft_licentie ? (
                 <>
                   <span style={{ fontSize: 14, fontWeight: 700 }}>{licentie.licentie_naam}</span>
+                  {(() => {
+                    const w = statusWeergave(licentie.status, licentie.geen_einddatum)
+                    return (
+                      <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 999, background: w.achtergrond, color: w.tekst, fontSize: 11, fontWeight: 700 }}>
+                        {w.label}
+                      </span>
+                    )
+                  })()}
                   <span style={{ fontSize: 13, color: 'var(--text2)' }}>
                     Gebruikers:{' '}
                     <strong style={{ color: isVol(licentie.actieve_gebruikers, licentie.max_users) ? '#b45309' : 'inherit' }}>
@@ -486,11 +494,31 @@ export default function OrgAdminDashboard({ onBack, authUser }) {
                     Maximum: <strong>{maxUsersTekst(licentie.max_users)}</strong>
                   </span>
                   <span style={{ fontSize: 13, color: 'var(--text3)' }}>
-                    {licentie.valid_until
-                      ? `Geldig tot ${new Date(licentie.valid_until).toLocaleDateString('nl-NL')}`
-                      : 'Geen einddatum'}
+                    {periodeTekst(licentie.valid_from, licentie.valid_until)}
                   </span>
-                  {isVol(licentie.actieve_gebruikers, licentie.max_users) && (
+
+                  {/* Drie redenen waarom er geen gebruiker bij kan; elk met de uitweg erbij. */}
+                  {licentie.status === 'verlopen' && (
+                    <span style={{ fontSize: 12, color: '#991b1b', background: '#fee2e2', borderRadius: 6, padding: '5px 10px' }}>
+                      De licentie is verlopen. Er kan geen gebruiker worden toegevoegd of
+                      opnieuw geactiveerd totdat Rhadix de licentie verlengt. U en uw
+                      collega's houden gewoon toegang.
+                    </span>
+                  )}
+                  {licentie.status === 'toekomstig' && (
+                    <span style={{ fontSize: 12, color: '#3730a3', background: '#e0e7ff', borderRadius: 6, padding: '5px 10px' }}>
+                      De licentie gaat pas in op {new Date(licentie.valid_from).toLocaleDateString('nl-NL')}.
+                      Tot die datum kan er geen gebruiker worden toegevoegd of opnieuw geactiveerd.
+                    </span>
+                  )}
+                  {licentie.verloopt_binnenkort && (
+                    <span style={{ fontSize: 12, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '5px 10px' }}>
+                      Deze licentie verloopt over {licentie.dagen_tot_verval}{' '}
+                      {licentie.dagen_tot_verval === 1 ? 'dag' : 'dagen'}. Neem tijdig
+                      contact op met Rhadix.
+                    </span>
+                  )}
+                  {licentie.status === 'actief' && isVol(licentie.actieve_gebruikers, licentie.max_users) && (
                     <span style={{ fontSize: 12, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '5px 10px' }}>
                       Het maximum is bereikt. Deactiveer eerst een gebruiker, of neem
                       contact op met Rhadix voor een ruimere licentie.

@@ -351,28 +351,27 @@ class TestOrgInzage:
                              headers=auth(token_org_admin)).status_code in (404, 405)
 
 
-# ── Geen oordeel over geldigheid: dat is bevinding 6 ────────────────────────
+# ── Geldigheid: besloten bij bevinding 6 ───────────────────────────────────
 
-class TestGeldigheidNogGeenOordeel:
+class TestGeldigheidWordtBeoordeeld:
+    """Deze klasse legde eerder vast dat er NOG GEEN oordeel was; dat oordeel is er nu.
 
-    def test_een_verlopen_licentie_wordt_gewoon_getoond(self, client, db, tenant_a,
-                                                         token_org_admin):
-        """Geen status 'Verlopen' en geen blokkade — die keuze valt bij bevinding 6."""
+    De uitwerking staat in test_licentiegeldigheid.py; hier blijft staan dat de
+    alleen-lezen weergave de status meelevert en dat de telling er niet door verandert.
+    """
+
+    def test_de_weergave_levert_een_status(self, client, db, tenant_a, token_org_admin):
         verleden = datetime.now(timezone.utc) - timedelta(days=60)
         _licentie(db, tenant_a, max_users=5, valid_until=verleden)
         body = client.get("/api/org/license", headers=auth(token_org_admin)).json()
         assert body["heeft_licentie"] is True
-        assert body["valid_until"] is not None
-        assert body["max_users"] == 5
-        assert "status" not in body, "een geldigheidsoordeel hoort bij bevinding 6"
+        assert body["status"] == "verlopen"
+        assert body["status_label"] == "Verlopen"
+        assert body["max_users"] == 5, "de grens blijft zichtbaar, ook bij een verlopen licentie"
 
-    def test_een_verlopen_licentie_begrenst_nog_steeds(self, client, db, tenant_a,
-                                                        user_org_admin, token_org_admin):
-        """Bewust: de telling kijkt naar is_active, niet naar de datum."""
-        verleden = datetime.now(timezone.utc) - timedelta(days=60)
-        _licentie(db, tenant_a, max_users=1, valid_until=verleden)
-        res = client.post("/api/org/users",
-                          json={"email": "na.verval@example.org", "full_name": "N",
-                                "role": "ORG_USER", "password": "EenVoldoendeLangWachtwoord1!"},
-                          headers=auth(token_org_admin))
-        assert res.status_code == 400
+    def test_zonder_licentie_is_de_status_geen_licentie(self, client, db, tenant_a,
+                                                        token_org_admin):
+        body = client.get("/api/org/license", headers=auth(token_org_admin)).json()
+        assert body["heeft_licentie"] is False
+        assert body["status"] == "geen_licentie"
+        assert body["status_label"] == "Geen licentie"

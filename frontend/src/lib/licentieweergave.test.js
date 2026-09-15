@@ -127,3 +127,105 @@ test('een leeg platform levert een lege lijst op', () => {
   assert.deepEqual(licentieOverzicht([], []), [])
   assert.deepEqual(licentieOverzicht(), [])
 })
+
+// ── Bevinding 6: geldigheid ────────────────────────────────────────────────
+
+import {
+  ACTIEF, GEEN_LICENTIE, TOEKOMSTIG, VERLOPEN,
+  licentieStatus, periodeTekst, statusWeergave,
+} from './licentieweergave.js'
+
+const VANDAAG = new Date('2026-09-15T12:00:00Z')
+
+test('een lopende licentie is actief', () => {
+  assert.equal(licentieStatus({ valid_from: '2026-01-01', valid_until: '2026-12-31' }, VANDAAG), ACTIEF)
+})
+
+test('zonder einddatum is de licentie actief', () => {
+  assert.equal(licentieStatus({ valid_from: '2026-01-01', valid_until: null }, VANDAAG), ACTIEF)
+})
+
+test('de laatste dag telt nog mee', () => {
+  assert.equal(licentieStatus({ valid_from: '2026-01-01', valid_until: '2026-09-15' }, VANDAAG), ACTIEF)
+})
+
+test('de dag na de einddatum is verlopen', () => {
+  assert.equal(licentieStatus({ valid_from: '2026-01-01', valid_until: '2026-09-14' }, VANDAAG), VERLOPEN)
+})
+
+test('middernacht laat de licentie niet vervallen', () => {
+  // Het datumveld levert middernacht; een vergelijking op tijdstip zou hier fout gaan.
+  assert.equal(licentieStatus({ valid_from: '2026-01-01', valid_until: '2026-09-15T00:00:00Z' }, VANDAAG), ACTIEF)
+})
+
+test('de eerste dag telt al mee', () => {
+  assert.equal(licentieStatus({ valid_from: '2026-09-15', valid_until: null }, VANDAAG), ACTIEF)
+})
+
+test('de dag voor de begindatum is toekomstig', () => {
+  assert.equal(licentieStatus({ valid_from: '2026-09-16', valid_until: null }, VANDAAG), TOEKOMSTIG)
+})
+
+test('een licentie van precies een dag is die dag actief', () => {
+  assert.equal(licentieStatus({ valid_from: '2026-09-15', valid_until: '2026-09-15' }, VANDAAG), ACTIEF)
+})
+
+test('toekomstig gaat voor verlopen bij een omgekeerde periode', () => {
+  assert.equal(licentieStatus({ valid_from: '2027-01-01', valid_until: '2026-01-01' }, VANDAAG), TOEKOMSTIG)
+})
+
+test('geen licentie levert de eigen status op', () => {
+  assert.equal(licentieStatus({ heeft_licentie: false }, VANDAAG), GEEN_LICENTIE)
+  assert.equal(licentieStatus({}, VANDAAG), ACTIEF, 'zonder datums is er niets dat hem tegenhoudt')
+})
+
+test('een onleesbare datum wordt genegeerd in plaats van fataal', () => {
+  assert.equal(licentieStatus({ valid_from: 'kaas', valid_until: null }, VANDAAG), ACTIEF)
+})
+
+test('elke status heeft een eigen label en kleur', () => {
+  assert.equal(statusWeergave(ACTIEF).label, 'Actief')
+  assert.equal(statusWeergave(VERLOPEN).label, 'Verlopen')
+  assert.equal(statusWeergave(TOEKOMSTIG).label, 'Toekomstig')
+  assert.equal(statusWeergave(GEEN_LICENTIE).label, 'Geen licentie')
+  const kleuren = new Set([ACTIEF, VERLOPEN, TOEKOMSTIG, GEEN_LICENTIE].map(s => statusWeergave(s).achtergrond))
+  assert.equal(kleuren.size, 4, 'de vier statussen moeten visueel te onderscheiden zijn')
+})
+
+test('geen einddatum wordt in het label vermeld', () => {
+  assert.equal(statusWeergave(ACTIEF, true).label, 'Actief · geen einddatum')
+  assert.equal(statusWeergave(VERLOPEN, true).label, 'Verlopen')
+})
+
+test('de periode wordt leesbaar weergegeven', () => {
+  assert.match(periodeTekst('2026-01-01', '2026-12-31'), /1-1-2026 t\/m 31-12-2026/)
+  assert.match(periodeTekst('2026-01-01', null), /geen einddatum/)
+  assert.equal(periodeTekst(null, null), '—')
+})
+
+test('het overzicht draagt de status per organisatie', () => {
+  const regels = licentieOverzicht(
+    [KIKV, KIKG],
+    [
+      { id: 'l1', tenant_id: 'r1', name: 'verlopen', valid_from: '2026-01-01', valid_until: '2026-09-01', is_active: true },
+      { id: 'l2', tenant_id: 'o1', name: 'toekomst', valid_from: '2026-12-01', valid_until: null, is_active: true },
+    ],
+    VANDAAG,
+  )
+  assert.equal(regels.find(r => r.tenantId === 'r1').status, VERLOPEN)
+  assert.equal(regels.find(r => r.tenantId === 'o1').status, TOEKOMSTIG)
+})
+
+test('een organisatie zonder licentie krijgt de status geen licentie', () => {
+  const regels = licentieOverzicht([NOORD], [], VANDAAG)
+  assert.equal(regels[0].status, GEEN_LICENTIE)
+  assert.equal(regels[0].geenEinddatum, false)
+})
+
+test('een licentie zonder einddatum wordt als zodanig gemarkeerd', () => {
+  const regels = licentieOverzicht([NOORD], [
+    { id: 'l3', tenant_id: 'o2', name: 'eeuwig', valid_from: '2026-01-01', valid_until: null, is_active: true },
+  ], VANDAAG)
+  assert.equal(regels[0].status, ACTIEF)
+  assert.equal(regels[0].geenEinddatum, true)
+})

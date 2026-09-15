@@ -7,8 +7,69 @@
  * grens per ongeluk bij de verkeerde organisatie terechtkwam. Alle keuzelijsten en
  * overzichten gebruiken daarom deze functies.
  *
+ * Hier staat ook de weergave van de licentiestatus (bevinding 6). De backend bepaalt de
+ * status; deze module vertaalt hem naar tekst en kleur, en kan hem desnoods zelf afleiden
+ * uit de datums voor schermen die alleen de ruwe licentie hebben.
+ *
  * Pure functies zonder React, zodat ze met `node --test src/lib/` te testen zijn.
  */
+
+// De vier toestanden, gelijk aan `backend/app/auth/licentieweergave.py`.
+export const GEEN_LICENTIE = 'geen_licentie'
+export const TOEKOMSTIG    = 'toekomstig'
+export const ACTIEF        = 'actief'
+export const VERLOPEN      = 'verlopen'
+
+/** Een datum-of-tijdstip terugbrengen tot een kalenderdag (UTC), of null. */
+function alsDag(waarde) {
+  if (!waarde) return null
+  const d = waarde instanceof Date ? waarde : new Date(waarde)
+  if (Number.isNaN(d.getTime())) return null
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+}
+
+/**
+ * De toestand van een licentie, op DAGNIVEAU.
+ *
+ * "Geldig tot 31-12" betekent dat die dag er nog bij hoort; een vergelijking op tijdstip
+ * zou de licentie op de eerste seconde van haar laatste dag al laten verlopen. Dezelfde
+ * regel als in de backend.
+ */
+export function licentieStatus({ valid_from, valid_until, heeft_licentie = true } = {}, nu = new Date()) {
+  if (!heeft_licentie) return GEEN_LICENTIE
+  const vandaag = alsDag(nu)
+  const start   = alsDag(valid_from)
+  const eind    = alsDag(valid_until)
+  if (start !== null && start > vandaag) return TOEKOMSTIG
+  if (eind  !== null && eind  < vandaag) return VERLOPEN
+  return ACTIEF
+}
+
+/** Tekst en kleur voor het statuslabel in de schermen. */
+export function statusWeergave(status, geenEinddatum = false) {
+  switch (status) {
+    case VERLOPEN:
+      return { label: 'Verlopen',   achtergrond: '#fee2e2', tekst: '#991b1b' }
+    case TOEKOMSTIG:
+      return { label: 'Toekomstig', achtergrond: '#e0e7ff', tekst: '#3730a3' }
+    case GEEN_LICENTIE:
+      return { label: 'Geen licentie', achtergrond: '#fef3c7', tekst: '#92400e' }
+    default:
+      return {
+        label: geenEinddatum ? 'Actief · geen einddatum' : 'Actief',
+        achtergrond: '#dcfce7', tekst: '#166534',
+      }
+  }
+}
+
+/** Een licentieperiode als leesbare tekst: "1-1-2026 t/m 31-12-2026". */
+export function periodeTekst(validFrom, validUntil) {
+  const nl = (d) => new Date(d).toLocaleDateString('nl-NL')
+  if (!validFrom && !validUntil) return '—'
+  if (!validUntil) return `vanaf ${nl(validFrom)} · geen einddatum`
+  if (!validFrom)  return `t/m ${nl(validUntil)}`
+  return `${nl(validFrom)} t/m ${nl(validUntil)}`
+}
 
 /** Toelichting achter een organisatienaam: wat voor organisatie is dit, en waar hangt hij? */
 export function organisatieToelichting(tenant, tenantsById = {}) {
@@ -41,8 +102,8 @@ export function maxUsersTekst(maxUsers) {
 /**
  * Hoeveel plaatsen zijn er in gebruik.
  *
- * Geeft bewust géén oordeel over de geldigheidsdatum — of een verlopen licentie iets
- * betekent is bevinding 6 en nog niet besloten.
+ * Gaat uitsluitend over aantallen; de geldigheidsperiode staat los en komt via
+ * `licentieStatus()`.
  */
 export function gebruikTekst(actieveGebruikers, maxUsers) {
   if (typeof actieveGebruikers !== 'number') return '—'
@@ -66,7 +127,7 @@ export function isVol(actieveGebruikers, maxUsers) {
  * Sortering: RSO's eerst, met hun aangesloten organisaties er direct onder; losse
  * organisaties daarna. Alles alfabetisch binnen die groepen.
  */
-export function licentieOverzicht(tenants = [], licenses = []) {
+export function licentieOverzicht(tenants = [], licenses = [], nu = new Date()) {
   const actieveLicentiePerTenant = {}
   for (const lic of licenses) {
     if (lic.is_active) actieveLicentiePerTenant[lic.tenant_id] = lic
@@ -88,6 +149,8 @@ export function licentieOverzicht(tenants = [], licenses = []) {
       actieveGebruikers: actief,
       maxUsers: lic ? lic.max_users : null,
       vol: lic ? isVol(actief, lic.max_users) : false,
+      status: lic ? licentieStatus(lic, nu) : GEEN_LICENTIE,
+      geenEinddatum: Boolean(lic) && !lic.valid_until,
     }
   })
 

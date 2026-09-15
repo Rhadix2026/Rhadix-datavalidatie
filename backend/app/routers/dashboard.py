@@ -21,6 +21,12 @@ from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
 from app.database import get_db
+from app.auth.licentieweergave import (
+    ACTIEF,
+    GEEN_LICENTIE,
+    licentiestatus,
+    statuslabel,
+)
 from app.models.auth_models import License, Tenant, User, UserRole
 from app.models.models import ValidationRun
 
@@ -438,17 +444,13 @@ def dashboard_admin(
             License.is_active  == True,
         ).order_by(License.valid_until.desc().nullslast()).first()
 
-        license_valid_until = None
-        license_status = "geen"
-        if active_lic:
-            license_valid_until = active_lic.valid_until.isoformat() if active_lic.valid_until else None
-            now = datetime.now(timezone.utc)
-            if active_lic.valid_until is None:
-                license_status = "active"
-            elif active_lic.valid_until.replace(tzinfo=timezone.utc) >= now:
-                license_status = "active"
-            else:
-                license_status = "verlopen"
+        # Eén bepaling van de licentiestatus voor het hele platform (bevinding 6); deze
+        # logica stond hier eerder apart, met het risico op twee definities van "verlopen".
+        status = licentiestatus(active_lic)
+        license_valid_until = (
+            active_lic.valid_until.isoformat()
+            if active_lic and active_lic.valid_until else None
+        )
 
         tenant_list.append({
             "tenant_id":           str(row.tenant_id),
@@ -458,7 +460,12 @@ def dashboard_admin(
             "score_label":         _score_label(row.avg_score),
             "latest_run_at":       row.latest_run_at.isoformat() if row.latest_run_at else None,
             "license_valid_until": license_valid_until,
-            "license_status":      license_status,
+            # De bestaande waarden blijven staan zodat het dashboard niet omvalt; de
+            # nieuwe, fijnmazigere status staat ernaast.
+            "license_status":      {GEEN_LICENTIE: "geen", ACTIEF: "active"}.get(status, status),
+            "licentie_status":     status,
+            "licentie_status_label": statuslabel(
+                status, geen_einddatum=bool(active_lic) and active_lic.valid_until is None),
         })
 
     # ── Platform trend (monthly) ──────────────────────────────────────────────

@@ -25,6 +25,7 @@ User management (Phase 3+):
   POST   /api/admin/users/{user_id}/reset-password   — admin resets user password
 """
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -35,6 +36,12 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user, require_role
 from app.auth.rolbescherming import controleer_rolwijziging
 from app.auth.licentiegrens import controleer_ruimte
+from app.auth.licentieweergave import (
+    ACTIEF,
+    actieve_licentie,
+    licentiestatus,
+    statuslabel,
+)
 from app.auth.app_toegang import (
     wijs_organisatie_apps_toe,
     wijs_toe_aan_bestaande_gebruikers,
@@ -675,6 +682,24 @@ def list_tenant_licenses(
     return [_license_to_dict(l, db) for l in licenses]
 
 
+def _controleer_geldigheidsperiode(valid_from, valid_until) -> None:
+    """Een einddatum mag niet vóór de begindatum liggen (bevinding 6).
+
+    Op DAGNIVEAU, net als de statusbepaling: een licentie die op één dag begint en eindigt
+    is geldig op die dag. Een datum in het verleden is wél toegestaan — een licentie die is
+    verlopen moet vastgelegd kunnen worden, en de gevolgen daarvan regelt de statusbepaling
+    en de gebruikerscontrole, niet een invoerverbod.
+    """
+    if valid_from is None or valid_until is None:
+        return
+    if valid_until.date() < valid_from.date():
+        raise HTTPException(
+            422,
+            f"De einddatum ({valid_until.strftime('%d-%m-%Y')}) ligt vóór de begindatum "
+            f"({valid_from.strftime('%d-%m-%Y')}). Kies een einddatum op of na de begindatum.",
+        )
+
+
 def _controleer_enige_actieve_licentie(db: Session, tenant_id, negeer_id=None) -> None:
     """Een organisatie heeft ten hoogste één ACTIEVE licentie.
 
@@ -711,6 +736,8 @@ def create_license(
 
     if body.max_users is not None and body.max_users < 1:
         raise HTTPException(422, "Het maximum aantal gebruikers moet ten minste 1 zijn.")
+    # Zonder opgegeven begindatum gaat de licentie vandaag in (server_default).
+    _controleer_geldigheidsperiode(body.valid_from or datetime.now(timezone.utc), body.valid_until)
     _controleer_enige_actieve_licentie(db, tid)
 
     kwargs = dict(
@@ -760,6 +787,9 @@ def update_license(
 
     if lic.max_users is not None and lic.max_users < 1:
         raise HTTPException(422, "Het maximum aantal gebruikers moet ten minste 1 zijn.")
+    # Toetsen op de resulterende periode: een wijziging van één van beide datums kan de
+    # combinatie ongeldig maken, ook als het andere veld niet is meegestuurd.
+    _controleer_geldigheidsperiode(lic.valid_from, lic.valid_until)
 
     # Bij het opnieuw activeren van een licentie geldt dezelfde regel als bij aanmaken:
     # een organisatie heeft ten hoogste één actieve licentie.
@@ -836,6 +866,14 @@ def assign_app_to_tenant(
         raise HTTPException(404, "Application not found")
     if lid and not db.query(License).filter(License.id == lid, License.tenant_id == tid).first():
         raise HTTPException(404, "License not found or does not belong to this tenant")
+
+    # Zonder opgegeven licentie: de actieve licentie van de organisatie vastleggen als
+    # AUDITREFERENTIE — onder welke licentie is deze applicatie verstrekt. Dit veld stuurt
+    # NIETS: autorisatie loopt uitsluitend via het bestaan van de toewijzing zelf
+    # (app_toegang.app_slugs_voor). Zie ook de toelichting bij TenantApplication.
+    if lid is None:
+        huidige = actieve_licentie(db, tid)
+        lid = huidige.id if huidige else None
 
     existing = db.query(TenantApplication).filter(
         TenantApplication.tenant_id == tid,

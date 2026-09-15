@@ -35,7 +35,7 @@ from app.auth.dependencies import get_current_user, require_role
 from app.auth.app_toegang import wijs_toe_aan_bestaande_gebruikers
 from app.auth.rolbescherming import controleer_rolwijziging
 from app.auth.licentiegrens import controleer_ruimte
-from app.auth.licentieweergave import licentieregel
+from app.auth.licentieweergave import actieve_licentie, licentieregel
 from app.auth.security import hash_password, validate_password_strength
 from app.database import get_db
 from app.models.auth_models import (
@@ -88,6 +88,16 @@ def _require_managed_user(db: Session, user: User, uid: uuid.UUID) -> User:
     if not target or target.tenant_id not in _managed_tenant_ids(db, user):
         raise HTTPException(404, "Gebruiker niet gevonden binnen deze samenwerkingsorganisatie")
     return target
+
+
+def _audit_licentie_id(db: Session, tenant_id):
+    """De actieve licentie van de organisatie, puur als auditreferentie.
+
+    Legt vast onder welke licentie een applicatie is verstrekt. Stuurt niets: toegang
+    volgt uit het bestaan van de toewijzing, niet uit dit veld.
+    """
+    lic = actieve_licentie(db, tenant_id)
+    return lic.id if lic else None
 
 
 def _tenant_dict(db: Session, t: Tenant, root_id: uuid.UUID) -> dict:
@@ -412,7 +422,8 @@ def assign_rso_app(
         TenantApplication.tenant_id == tid, TenantApplication.application_id == aid).first():
         raise HTTPException(400, "Applicatie is al toegewezen aan deze organisatie")
     ta = TenantApplication(id=uuid.uuid4(), tenant_id=tid, application_id=aid,
-                           license_id=None, assigned_by_id=user.id)
+                           license_id=_audit_licentie_id(db, tid),
+                       assigned_by_id=user.id)
     db.add(ta)
     db.flush()
     # Zelfde standaardgedrag als bij het platformbeheer: de applicatie wordt

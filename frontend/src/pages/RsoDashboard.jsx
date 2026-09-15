@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Nav, NavBack } from '../components/UI'
 import AppToewijzing from '../components/AppToewijzing'
 import { NIVEAU_ORGANISATIE } from '../lib/appToewijzing'
-import { gebruikTekst, isVol, maxUsersTekst } from '../lib/licentieweergave'
+import { gebruikTekst, isVol, maxUsersTekst, periodeTekst, statusWeergave } from '../lib/licentieweergave'
 import {
   rsoListOrganisations, rsoCreateOrganisation,
   rsoListOrgUsers, rsoCreateUser, rsoUpdateUser, rsoToggleUserActive, rsoResetUserPassword,
@@ -339,7 +339,9 @@ export default function RsoDashboard({ onBack, authUser }) {
               Licenties worden centraal beheerd door Rhadix. Een licentie van de
               samenwerkingsorganisatie geldt niet voor de aangesloten organisaties; elke
               organisatie heeft een eigen licentie. Neem contact op met Rhadix om een
-              licentie te wijzigen.
+              licentie te wijzigen. Zolang een licentie verlopen is of nog niet is ingegaan,
+              kan er in die organisatie geen gebruiker worden toegevoegd of opnieuw
+              geactiveerd; bestaande gebruikers houden gewoon toegang.
             </p>
           </div>
           {licenties === null ? (
@@ -348,7 +350,7 @@ export default function RsoDashboard({ onBack, authUser }) {
             <div style={{ padding: 30, textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>Geen organisaties gevonden.</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr>{['Organisatie', 'Licentie', 'Geldig tot', 'Max. gebruikers', 'In gebruik'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+              <thead><tr>{['Organisatie', 'Licentie', 'Status', 'Geldigheid', 'Max. gebruikers', 'In gebruik'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
               <tbody>
                 {licenties.map((r, i) => (
                   <tr key={r.tenant_id} style={{ background: r.is_eigen_rso ? '#eef6ff' : (i % 2 === 0 ? '#fff' : 'var(--bg)') }}>
@@ -362,12 +364,25 @@ export default function RsoDashboard({ onBack, authUser }) {
                       )}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, borderBottom: '1px solid var(--border)' }}>
-                      {r.heeft_licentie ? r.licentie_naam : (
-                        <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background: '#fef3c7', color: '#92400e', fontSize: 11, fontWeight: 700 }}>Geen licentie</span>
+                      {r.heeft_licentie ? r.licentie_naam : <span style={{ color: 'var(--text3)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                      {(() => {
+                        const w = statusWeergave(r.status, r.geen_einddatum)
+                        return (
+                          <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 999, background: w.achtergrond, color: w.tekst, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                            {w.label}
+                          </span>
+                        )
+                      })()}
+                      {r.verloopt_binnenkort && (
+                        <div style={{ fontSize: 11, color: '#92400e', marginTop: 3 }}>
+                          verloopt over {r.dagen_tot_verval} {r.dagen_tot_verval === 1 ? 'dag' : 'dagen'}
+                        </div>
                       )}
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>
-                      {r.heeft_licentie ? (r.valid_until ? new Date(r.valid_until).toLocaleDateString('nl-NL') : 'Geen einddatum') : '—'}
+                    <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>
+                      {r.heeft_licentie ? periodeTekst(r.valid_from, r.valid_until) : '—'}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', borderBottom: '1px solid var(--border)' }}>
                       {r.heeft_licentie ? maxUsersTekst(r.max_users) : '—'}

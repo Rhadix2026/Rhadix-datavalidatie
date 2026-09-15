@@ -15,18 +15,17 @@ Drie keuzes die hier zijn vastgelegd:
     bezet; anders zou een oud account een nieuwe medewerker blokkeren.
   * Bij meerdere licenties geldt de SOM van hun max_users. Draagt één van die licenties
     geen maximum, dan is het geheel onbeperkt — de ruimste licentie wint.
-  * `valid_until` speelt hier bewust GEEN rol. Of een verlopen licentie toegang moet
-    blokkeren is bevinding 6, en die keuze is nog niet gemaakt. Deze module kijkt
-    uitsluitend naar `is_active` van de licentie. Wordt bevinding 6 later ingevoerd, dan
-    is dit de plek om de datumvoorwaarde toe te voegen.
+  * De GELDIGHEIDSPERIODE telt mee (bevinding 6). Een licentie die is verlopen of nog niet
+    is ingegaan, staat een nieuwe of opnieuw geactiveerde gebruiker in de weg — net als een
+    volle licentie, en met een eigen melding. Bestaande actieve gebruikers houden hun
+    toegang: deze module wordt alleen aangeroepen vóórdat iemand actief wordt, nooit bij
+    inloggen. Deactiveren wordt nooit geblokkeerd.
 
-Twee dingen die bewust NIET zijn ingevuld, zodat ze niet per ongeluk als besloten gelden:
+Twee grenzen van de regel, zodat ze niet per ongeluk anders worden gelezen:
 
-  * Een licentie geldt PER ORGANISATIE en wordt niet geërfd. Een organisatie onder een
-    RSO valt dus niet onder de licentie van die RSO; heeft zij er zelf geen, dan is zij
-    onbegrensd. Dat volgt hoe licenties vandaag worden vastgelegd en getoond (per
-    tenant), maar of een RSO-licentie haar kinderen hóórt te dekken is een functionele
-    vraag die nog openstaat.
+  * Een licentie geldt PER ORGANISATIE en wordt niet geërfd — vastgesteld besluit. Een
+    organisatie onder een RSO valt dus niet onder de licentie van die RSO; heeft zij er
+    zelf geen, dan is zij onbegrensd.
   * Het aanmaken van een nieuwe ORGANISATIE (`admin.create_tenant`,
     `rso.create_rso_organisation`) maakt meteen een eerste beheerder aan, maar een
     zojuist aangemaakte organisatie heeft nog geen licentie. De controle zou daar altijd
@@ -38,6 +37,12 @@ from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.auth.licentieweergave import (
+    TOEKOMSTIG,
+    VERLOPEN,
+    actieve_licentie,
+    licentiestatus,
+)
 from app.models.auth_models import License, User
 
 
@@ -65,15 +70,51 @@ def aantal_actieve_gebruikers(db: Session, tenant_id) -> int:
     ).scalar() or 0
 
 
+def controleer_geldigheid(db: Session, tenant_id) -> None:
+    """Blokkeer als de licentie verlopen is of nog niet is ingegaan (bevinding 6).
+
+    Een organisatie ZONDER licentie wordt hier bewust niet geraakt: "geen licentie"
+    betekent voorlopig onbeperkt, zonder blokkade. Dat is een besluit, geen omissie.
+    """
+    lic = actieve_licentie(db, tenant_id)
+    if lic is None:
+        return
+
+    status = licentiestatus(lic)
+    if status == VERLOPEN:
+        tot = lic.valid_until.strftime("%d-%m-%Y") if lic.valid_until else ""
+        raise HTTPException(
+            400,
+            f"De licentie van deze organisatie is verlopen op {tot}. Er kan geen gebruiker "
+            f"worden toegevoegd of opnieuw geactiveerd totdat de licentie is verlengd. "
+            f"Bestaande gebruikers houden gewoon toegang.",
+        )
+    if status == TOEKOMSTIG:
+        vanaf = lic.valid_from.strftime("%d-%m-%Y") if lic.valid_from else ""
+        raise HTTPException(
+            400,
+            f"De licentie van deze organisatie gaat pas in op {vanaf}. Er kan tot die datum "
+            f"geen gebruiker worden toegevoegd of opnieuw geactiveerd.",
+        )
+
+
 def controleer_ruimte(db: Session, tenant_id) -> None:
-    """Blokkeer als er geen plaats meer is binnen de licentie.
+    """Blokkeer als de licentie geen ruimte biedt voor nog een actieve gebruiker.
 
     Aan te roepen vóórdat een gebruiker actief wordt: bij het aanmaken van een nieuwe
-    gebruiker en bij het opnieuw activeren van een bestaande.
+    gebruiker en bij het opnieuw activeren van een bestaande. Twee voorwaarden:
 
-    De melding noemt het aantal en het maximum, en zegt wat er kan gebeuren — een
-    blokkade zonder uitweg is voor een beheerder niet te gebruiken.
+      1. de licentie moet geldig zijn — niet verlopen, niet toekomstig (bevinding 6);
+      2. het maximum aantal actieve gebruikers mag niet worden overschreden (bevinding 7).
+
+    De geldigheid gaat voor: een verlopen licentie met ruimte is nog steeds verlopen, en
+    die melding is voor een beheerder bruikbaarder dan een telling.
+
+    Elke melding noemt wat er aan de hand is én wat de beheerder kan doen — een blokkade
+    zonder uitweg is niet te gebruiken.
     """
+    controleer_geldigheid(db, tenant_id)
+
     maximum = maximum_actieve_gebruikers(db, tenant_id)
     if maximum is None:
         return

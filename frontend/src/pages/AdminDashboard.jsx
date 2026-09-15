@@ -40,6 +40,22 @@ const BRAND_PRESETS = {
  */
 function parseErr(err, fallback) { let m = fallback; try { m = JSON.parse(err.message)?.detail || m } catch {} return m }
 
+/**
+ * Het statuslabel van een licentie (bevinding 6): Actief / Toekomstig / Verlopen /
+ * Geen licentie. Een verlopen of toekomstige licentie moet in één oogopslag opvallen,
+ * want hij blokkeert het toevoegen en heractiveren van gebruikers.
+ */
+function StatusBadge({ status, geenEinddatum = false, klein = false }) {
+  const { label, achtergrond, tekst } = statusWeergave(status, geenEinddatum)
+  return (
+    <span style={{
+      display: 'inline-block', padding: klein ? '2px 8px' : '3px 10px', borderRadius: 999,
+      background: achtergrond, color: tekst, fontSize: klein ? 10 : 11, fontWeight: 700,
+      whiteSpace: 'nowrap',
+    }}>{label}</span>
+  )
+}
+
 // ── Shared styles ─────────────────────────────────────────────────────────────
 const card       = { background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }
 const thStyle    = { padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }
@@ -207,7 +223,13 @@ function DeleteTenantModal({ tenant, onClose, onDeleted }) {
 }
 
 function CreateLicenseModal({ tenants, vasteTenantId = '', onClose, onCreated }) {
-  const [form,    setForm]    = useState({ tenant_id: vasteTenantId, name: '', valid_until: '', max_users: '', notes: '' })
+  const [form,    setForm]    = useState({
+    tenant_id: vasteTenantId, name: '',
+    // Voorstel: vandaag. De begindatum was eerder niet in te vullen en werd altijd het
+    // moment van aanmaken (bevinding 6).
+    valid_from: new Date().toISOString().slice(0, 10),
+    valid_until: '', max_users: '', notes: '',
+  })
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
 
@@ -220,6 +242,7 @@ function CreateLicenseModal({ tenants, vasteTenantId = '', onClose, onCreated })
       const payload = {
         tenant_id:   form.tenant_id,
         name:        form.name,
+        valid_from:  form.valid_from || null,
         valid_until: form.valid_until || null,
         max_users:   form.max_users ? parseInt(form.max_users) : null,
         notes:       form.notes || null,
@@ -257,8 +280,9 @@ function CreateLicenseModal({ tenants, vasteTenantId = '', onClose, onCreated })
             )}
           </label>
           {[
-            { k: 'name',        label: 'Licentienaam',            type: 'text',   ph: 'Jaarlicentie 2026', req: true },
-            { k: 'valid_until', label: 'Geldig tot (optioneel)',  type: 'date',   ph: '',                  req: false },
+            { k: 'name',        label: 'Licentienaam',                  type: 'text',   ph: 'Jaarlicentie 2026', req: true },
+            { k: 'valid_from',  label: 'Geldig vanaf',                  type: 'date',   ph: '',                  req: false },
+            { k: 'valid_until', label: 'Geldig tot (leeg = geen einddatum)', type: 'date', ph: '',             req: false },
             { k: 'max_users',   label: 'Max. gebruikers (opt.)',  type: 'number', ph: 'onbeperkt',         req: false },
             { k: 'notes',       label: 'Notities (optioneel)',    type: 'text',   ph: '',                  req: false },
           ].map(({ k, label, type, ph, req }) => (
@@ -687,12 +711,22 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                               {actief ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                                   <span style={{ fontSize: 13, fontWeight: 700 }}>{actief.name}</span>
+                                  <StatusBadge
+                                    status={licentieStatus(actief)}
+                                    geenEinddatum={!actief.valid_until}
+                                  />
                                   <span style={{ fontSize: 12, color: 'var(--text2)' }}>
                                     Max. gebruikers: <strong>{maxUsersTekst(actief.max_users)}</strong>
                                     {' · '}In gebruik: <strong>{gebruikTekst(t.active_user_count, actief.max_users)}</strong>
-                                    {' · '}{actief.valid_until ? `t/m ${new Date(actief.valid_until).toLocaleDateString('nl-NL')}` : 'geen einddatum'}
+                                    {' · '}{periodeTekst(actief.valid_from, actief.valid_until)}
                                   </span>
                                   <button onClick={() => setEditLicenseFromTenant(actief)} style={{ ...btnGhost, padding: '5px 12px', fontSize: 11 }}>Bewerken</button>
+                                  {licentieStatus(actief) !== 'actief' && (
+                                    <span style={{ fontSize: 12, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '5px 10px' }}>
+                                      Zolang de licentie niet geldig is, kan er geen gebruiker worden
+                                      toegevoegd of opnieuw geactiveerd. Bestaande gebruikers houden toegang.
+                                    </span>
+                                  )}
                                 </div>
                               ) : (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -829,6 +863,7 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
 function EditLicenseModal({ license, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: license.name || '',
+    valid_from: license.valid_from ? license.valid_from.slice(0, 10) : '',
     valid_until: license.valid_until ? license.valid_until.slice(0, 10) : '',
     max_users: license.max_users != null ? String(license.max_users) : '',
     notes: license.notes || '',
@@ -841,6 +876,7 @@ function EditLicenseModal({ license, onClose, onSaved }) {
     try {
       await updateAdminLicense(license.id, {
         name: form.name,
+        valid_from: form.valid_from || null,
         valid_until: form.valid_until || null,
         max_users: form.max_users ? parseInt(form.max_users) : null,
         notes: form.notes || null,
@@ -862,10 +898,17 @@ function EditLicenseModal({ license, onClose, onSaved }) {
           {license.parent_tenant_name && ` — organisatie onder ${license.parent_tenant_name}`}
           {typeof license.actieve_gebruikers === 'number' &&
             ` · ${license.actieve_gebruikers} ${license.actieve_gebruikers === 1 ? 'actieve gebruiker' : 'actieve gebruikers'}`}
+          {' '}
+          <StatusBadge
+            status={licentieStatus({ valid_from: form.valid_from || null, valid_until: form.valid_until || null })}
+            geenEinddatum={!form.valid_until}
+            klein
+          />
         </div>
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {[
             { k: 'name', label: 'Licentienaam', type: 'text' },
+            { k: 'valid_from', label: 'Geldig vanaf', type: 'date' },
             { k: 'valid_until', label: 'Geldig tot (leeg = geen einddatum)', type: 'date' },
             { k: 'max_users', label: 'Max. gebruikers (leeg = onbeperkt)', type: 'number' },
             { k: 'notes', label: 'Notities', type: 'text' },
@@ -941,7 +984,7 @@ function TabLicenses({ tenants }) {
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['Organisatie', 'Licentie', 'Geldig tot', 'Max. gebruikers', 'In gebruik', 'Applicaties', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+              <tr>{['Organisatie', 'Licentie', 'Status', 'Geldigheid', 'Max. gebruikers', 'In gebruik', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {regels.map((r, i) => {
@@ -956,23 +999,19 @@ function TabLicenses({ tenants }) {
                       <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{r.toelichting}</div>
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, borderBottom: '1px solid var(--border)' }}>
-                      {r.heeftLicentie ? l.name : (
-                        <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background: '#fef3c7', color: '#92400e', fontSize: 11, fontWeight: 700 }}>
-                          Geen licentie
-                        </span>
-                      )}
+                      {r.heeftLicentie ? l.name : <span style={{ color: 'var(--text3)' }}>—</span>}
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>
-                      {r.heeftLicentie ? (l.valid_until ? new Date(l.valid_until).toLocaleDateString('nl-NL') : 'Geen einddatum') : '—'}
+                    <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                      <StatusBadge status={r.status} geenEinddatum={r.geenEinddatum} />
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>
+                      {r.heeftLicentie ? periodeTekst(l.valid_from, l.valid_until) : '—'}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', borderBottom: '1px solid var(--border)' }}>
                       {r.heeftLicentie ? maxUsersTekst(l.max_users) : '—'}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, borderBottom: '1px solid var(--border)', color: r.vol ? '#b45309' : 'var(--text2)', fontWeight: r.vol ? 700 : 400 }}>
                       {gebruikTekst(r.actieveGebruikers, r.heeftLicentie ? l.max_users : null)}
-                    </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', borderBottom: '1px solid var(--border)' }}>
-                      {r.heeftLicentie ? ((l.app_slugs || []).join(', ') || '—') : '—'}
                     </td>
                     <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
                       <div style={{ display: 'flex', gap: 6 }}>

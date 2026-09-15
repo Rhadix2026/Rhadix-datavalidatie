@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user, require_role
 from app.auth.app_toegang import wijs_toe_aan_bestaande_gebruikers
 from app.auth.rolbescherming import controleer_rolwijziging
+from app.auth.licentiegrens import controleer_ruimte
 from app.auth.security import hash_password, validate_password_strength
 from app.database import get_db
 from app.models.auth_models import (
@@ -220,6 +221,9 @@ def create_rso_user(
     if role not in allowed:
         raise HTTPException(403, "Deze rol mag je hier niet toekennen")
 
+    # De licentie bepaalt hoeveel gebruikers er tegelijk actief mogen zijn.
+    controleer_ruimte(db, tid)
+
     u = User(id=uuid.uuid4(), tenant_id=tid, email=body.email.lower().strip(),
              password_hash=hash_password(body.password), full_name=body.full_name,
              role=role, is_active=True)
@@ -291,6 +295,9 @@ def toggle_rso_user_active(
         raise HTTPException(400, "Je kunt je eigen account niet deactiveren")
     if target.is_active and _is_last_active_rso_admin(db, _rso_root_id(user), target):
         raise HTTPException(400, "Dit is de laatste actieve RSO-beheerder; deactiveren is niet toegestaan")
+    # Alleen bij ACTIVEREN: de gebruiker gaat een plaats binnen de licentie innemen.
+    if not target.is_active:
+        controleer_ruimte(db, target.tenant_id)
     target.is_active = not target.is_active
     db.commit()
     return {"id": str(target.id), "email": target.email, "is_active": target.is_active}

@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user, require_role
 from app.auth.app_toegang import wijs_organisatie_apps_toe
 from app.auth.rolbescherming import controleer_rolwijziging
+from app.auth.licentiegrens import controleer_ruimte
 from app.auth.schemas import AssignUserAppRequest
 from app.auth.security import hash_password
 from app.database import get_db
@@ -144,6 +145,9 @@ def create_org_user(
     if role == UserRole.RHADIX_ADMIN:
         raise HTTPException(403, "Rhadix-beheerdersrol kan niet worden toegewezen")
 
+    # De licentie bepaalt hoeveel gebruikers er tegelijk actief mogen zijn.
+    controleer_ruimte(db, current_user.tenant_id)
+
     user = User(
         id            = uuid.uuid4(),
         tenant_id     = current_user.tenant_id,
@@ -239,6 +243,10 @@ def toggle_user_active(
         raise HTTPException(404, "Gebruiker niet gevonden in uw organisatie")
     if user.id == current_user.id:
         raise HTTPException(400, "U kunt uw eigen account niet deactiveren")
+
+    # Alleen bij ACTIVEREN: een gebruiker gaat een plaats binnen de licentie innemen.
+    if not user.is_active:
+        controleer_ruimte(db, user.tenant_id)
 
     user.is_active = not user.is_active
     db.commit()

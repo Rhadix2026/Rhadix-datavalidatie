@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
 from app.auth.rolbescherming import controleer_rolwijziging
+from app.auth.licentiegrens import controleer_ruimte
 from app.auth.app_toegang import (
     wijs_organisatie_apps_toe,
     wijs_toe_aan_bestaande_gebruikers,
@@ -453,6 +454,9 @@ def admin_create_user(
     except ValueError:
         raise HTTPException(422, f"Invalid role: {body.role}")
 
+    # De licentie bepaalt hoeveel gebruikers er tegelijk actief mogen zijn.
+    controleer_ruimte(db, tid)
+
     user = User(
         id            = uuid.uuid4(),
         tenant_id     = tid,
@@ -855,6 +859,9 @@ def admin_toggle_user_active(
     # Alleen bij deactiveren (van actief -> inactief) de laatste-admin-check
     if user.is_active and _is_last_active_admin(db, user):
         raise HTTPException(400, "Dit is de laatste actieve Rhadix-beheerder; deactiveren is niet toegestaan")
+    # Alleen bij ACTIVEREN: de gebruiker gaat een plaats binnen de licentie innemen.
+    if not user.is_active:
+        controleer_ruimte(db, user.tenant_id)
 
     user.is_active = not user.is_active
     db.commit()

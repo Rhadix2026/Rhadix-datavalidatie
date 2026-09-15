@@ -25,6 +25,14 @@ const BRAND_PRESETS = {
   custom: { label: 'Aangepast',          primary_color: '#1A2847', accent_color: '#1A2847' },
 }
 
+/**
+ * De functionele melding uit een foutantwoord halen.
+ *
+ * `api.js` gooit hier de ruwe responsebody door, dus zonder deze stap staat een
+ * beheerder tegen `{"detail":"..."}` aan te kijken. Zelfde helper als in RsoDashboard.
+ */
+function parseErr(err, fallback) { let m = fallback; try { m = JSON.parse(err.message)?.detail || m } catch {} return m }
+
 // ── Shared styles ─────────────────────────────────────────────────────────────
 const card       = { background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }
 const thStyle    = { padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }
@@ -548,7 +556,7 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
     try {
       const updated = await adminToggleUserActive(userId)
       setTenantUsers(p => ({ ...p, [tid]: p[tid].map(u => u.id === userId ? { ...u, is_active: updated.is_active } : u) }))
-    } catch (err) { alert('Fout: ' + err.message) }
+    } catch (err) { alert(parseErr(err, 'Fout: ' + err.message)) }
   }
 
   async function handleDeleteUser(tid, userId) {

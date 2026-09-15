@@ -19,6 +19,18 @@ Drie keuzes die hier zijn vastgelegd:
     blokkeren is bevinding 6, en die keuze is nog niet gemaakt. Deze module kijkt
     uitsluitend naar `is_active` van de licentie. Wordt bevinding 6 later ingevoerd, dan
     is dit de plek om de datumvoorwaarde toe te voegen.
+
+Twee dingen die bewust NIET zijn ingevuld, zodat ze niet per ongeluk als besloten gelden:
+
+  * Een licentie geldt PER ORGANISATIE en wordt niet geërfd. Een organisatie onder een
+    RSO valt dus niet onder de licentie van die RSO; heeft zij er zelf geen, dan is zij
+    onbegrensd. Dat volgt hoe licenties vandaag worden vastgelegd en getoond (per
+    tenant), maar of een RSO-licentie haar kinderen hóórt te dekken is een functionele
+    vraag die nog openstaat.
+  * Het aanmaken van een nieuwe ORGANISATIE (`admin.create_tenant`,
+    `rso.create_rso_organisation`) maakt meteen een eerste beheerder aan, maar een
+    zojuist aangemaakte organisatie heeft nog geen licentie. De controle zou daar altijd
+    doorlaten en is er daarom niet ingehaakt — niet vergeten, maar zinloos.
 """
 from __future__ import annotations
 

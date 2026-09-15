@@ -294,3 +294,36 @@ class TestGeenNevenschade:
         _licentie(db, tenant_a, 1)
         res = client.delete(f"/api/org/users/{doelwit.id}", headers=auth(token_org_admin))
         assert res.status_code == 204, res.text
+
+
+class TestNietGeerfdEnNieuweOrganisatie:
+    """Twee grenzen van de keuze, vastgelegd zodat ze zichtbaar zijn als ze wijzigen."""
+
+    def test_een_licentie_van_de_rso_dekt_het_kind_niet(self, db):
+        """Een organisatie onder een RSO valt niet onder de RSO-licentie.
+
+        Of dat functioneel de bedoeling is staat nog open; deze test legt alleen vast
+        wat het systeem nu doet, zodat een wijziging opvalt.
+        """
+        rso = Tenant(id=uuid.uuid4(), slug="rso-erf", name="RSO Erf",
+                     tenant_type="RSO", is_active=True)
+        db.add(rso); db.flush()
+        kind = Tenant(id=uuid.uuid4(), slug="kind-erf", name="Kind Erf",
+                      tenant_type="ORG", parent_tenant_id=rso.id, is_active=True)
+        db.add(kind); db.commit()
+        _licentie(db, rso, 1)
+
+        assert maximum_actieve_gebruikers(db, rso.id) == 1
+        assert maximum_actieve_gebruikers(db, kind.id) is None, \
+            "het kind erft de licentie van de RSO nu niet"
+
+    def test_een_nieuwe_organisatie_heeft_nog_geen_grens(self, client, db, token_rhadix_admin):
+        """Daarom is create_tenant bewust niet ingehaakt: er is nog niets om aan te toetsen."""
+        res = client.post("/api/admin/tenants", json={
+            "slug": "verse-org", "name": "Verse Organisatie",
+            "admin_email": "eerste@verse-org.nl", "full_name": "Eerste Beheerder",
+            "admin_password": "EenVoldoendeLangWachtwoord1!",
+        }, headers=auth(token_rhadix_admin))
+        assert res.status_code == 201, res.text
+        nieuw = db.query(Tenant).filter(Tenant.slug == "verse-org").first()
+        assert maximum_actieve_gebruikers(db, nieuw.id) is None

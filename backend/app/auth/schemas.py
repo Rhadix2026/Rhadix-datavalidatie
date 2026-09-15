@@ -105,6 +105,22 @@ class CreateLicenseRequest(BaseModel):
 
 
 class UpdateLicenseRequest(BaseModel):
+    """Wijziging van een licentie; alleen meegestuurde velden worden aangeraakt.
+
+    Let op het verschil tussen een veld WEGLATEN en een veld op `null` zetten. De
+    handler leest `model_fields_set`, dus:
+
+      * `{}`                    — verandert niets;
+      * `{"max_users": 25}`     — zet het maximum op 25;
+      * `{"max_users": null}`   — WIST het maximum: de licentie wordt onbeperkt.
+
+    Dat onderscheid is nodig omdat `max_users` en `valid_until` hun betekenis juist aan
+    `null` ontlenen (onbeperkt, respectievelijk geen einddatum). Werd `null` als "niet
+    wijzigen" gelezen, dan was een eenmaal ingestelde grens nooit meer op te heffen —
+    precies de fout die hiermee is verholpen.
+
+    `name` en `valid_from` zijn in de database NOT NULL; daar wist `null` niets.
+    """
     name: Optional[str] = None
     valid_from: Optional[datetime] = None
     valid_until: Optional[datetime] = None

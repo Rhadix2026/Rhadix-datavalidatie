@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react'
 import AppToewijzing from '../components/AppToewijzing'
 import { NIVEAU_ORGANISATIE } from '../lib/appToewijzing'
+import {
+  gebruikTekst,
+  isIngesprongen,
+  licentieOverzicht,
+  maxUsersTekst,
+  organisatieLabel,
+} from '../lib/licentieweergave'
 import { Nav, NavBack } from '../components/UI'
 import {
   getAdminStats, getAdminTenants, createAdminTenant,
@@ -199,10 +206,13 @@ function DeleteTenantModal({ tenant, onClose, onDeleted }) {
   )
 }
 
-function CreateLicenseModal({ tenants, onClose, onCreated }) {
-  const [form,    setForm]    = useState({ tenant_id: '', name: '', valid_until: '', max_users: '', notes: '' })
+function CreateLicenseModal({ tenants, vasteTenantId = '', onClose, onCreated }) {
+  const [form,    setForm]    = useState({ tenant_id: vasteTenantId, name: '', valid_until: '', max_users: '', notes: '' })
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
+
+  const tenantsById = Object.fromEntries(tenants.map(t => [t.id, t]))
+  const gekozen     = tenantsById[form.tenant_id] || null
 
   async function handleSubmit(e) {
     e.preventDefault(); setError(''); setLoading(true)
@@ -228,10 +238,23 @@ function CreateLicenseModal({ tenants, onClose, onCreated }) {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Organisatie</span>
+            {/* Type en ouder-RSO in het label: zonder die context zijn een
+                samenwerkingsorganisatie en een gelijknamige organisatie eronder
+                niet uit elkaar te houden. */}
             <select required value={form.tenant_id} onChange={e => setForm(f => ({ ...f, tenant_id: e.target.value }))} style={inputStyle}>
               <option value="">— kies organisatie —</option>
-              {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {tenants.map(t => (
+                <option key={t.id} value={t.id}>{organisatieLabel(t, tenantsById)}</option>
+              ))}
             </select>
+            {gekozen && (
+              <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+                Deze licentie geldt alleen voor <strong>{gekozen.name}</strong>
+                {(gekozen.tenant_type || 'ORG').toUpperCase() === 'RSO'
+                  ? ' zelf, niet voor de aangesloten organisaties.'
+                  : '.'}
+              </span>
+            )}
           </label>
           {[
             { k: 'name',        label: 'Licentienaam',            type: 'text',   ph: 'Jaarlicentie 2026', req: true },
@@ -529,6 +552,8 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
   const [tenantUsers,    setTenantUsers]    = useState({})
   const [resetUser,      setResetUser]      = useState(null)
   const [createUserTenant, setCreateUserTenant] = useState(null)
+  const [createLicenseTenant,   setCreateLicenseTenant]   = useState(null)
+  const [editLicenseFromTenant, setEditLicenseFromTenant] = useState(null)
   const [editUser,         setEditUser]         = useState(null)
   const [deleteTenant,     setDeleteTenant]     = useState(null)
 
@@ -648,19 +673,47 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                           />
                         </div>
 
-                        {/* Licenses */}
-                        {(tenantLicenses[t.id] || []).length > 0 && (
-                          <>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', margin: '4px 0 8px' }}>Licenties</div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                              {(tenantLicenses[t.id] || []).map(l => (
-                                <span key={l.id} style={{ fontSize: 12, fontWeight: 600, background: l.is_active ? '#dcfce7' : '#fee2e2', color: l.is_active ? '#166534' : '#991b1b', borderRadius: 20, padding: '3px 12px' }}>
-                                  {l.name}{l.valid_until ? ` · t/m ${new Date(l.valid_until).toLocaleDateString('nl-NL')}` : ' · onbeperkt'}
-                                </span>
-                              ))}
+                        {/* Licentie — ALTIJD tonen, ook als die er niet is. Een
+                            organisatie zonder licentie kwam voorheen nergens in beeld,
+                            waardoor een beheerder niet kon zien waar nog iets moest
+                            gebeuren. */}
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', margin: '4px 0 8px' }}>Licentie</div>
+                        {(() => {
+                          const alle   = tenantLicenses[t.id] || []
+                          const actief = alle.find(l => l.is_active) || null
+                          const oud    = alle.filter(l => !l.is_active)
+                          return (
+                            <div style={{ marginBottom: 16 }}>
+                              {actief ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 13, fontWeight: 700 }}>{actief.name}</span>
+                                  <span style={{ fontSize: 12, color: 'var(--text2)' }}>
+                                    Max. gebruikers: <strong>{maxUsersTekst(actief.max_users)}</strong>
+                                    {' · '}In gebruik: <strong>{gebruikTekst(t.active_user_count, actief.max_users)}</strong>
+                                    {' · '}{actief.valid_until ? `t/m ${new Date(actief.valid_until).toLocaleDateString('nl-NL')}` : 'geen einddatum'}
+                                  </span>
+                                  <button onClick={() => setEditLicenseFromTenant(actief)} style={{ ...btnGhost, padding: '5px 12px', fontSize: 11 }}>Bewerken</button>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                                  <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background: '#fef3c7', color: '#92400e', fontSize: 11, fontWeight: 700 }}>
+                                    Geen licentie
+                                  </span>
+                                  <span style={{ fontSize: 12, color: 'var(--text3)' }}>
+                                    Er geldt geen maximum aantal gebruikers voor deze organisatie.
+                                    {t.parent_tenant_id && ' Een licentie van de samenwerkingsorganisatie telt hier niet voor.'}
+                                  </span>
+                                  <button onClick={() => setCreateLicenseTenant(t)} style={{ ...btnGhost, padding: '5px 12px', fontSize: 11 }}>Licentie toekennen</button>
+                                </div>
+                              )}
+                              {oud.length > 0 && (
+                                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6 }}>
+                                  Historisch (inactief): {oud.map(l => l.name).join(', ')}
+                                </div>
+                              )}
                             </div>
-                          </>
-                        )}
+                          )
+                        })()}
 
                         {/* Users */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 0 10px' }}>
@@ -718,6 +771,29 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
       {resetUser && <AdminResetPasswordModal user={resetUser} onClose={() => setResetUser(null)} />}
       {deleteTenant && <DeleteTenantModal tenant={deleteTenant} onClose={() => setDeleteTenant(null)} onDeleted={onReload} />}
       {showCreate && <CreateTenantModal tenants={tenants} onClose={() => setShowCreate(false)} onCreated={onReload} />}
+      {createLicenseTenant && (
+        <CreateLicenseModal
+          tenants={tenants}
+          vasteTenantId={createLicenseTenant.id}
+          onClose={() => setCreateLicenseTenant(null)}
+          onCreated={async () => {
+            const lics = await getAdminTenantLicenses(createLicenseTenant.id)
+            setTenantLicenses(p => ({ ...p, [createLicenseTenant.id]: lics }))
+            onReload()
+          }}
+        />
+      )}
+      {editLicenseFromTenant && (
+        <EditLicenseModal
+          license={editLicenseFromTenant}
+          onClose={() => setEditLicenseFromTenant(null)}
+          onSaved={async () => {
+            const tid  = editLicenseFromTenant.tenant_id
+            const lics = await getAdminTenantLicenses(tid)
+            setTenantLicenses(p => ({ ...p, [tid]: lics }))
+          }}
+        />
+      )}
       {createUserTenant && (
         <AdminCreateUserModal
           tenant={createUserTenant}
@@ -777,11 +853,20 @@ function EditLicenseModal({ license, onClose, onSaved }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
       <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '32px 36px', width: 460, maxWidth: '90vw' }}>
-        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 20 }}>Licentie bewerken</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Licentie bewerken</h3>
+        {/* Welke organisatie dit betreft, expliciet in beeld: twee organisaties met een
+            gelijkende naam zijn anders niet uit elkaar te houden. */}
+        <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 18 }}>
+          <strong>{license.tenant_name ?? 'Onbekende organisatie'}</strong>
+          {license.tenant_type === 'RSO' && ' — samenwerkingsorganisatie (RSO)'}
+          {license.parent_tenant_name && ` — organisatie onder ${license.parent_tenant_name}`}
+          {typeof license.actieve_gebruikers === 'number' &&
+            ` · ${license.actieve_gebruikers} ${license.actieve_gebruikers === 1 ? 'actieve gebruiker' : 'actieve gebruikers'}`}
+        </div>
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {[
             { k: 'name', label: 'Licentienaam', type: 'text' },
-            { k: 'valid_until', label: 'Geldig tot (leeg = onbeperkt)', type: 'date' },
+            { k: 'valid_until', label: 'Geldig tot (leeg = geen einddatum)', type: 'date' },
             { k: 'max_users', label: 'Max. gebruikers (leeg = onbeperkt)', type: 'number' },
             { k: 'notes', label: 'Notities', type: 'text' },
           ].map(({ k, label, type }) => (
@@ -810,7 +895,7 @@ function EditLicenseModal({ license, onClose, onSaved }) {
 function TabLicenses({ tenants }) {
   const [licenses,   setLicenses]   = useState([])
   const [loading,    setLoading]    = useState(true)
-  const [showCreate, setShowCreate] = useState(false)
+  const [showCreate, setShowCreate] = useState(null)   // { tenantId } of null
   const [editLicense, setEditLicense] = useState(null)
   const [error,      setError]      = useState('')
 
@@ -827,51 +912,119 @@ function TabLicenses({ tenants }) {
     catch (err) { let m = err.message; try { m = JSON.parse(err.message)?.detail || m } catch {} alert('Verwijderen mislukt: ' + m) }
   }
 
-  const tenantMap = Object.fromEntries(tenants.map(t => [t.id, t.name]))
+  // Het overzicht gaat over ORGANISATIES, niet over licenties. Een overzicht van
+  // licenties laat organisaties zonder licentie weg — juist die wil een beheerder zien.
+  const regels      = licentieOverzicht(tenants, licenses)
+  const historische = licenses.filter(l => !l.is_active)
 
   return (
     <>
       <div style={card}>
         <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontWeight: 700, fontSize: 15 }}>Licenties</span>
+          <div>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>Licenties per organisatie</span>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>
+              Een licentie geldt voor de organisatie waaraan hij is gekoppeld. Een licentie
+              van een samenwerkingsorganisatie geldt niet voor de aangesloten organisaties.
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={load} style={{ fontSize: 13, color: 'var(--blue)', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Vernieuwen</button>
-            <button onClick={() => setShowCreate(true)} style={btnPrimary}>+ Licentie aanmaken</button>
+            <button onClick={() => setShowCreate({ tenantId: '' })} style={btnPrimary}>+ Licentie aanmaken</button>
           </div>
         </div>
         <ErrBox msg={error} />
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>Laden…</div>
-        ) : licenses.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>Geen licenties gevonden.</div>
+        ) : regels.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>Geen organisaties gevonden.</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['Naam', 'Organisatie', 'Geldig tot', 'Max. gebruikers', 'Applicaties', 'Status', 'Aangemaakt', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+              <tr>{['Organisatie', 'Licentie', 'Geldig tot', 'Max. gebruikers', 'In gebruik', 'Applicaties', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
             </thead>
             <tbody>
-              {licenses.map((l, i) => (
+              {regels.map((r, i) => {
+                const l = r.licentie
+                return (
+                  <tr key={r.tenantId} style={{ background: i % 2 === 0 ? '#fff' : 'var(--bg)' }}>
+                    <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', paddingLeft: isIngesprongen(r, regels) ? 40 : 16 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>
+                        {isIngesprongen(r, regels) && <span style={{ color: 'var(--text3)', marginRight: 6 }}>└</span>}
+                        {r.naam}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{r.toelichting}</div>
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, borderBottom: '1px solid var(--border)' }}>
+                      {r.heeftLicentie ? l.name : (
+                        <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background: '#fef3c7', color: '#92400e', fontSize: 11, fontWeight: 700 }}>
+                          Geen licentie
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>
+                      {r.heeftLicentie ? (l.valid_until ? new Date(l.valid_until).toLocaleDateString('nl-NL') : 'Geen einddatum') : '—'}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', borderBottom: '1px solid var(--border)' }}>
+                      {r.heeftLicentie ? maxUsersTekst(l.max_users) : '—'}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, borderBottom: '1px solid var(--border)', color: r.vol ? '#b45309' : 'var(--text2)', fontWeight: r.vol ? 700 : 400 }}>
+                      {gebruikTekst(r.actieveGebruikers, r.heeftLicentie ? l.max_users : null)}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', borderBottom: '1px solid var(--border)' }}>
+                      {r.heeftLicentie ? ((l.app_slugs || []).join(', ') || '—') : '—'}
+                    </td>
+                    <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {r.heeftLicentie ? (
+                          <>
+                            <button onClick={() => setEditLicense(l)} style={btnGhost}>Bewerken</button>
+                            <button onClick={() => handleDelete(l)} style={{ padding: '7px 14px', background: 'none', color: '#dc2626', border: '1.5px solid #fecaca', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font)' }}>🗑️</button>
+                          </>
+                        ) : (
+                          <button onClick={() => setShowCreate({ tenantId: r.tenantId })} style={btnGhost}>Licentie toekennen</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {historische.length > 0 && (
+        <div style={{ ...card, marginTop: 20 }}>
+          <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontWeight: 700, fontSize: 14 }}>Historische licenties</span>
+            <span style={{ fontSize: 12, color: 'var(--text3)', marginLeft: 8 }}>
+              inactief — bewaard, tellen niet mee voor de grens
+            </span>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>{['Naam', 'Organisatie', 'Geldig tot', 'Max. gebruikers', 'Aangemaakt', ''].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {historische.map((l, i) => (
                 <tr key={l.id} style={{ background: i % 2 === 0 ? '#fff' : 'var(--bg)' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 14, borderBottom: '1px solid var(--border)' }}>{l.name}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, borderBottom: '1px solid var(--border)' }}>{tenantMap[l.tenant_id] ?? l.tenant_id}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>{l.valid_until ? new Date(l.valid_until).toLocaleDateString('nl-NL') : 'Onbeperkt'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', borderBottom: '1px solid var(--border)' }}>{l.max_users ?? 'Onbeperkt'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', borderBottom: '1px solid var(--border)' }}>{(l.app_slugs || []).join(', ') || '—'}</td>
-                  <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}><Badge active={l.is_active} /></td>
-                  <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>{new Date(l.created_at).toLocaleDateString('nl-NL')}</td>
-                  <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => setEditLicense(l)} style={btnGhost}>Bewerken</button>
-                      <button onClick={() => handleDelete(l)} style={{ padding: '7px 14px', background: 'none', color: '#dc2626', border: '1.5px solid #fecaca', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font)' }}>🗑️</button>
-                    </div>
+                  <td style={{ padding: '10px 16px', fontSize: 13, borderBottom: '1px solid var(--border)' }}>{l.name}</td>
+                  <td style={{ padding: '10px 16px', fontSize: 13, borderBottom: '1px solid var(--border)' }}>{l.tenant_name ?? '—'}</td>
+                  <td style={{ padding: '10px 16px', fontSize: 13, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>{l.valid_until ? new Date(l.valid_until).toLocaleDateString('nl-NL') : 'Geen einddatum'}</td>
+                  <td style={{ padding: '10px 16px', fontSize: 13, color: 'var(--text2)', borderBottom: '1px solid var(--border)' }}>{maxUsersTekst(l.max_users)}</td>
+                  <td style={{ padding: '10px 16px', fontSize: 12, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>{new Date(l.created_at).toLocaleDateString('nl-NL')}</td>
+                  <td style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
+                    <button onClick={() => setEditLicense(l)} style={btnGhost}>Bewerken</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
-      </div>
-      {showCreate && <CreateLicenseModal tenants={tenants} onClose={() => setShowCreate(false)} onCreated={load} />}
+        </div>
+      )}
+
+      {showCreate && <CreateLicenseModal tenants={tenants} vasteTenantId={showCreate.tenantId} onClose={() => setShowCreate(null)} onCreated={load} />}
       {editLicense && <EditLicenseModal license={editLicense} onClose={() => setEditLicense(null)} onSaved={load} />}
     </>
   )

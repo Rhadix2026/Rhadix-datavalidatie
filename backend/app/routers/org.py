@@ -10,6 +10,7 @@ POST   /api/org/users/{user_id}/reset-password   — admin sets new password for
 GET    /api/org/users/{user_id}/apps             — list app assignments for a user
 POST   /api/org/users/{user_id}/apps             — assign an app to a user
 DELETE /api/org/users/{user_id}/apps/{app_id}    — revoke an app from a user
+GET    /api/org/license                          — eigen licentie inzien (alleen lezen)
 """
 import uuid
 
@@ -22,11 +23,13 @@ from app.auth.dependencies import get_current_user, require_role
 from app.auth.app_toegang import wijs_organisatie_apps_toe
 from app.auth.rolbescherming import controleer_rolwijziging
 from app.auth.licentiegrens import controleer_ruimte
+from app.auth.licentieweergave import licentieregel
 from app.auth.schemas import AssignUserAppRequest
 from app.auth.security import hash_password
 from app.database import get_db
 from app.models.auth_models import (
     Application,
+    Tenant,
     TenantApplication,
     User,
     UserApplication,
@@ -398,3 +401,24 @@ def revoke_app_from_user(
 
     db.delete(ua)
     db.commit()
+
+
+@router.get("/license")
+def get_own_license(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ORG_ADMIN, UserRole.RSO_ADMIN, UserRole.RHADIX_ADMIN)),
+):
+    """De licentie van de eigen organisatie — ALLEEN LEZEN.
+
+    Licenties worden centraal beheerd door RHADIX_ADMIN; deze route kent daarom geen
+    tegenhanger om iets te wijzigen. Een organisatiebeheerder die tegen "het maximum
+    aantal actieve gebruikers is bereikt" aanloopt, moet wel kunnen zien waar die grens
+    vandaan komt en hoeveel gebruikers er meetellen.
+
+    Heeft de organisatie geen licentie, dan komt er een volwaardige regel terug met
+    `heeft_licentie=False` — geen 404, want "geen licentie" is een geldig antwoord.
+    """
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(404, "Organisatie niet gevonden")
+    return licentieregel(db, tenant)

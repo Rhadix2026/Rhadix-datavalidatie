@@ -12,10 +12,11 @@ import { useState, useEffect } from 'react'
 import { Nav, NavBack } from '../components/UI'
 import AppToewijzing from '../components/AppToewijzing'
 import { NIVEAU_GEBRUIKER } from '../lib/appToewijzing'
+import { gebruikTekst, isVol, maxUsersTekst } from '../lib/licentieweergave'
 import {
   getMyTenantApps, getOrgUsers, getUserApps, assignAppToUser, revokeAppFromUser,
   createOrgUser, toggleUserActive, deleteOrgUser, resetOrgUserPassword,
-  changeOwnPassword, updateOrgUser,
+  changeOwnPassword, updateOrgUser, getOwnLicense,
 } from '../services/api'
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -395,13 +396,19 @@ export default function OrgAdminDashboard({ onBack, authUser }) {
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
   const [showCreate,   setShowCreate]   = useState(false)
+  const [licentie,     setLicentie]     = useState(null)
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [ta, u] = await Promise.all([getMyTenantApps(), getOrgUsers()])
+      // De licentie is aanvullende informatie; als die niet op te halen is, moet het
+      // gebruikersbeheer gewoon blijven werken.
+      const [ta, u, lic] = await Promise.all([
+        getMyTenantApps(), getOrgUsers(), getOwnLicense().catch(() => null),
+      ])
       setTenantApps(ta)
       setUsers(u)
+      setLicentie(lic)
     } catch (err) { setError('Kon gegevens niet laden: ' + err.message) }
     finally { setLoading(false) }
   }
@@ -455,6 +462,55 @@ export default function OrgAdminDashboard({ onBack, authUser }) {
             </div>
           </div>
         )}
+
+        {/* Licentie — ALLEEN LEZEN.
+            Een beheerder die tegen "het maximum aantal actieve gebruikers is bereikt"
+            aanloopt, moet kunnen zien waar die grens vandaan komt en hoeveel plaatsen er
+            in gebruik zijn. Wijzigen kan alleen Rhadix; daarom staan hier geen knoppen. */}
+        {licentie && (
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>
+              Licentie
+            </div>
+            <div style={{ ...card, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+              {licentie.heeft_licentie ? (
+                <>
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>{licentie.licentie_naam}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text2)' }}>
+                    Gebruikers:{' '}
+                    <strong style={{ color: isVol(licentie.actieve_gebruikers, licentie.max_users) ? '#b45309' : 'inherit' }}>
+                      {gebruikTekst(licentie.actieve_gebruikers, licentie.max_users)}
+                    </strong>
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--text2)' }}>
+                    Maximum: <strong>{maxUsersTekst(licentie.max_users)}</strong>
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--text3)' }}>
+                    {licentie.valid_until
+                      ? `Geldig tot ${new Date(licentie.valid_until).toLocaleDateString('nl-NL')}`
+                      : 'Geen einddatum'}
+                  </span>
+                  {isVol(licentie.actieve_gebruikers, licentie.max_users) && (
+                    <span style={{ fontSize: 12, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '5px 10px' }}>
+                      Het maximum is bereikt. Deactiveer eerst een gebruiker, of neem
+                      contact op met Rhadix voor een ruimere licentie.
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background: '#fef3c7', color: '#92400e', fontSize: 11, fontWeight: 700 }}>
+                    Geen licentie
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--text3)' }}>
+                    Er geldt op dit moment geen maximum aantal gebruikers voor uw organisatie.
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
 
         {/* Users table */}
         <div style={card}>

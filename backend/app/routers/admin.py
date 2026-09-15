@@ -125,6 +125,10 @@ def list_tenants(
     result  = []
     for t in tenants:
         user_count = db.query(func.count(User.id)).filter(User.tenant_id == t.id).scalar()
+        # Alleen ACTIEVE gebruikers tellen mee voor de licentiegrens; het beheerscherm
+        # moet dus beide aantallen kunnen tonen (bevinding 7).
+        active_user_count = db.query(func.count(User.id)).filter(
+            User.tenant_id == t.id, User.is_active == True).scalar()   # noqa: E712
         scan_count = db.query(func.count(ValidationRun.id)).filter(ValidationRun.tenant_id == t.id).scalar()
         result.append({
             "id":         str(t.id),
@@ -135,6 +139,7 @@ def list_tenants(
             "parent_tenant_id": str(t.parent_tenant_id) if getattr(t, "parent_tenant_id", None) else None,
             "created_at": t.created_at.isoformat(),
             "user_count": user_count,
+            "active_user_count": active_user_count,
             "scan_count": scan_count,
         })
     return result
@@ -624,9 +629,21 @@ def _license_to_dict(lic: License, db: Session) -> dict:
             .all()
         if ta.application
     ]
+    # Organisatiecontext meegeven: zonder type en ouder zijn een RSO en een gelijknamige
+    # onderliggende organisatie in het overzicht niet uit elkaar te houden.
+    tenant = db.query(Tenant).filter(Tenant.id == lic.tenant_id).first()
+    ouder  = None
+    if tenant is not None and getattr(tenant, "parent_tenant_id", None):
+        ouder = db.query(Tenant).filter(Tenant.id == tenant.parent_tenant_id).first()
+
     return {
         "id":          str(lic.id),
         "tenant_id":   str(lic.tenant_id),
+        "tenant_name":        tenant.name if tenant else None,
+        "tenant_type":        (getattr(tenant, "tenant_type", "ORG") or "ORG") if tenant else None,
+        "parent_tenant_name": ouder.name if ouder else None,
+        "actieve_gebruikers": db.query(func.count(User.id)).filter(
+            User.tenant_id == lic.tenant_id, User.is_active == True).scalar() or 0,   # noqa: E712
         "name":        lic.name,
         "valid_from":  lic.valid_from.isoformat()  if lic.valid_from  else None,
         "valid_until": lic.valid_until.isoformat() if lic.valid_until else None,
@@ -658,6 +675,30 @@ def list_tenant_licenses(
     return [_license_to_dict(l, db) for l in licenses]
 
 
+def _controleer_enige_actieve_licentie(db: Session, tenant_id, negeer_id=None) -> None:
+    """Een organisatie heeft ten hoogste één ACTIEVE licentie.
+
+    Historische licenties blijven bestaan, maar dan op inactief. Zonder deze regel
+    stapelen de maxima zich op (de telling in `auth/licentiegrens.py` sommeert ze), wat
+    niet uit te leggen is in een overzicht dat één licentie per organisatie toont.
+    """
+    query = db.query(License).filter(
+        License.tenant_id == tenant_id,
+        License.is_active == True,   # noqa: E712
+    )
+    if negeer_id is not None:
+        query = query.filter(License.id != negeer_id)
+
+    bestaande = query.first()
+    if bestaande:
+        raise HTTPException(
+            400,
+            f"Deze organisatie heeft al een actieve licentie ('{bestaande.name}'). "
+            f"Zet die eerst op inactief of pas hem aan; een organisatie kan maar één "
+            f"actieve licentie tegelijk hebben.",
+        )
+
+
 @router.post("/licenses/", status_code=201)
 def create_license(
     body:         CreateLicenseRequest,
@@ -667,6 +708,10 @@ def create_license(
     tid = _parse_uuid(body.tenant_id, "tenant_id")
     if not db.query(Tenant).filter(Tenant.id == tid).first():
         raise HTTPException(404, "Tenant not found")
+
+    if body.max_users is not None and body.max_users < 1:
+        raise HTTPException(422, "Het maximum aantal gebruikers moet ten minste 1 zijn.")
+    _controleer_enige_actieve_licentie(db, tid)
 
     kwargs = dict(
         id            = uuid.uuid4(),
@@ -698,12 +743,29 @@ def update_license(
     lic = db.query(License).filter(License.id == lid).first()
     if not lic:
         raise HTTPException(404, "License not found")
-    if body.name        is not None: lic.name        = body.name
-    if body.valid_from  is not None: lic.valid_from  = body.valid_from
-    if body.valid_until is not None: lic.valid_until = body.valid_until
-    if body.max_users   is not None: lic.max_users   = body.max_users
-    if body.notes       is not None: lic.notes       = body.notes
-    if body.is_active   is not None: lic.is_active   = body.is_active
+
+    # Alleen meegestuurde velden aanraken. Voor max_users en valid_until betekent een
+    # meegestuurde `null` bewust WISSEN (onbeperkt / geen einddatum); die waarden ontlenen
+    # hun betekenis juist aan null. Zie UpdateLicenseRequest.
+    velden = body.model_fields_set
+
+    # name en valid_from zijn NOT NULL: daar wist null niets.
+    if "name"       in velden and body.name       is not None: lic.name       = body.name
+    if "valid_from" in velden and body.valid_from is not None: lic.valid_from = body.valid_from
+    if "is_active"  in velden and body.is_active  is not None: lic.is_active  = body.is_active
+
+    if "valid_until" in velden: lic.valid_until = body.valid_until
+    if "max_users"   in velden: lic.max_users   = body.max_users
+    if "notes"       in velden: lic.notes       = body.notes
+
+    if lic.max_users is not None and lic.max_users < 1:
+        raise HTTPException(422, "Het maximum aantal gebruikers moet ten minste 1 zijn.")
+
+    # Bij het opnieuw activeren van een licentie geldt dezelfde regel als bij aanmaken:
+    # een organisatie heeft ten hoogste één actieve licentie.
+    if lic.is_active:
+        _controleer_enige_actieve_licentie(db, lic.tenant_id, negeer_id=lic.id)
+
     db.commit()
     db.refresh(lic)
     return _license_to_dict(lic, db)

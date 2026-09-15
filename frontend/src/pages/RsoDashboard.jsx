@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { Nav, NavBack } from '../components/UI'
 import AppToewijzing from '../components/AppToewijzing'
 import { NIVEAU_ORGANISATIE } from '../lib/appToewijzing'
+import { gebruikTekst, isVol, maxUsersTekst } from '../lib/licentieweergave'
 import {
   rsoListOrganisations, rsoCreateOrganisation,
   rsoListOrgUsers, rsoCreateUser, rsoUpdateUser, rsoToggleUserActive, rsoResetUserPassword,
   rsoListApplications, rsoListOrgApps, rsoAssignApp, rsoRevokeApp,
+  getRsoLicenses,
 } from '../services/api'
 
 // ── styles ──────────────────────────────────────────────────────────────────
@@ -171,12 +173,17 @@ export default function RsoDashboard({ onBack, authUser }) {
   const [showCreate, setShowCreate] = useState(false)
   const [userModal, setUserModal] = useState(null)   // { tenant, user? }
   const [resetUser, setResetUser] = useState(null)
+  const [licenties, setLicenties] = useState(null)   // null = nog aan het laden
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [o, a] = await Promise.all([rsoListOrganisations(), rsoListApplications()])
-      setOrgs(o); setApps(a)
+      // De licentiekaart is aanvullend; het organisatiebeheer moet blijven werken
+      // als die niet op te halen is.
+      const [o, a, l] = await Promise.all([
+        rsoListOrganisations(), rsoListApplications(), getRsoLicenses().catch(() => []),
+      ])
+      setOrgs(o); setApps(a); setLicenties(l)
     } catch (err) { setError('Kon gegevens niet laden: ' + parseErr(err, err.message)) }
     finally { setLoading(false) }
   }
@@ -319,6 +326,62 @@ export default function RsoDashboard({ onBack, authUser }) {
             </table>
           )}
         </div>
+
+        {/* Licenties — ALLEEN LEZEN.
+            Licenties worden centraal door Rhadix beheerd. Een RSO-beheerder moet wel
+            kunnen zien welke grenzen gelden, anders is een melding als "het maximum
+            aantal actieve gebruikers is bereikt" niet te plaatsen. Er staan hier dus
+            bewust geen knoppen. */}
+        <div style={{ ...card, marginTop: 24 }}>
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>Licenties</span>
+            <p style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4, maxWidth: 720 }}>
+              Licenties worden centraal beheerd door Rhadix. Een licentie van de
+              samenwerkingsorganisatie geldt niet voor de aangesloten organisaties; elke
+              organisatie heeft een eigen licentie. Neem contact op met Rhadix om een
+              licentie te wijzigen.
+            </p>
+          </div>
+          {licenties === null ? (
+            <div style={{ padding: 30, textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>Laden…</div>
+          ) : licenties.length === 0 ? (
+            <div style={{ padding: 30, textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>Geen organisaties gevonden.</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr>{['Organisatie', 'Licentie', 'Geldig tot', 'Max. gebruikers', 'In gebruik'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+              <tbody>
+                {licenties.map((r, i) => (
+                  <tr key={r.tenant_id} style={{ background: r.is_eigen_rso ? '#eef6ff' : (i % 2 === 0 ? '#fff' : 'var(--bg)') }}>
+                    <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>
+                        {r.tenant_name}
+                        {r.is_eigen_rso && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--blue)', marginLeft: 6 }}>· uw RSO</span>}
+                      </div>
+                      {r.parent_tenant_name && (
+                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>organisatie onder {r.parent_tenant_name}</div>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, borderBottom: '1px solid var(--border)' }}>
+                      {r.heeft_licentie ? r.licentie_naam : (
+                        <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background: '#fef3c7', color: '#92400e', fontSize: 11, fontWeight: 700 }}>Geen licentie</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text3)', borderBottom: '1px solid var(--border)' }}>
+                      {r.heeft_licentie ? (r.valid_until ? new Date(r.valid_until).toLocaleDateString('nl-NL') : 'Geen einddatum') : '—'}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', borderBottom: '1px solid var(--border)' }}>
+                      {r.heeft_licentie ? maxUsersTekst(r.max_users) : '—'}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, borderBottom: '1px solid var(--border)', color: isVol(r.actieve_gebruikers, r.max_users) ? '#b45309' : 'var(--text2)', fontWeight: isVol(r.actieve_gebruikers, r.max_users) ? 700 : 400 }}>
+                      {gebruikTekst(r.actieve_gebruikers, r.heeft_licentie ? r.max_users : null)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
       </div>
 
       {showCreate && <CreateOrgModal onClose={() => setShowCreate(false)} onCreated={load} />}

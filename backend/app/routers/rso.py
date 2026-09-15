@@ -21,6 +21,7 @@ Rechten (conform besluit):
   GET   /api/rso/organisations/{tid}/applications
   POST  /api/rso/organisations/{tid}/applications
   DELETE/api/rso/organisations/{tid}/applications/{app_id}
+  GET   /api/rso/licenses                      (alleen lezen — beheer blijft centraal)
 """
 import uuid
 from typing import List, Optional
@@ -34,6 +35,7 @@ from app.auth.dependencies import get_current_user, require_role
 from app.auth.app_toegang import wijs_toe_aan_bestaande_gebruikers
 from app.auth.rolbescherming import controleer_rolwijziging
 from app.auth.licentiegrens import controleer_ruimte
+from app.auth.licentieweergave import licentieregel
 from app.auth.security import hash_password, validate_password_strength
 from app.database import get_db
 from app.models.auth_models import (
@@ -333,6 +335,30 @@ def reset_rso_user_password(
 # interne toegangschakelaars en horen niet in de toewijs-lijst.
 PRODUCT_SLUGS = {"datavalidatie", "uitvraag", "datastation", "rhadix-crm",
                  "reconciliation-engine"}
+
+
+@router.get("/licenses")
+def list_rso_licenses(
+    db: Session = Depends(get_db),
+    user: User  = Depends(_require_rso),
+):
+    """Licenties van de eigen RSO en van alle aangesloten organisaties — ALLEEN LEZEN.
+
+    Deze router kent bewust geen POST, PATCH of DELETE voor licenties: het beheer blijft
+    centraal bij RHADIX_ADMIN. Een RSO-beheerder moet wel kunnen zien welke grenzen voor
+    zijn organisaties gelden, anders is een melding als "het maximum is bereikt" niet te
+    plaatsen.
+
+    Organisaties zonder licentie komen hier gewoon in voor, met `heeft_licentie=False`.
+    """
+    root_id = _rso_root_id(user)
+    tenants = db.query(Tenant).filter(
+        Tenant.id.in_(_managed_tenant_ids(db, user))
+    ).order_by(Tenant.name).all()
+
+    # De eigen RSO bovenaan; daaronder de aangesloten organisaties op naam.
+    tenants.sort(key=lambda t: (t.id != root_id, t.name.lower()))
+    return [{**licentieregel(db, t), "is_eigen_rso": t.id == root_id} for t in tenants]
 
 
 @router.get("/applications")

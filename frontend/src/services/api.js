@@ -549,6 +549,27 @@ export async function deleteAdminLicense(licenseId) {
 }
 
 // ---------------------------------------------------------------------------
+// Licenties inzien (RSO_ADMIN / ORG_ADMIN) — uitsluitend lezen
+//
+// Licenties worden centraal beheerd door RHADIX_ADMIN. Deze twee functies hebben
+// daarom bewust geen tegenhanger om iets te wijzigen.
+// ---------------------------------------------------------------------------
+
+/** Licenties van de eigen RSO en alle aangesloten organisaties. */
+export async function getRsoLicenses() {
+  const res = await apiFetch(`${BASE}/rso/licenses`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+/** De licentie van de eigen organisatie; ook zonder licentie een geldig antwoord. */
+export async function getOwnLicense() {
+  const res = await apiFetch(`${BASE}/org/license`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+// ---------------------------------------------------------------------------
 // Tenant ↔ Application assignments (RHADIX_ADMIN)
 // ---------------------------------------------------------------------------
 

@@ -5,8 +5,11 @@ import {
   gebruikTekst,
   isIngesprongen,
   licentieOverzicht,
+  licentieStatus,
   maxUsersTekst,
   organisatieLabel,
+  periodeTekst,
+  statusWeergave,
 } from '../lib/licentieweergave'
 import { Nav, NavBack } from '../components/UI'
 import {

@@ -80,6 +80,39 @@ jobs:
           path: backend/coverage.xml
           retention-days: 7
 
+  frontend:
+    name: Lint + tests — frontend
+    runs-on: ubuntu-latest
+
+    # Vangnet tegen ontbrekende imports. Vite lost vrije identifiers niet op, dus een
+    # niet-geimporteerde helper slaagde eerder gewoon door de build heen en kwam er pas
+    # uit als ReferenceError op het scherm van de gebruiker. `no-undef` vangt dat hier.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Zet Node op
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installeer dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint (no-undef)
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Tests — pure functies
+        working-directory: frontend
+        run: npm test
+
+      - name: Tests — schermen
+        working-directory: frontend
+        run: npm run test:render
+
   build-check:
     name: Docker build check (smoke test)
     runs-on: ubuntu-latest

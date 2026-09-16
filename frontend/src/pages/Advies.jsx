@@ -105,7 +105,7 @@ const ADVICE = {
 }
 
 // ─── Advies component ─────────────────────────────────────────────────────────
-export function Advies({ domain, results, onActieplan, onGotoActieplan, onBack }) {
+export function Advies({ domain, results, onActieplan, onGotoActieplan, onBack, onHome }) {
   const [added, setAdded] = useState([])
   const items = ADVICE[domain] || ADVICE.Werkovereenkomst
 
@@ -248,7 +248,7 @@ export function Advies({ domain, results, onActieplan, onGotoActieplan, onBack }
 }
 
 // ─── Actieplan component ──────────────────────────────────────────────────────
-export function Actieplan({ items, results, onDashboard, onBack }) {
+export function Actieplan({ items, results, onDashboard, onBack, onHome }) {
   const [checked,   setChecked]   = useState([])
   const [exporting, setExporting] = useState(false)
   const [exportErr, setExportErr] = useState(null)

@@ -55,6 +55,22 @@ function _detail(text) {
   try { return JSON.parse(text)?.detail || text } catch { return text }
 }
 
+/**
+ * Eigen wachtwoord wijzigen — de bestaande zelfbedieningsroute.
+ *
+ * Vraagt bewust om het huidige wachtwoord; de backend controleert dat
+ * (PATCH /auth/me/password) voordat het nieuwe wordt gezet. Dat is iets anders dan de
+ * beheerdersreset op /org/users/{id}/reset-password, die een wachtwoord voor een ÁNDERE
+ * gebruiker zet en die controle niet kent.
+ */
+export async function changeOwnPassword(currentPassword, newPassword) {
+  const res = await apiFetch(`${BASE}/auth/me/password`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  })
+  if (!res.ok) throw new Error(_detail(await res.text()))
+}
+
 export async function forgotPassword(email) {
   // Antwoordt altijd 204 (geen account-enumeratie); fouten negeren we bewust niet.
   const res = await fetch(`${BASE}/auth/forgot-password`, {
@@ -533,6 +549,27 @@ export async function deleteAdminLicense(licenseId) {
 }
 
 // ---------------------------------------------------------------------------
+// Licenties inzien (RSO_ADMIN / ORG_ADMIN) — uitsluitend lezen
+//
+// Licenties worden centraal beheerd door RHADIX_ADMIN. Deze twee functies hebben
+// daarom bewust geen tegenhanger om iets te wijzigen.
+// ---------------------------------------------------------------------------
+
+/** Licenties van de eigen RSO en alle aangesloten organisaties. */
+export async function getRsoLicenses() {
+  const res = await apiFetch(`${BASE}/rso/licenses`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+/** De licentie van de eigen organisatie; ook zonder licentie een geldig antwoord. */
+export async function getOwnLicense() {
+  const res = await apiFetch(`${BASE}/org/license`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+// ---------------------------------------------------------------------------
 // Tenant ↔ Application assignments (RHADIX_ADMIN)
 // ---------------------------------------------------------------------------
 
@@ -621,6 +658,22 @@ export async function toggleUserActive(userId) {
 export async function deleteOrgUser(userId) {
   const res = await apiFetch(`${BASE}/org/users/${userId}`, { method: 'DELETE' })
   if (!res.ok) throw new Error(await res.text())
+}
+
+/**
+ * Naam en/of rol van een gebruiker in de eigen organisatie wijzigen.
+ *
+ * Een organisatiebeheerder kan uitsluitend wisselen tussen ORG_USER en ORG_ADMIN; de
+ * backend weigert al het andere. Dit is een andere route dan de beheerdersvariant op
+ * /admin/users/{id}, die alle rollen aanbiedt en RHADIX_ADMIN vereist.
+ */
+export async function updateOrgUser(userId, data) {
+  const res = await apiFetch(`${BASE}/org/users/${userId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
 }
 
 export async function resetOrgUserPassword(userId, newPassword) {

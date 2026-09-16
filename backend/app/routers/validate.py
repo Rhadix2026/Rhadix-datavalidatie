@@ -244,31 +244,22 @@ async def upload_and_validate(
     # Authenticated users must have the relevant application assigned.
     # Anonymous (demo) users bypass this check.
     if current_user is not None:
-        from app.models.auth_models import UserApplication, TenantApplication, Application as _App, UserRole
         from fastapi import HTTPException as _HTTPEx
+        from app.auth.app_toegang import heeft_toegang
+        from app.models.auth_models import UserRole
         if current_user.role != UserRole.RHADIX_ADMIN:
             # Toegang volgt het product Datavalidatie; de losse per-standaard
-            # validator-module blijft als legacy-fallback geldig. Toewijzing op
-            # organisatieniveau (TenantApplication) telt net zo goed als op gebruikersniveau.
+            # validator-module blijft als legacy-fallback geldig.
+            #
+            # Zelfde regel als de apps-claim (auth/app_toegang.py): een persoonlijke
+            # toewijzing beslist, binnen wat de organisatie beschikbaar heeft. Deze
+            # controle stond eerder op de vereniging van organisatie- en persoonlijke
+            # toewijzing en liep daardoor uit de pas met de claim — bevinding 8.
             allowed = ["datavalidatie"]
             std_slug = _STANDARD_TO_APP_SLUG.get(standard)
             if std_slug:
                 allowed.append(std_slug)
-            app_ids = [a.id for a in db.query(_App).filter(
-                _App.slug.in_(allowed), _App.is_active == True).all()]
-            has_access = False
-            if app_ids:
-                has_access = (
-                    db.query(TenantApplication).filter(
-                        TenantApplication.tenant_id == current_user.tenant_id,
-                        TenantApplication.application_id.in_(app_ids),
-                    ).first() is not None
-                    or db.query(UserApplication).filter(
-                        UserApplication.user_id == current_user.id,
-                        UserApplication.application_id.in_(app_ids),
-                    ).first() is not None
-                )
-            if not has_access:
+            if not heeft_toegang(current_user, allowed, db):
                 raise _HTTPEx(
                     status_code=403,
                     detail="U heeft geen toegang tot Rhadix Datavalidatie. Neem contact op met uw beheerder.",

@@ -25,6 +25,7 @@ User management (Phase 3+):
   POST   /api/admin/users/{user_id}/reset-password   — admin resets user password
 """
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -33,6 +34,18 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
+from app.auth.rolbescherming import controleer_rolwijziging
+from app.auth.licentiegrens import controleer_ruimte
+from app.auth.licentieweergave import (
+    ACTIEF,
+    actieve_licentie,
+    licentiestatus,
+    statuslabel,
+)
+from app.auth.app_toegang import (
+    wijs_organisatie_apps_toe,
+    wijs_toe_aan_bestaande_gebruikers,
+)
 from app.auth.schemas import (
     AssignTenantAppRequest,
     CreateApplicationRequest,
@@ -119,6 +132,10 @@ def list_tenants(
     result  = []
     for t in tenants:
         user_count = db.query(func.count(User.id)).filter(User.tenant_id == t.id).scalar()
+        # Alleen ACTIEVE gebruikers tellen mee voor de licentiegrens; het beheerscherm
+        # moet dus beide aantallen kunnen tonen (bevinding 7).
+        active_user_count = db.query(func.count(User.id)).filter(
+            User.tenant_id == t.id, User.is_active == True).scalar()   # noqa: E712
         scan_count = db.query(func.count(ValidationRun.id)).filter(ValidationRun.tenant_id == t.id).scalar()
         result.append({
             "id":         str(t.id),
@@ -129,6 +146,7 @@ def list_tenants(
             "parent_tenant_id": str(t.parent_tenant_id) if getattr(t, "parent_tenant_id", None) else None,
             "created_at": t.created_at.isoformat(),
             "user_count": user_count,
+            "active_user_count": active_user_count,
             "scan_count": scan_count,
         })
     return result
@@ -422,6 +440,8 @@ class AdminCreateUserRequest(BaseModel):
     password:  str
     full_name: Optional[str] = None
     role:      str = "ORG_USER"
+    # Standaard krijgt een nieuwe gebruiker de applicaties van zijn organisatie.
+    apps_toewijzen: bool = True
 
 
 @router.post("/tenants/{tenant_id}/users", status_code=201)
@@ -446,6 +466,9 @@ def admin_create_user(
     except ValueError:
         raise HTTPException(422, f"Invalid role: {body.role}")
 
+    # De licentie bepaalt hoeveel gebruikers er tegelijk actief mogen zijn.
+    controleer_ruimte(db, tid)
+
     user = User(
         id            = uuid.uuid4(),
         tenant_id     = tid,
@@ -456,6 +479,11 @@ def admin_create_user(
         is_active     = True,
     )
     db.add(user)
+    db.flush()
+    # Standaard krijgt een nieuwe gebruiker de applicaties die zijn organisatie
+    # beschikbaar heeft; zonder deze stap zou hij nergens in kunnen.
+    if getattr(body, "apps_toewijzen", True):
+        wijs_organisatie_apps_toe(db, user)
     db.commit()
     db.refresh(user)
     audit_log(USER_CREATED, user_id=str(user.id), email=user.email,
@@ -484,9 +512,14 @@ def admin_update_user(
         user.full_name = body.full_name
     if body.role is not None:
         try:
-            user.role = UserRole(body.role)
+            nieuwe_rol = UserRole(body.role)
         except ValueError:
             raise HTTPException(422, f"Invalid role: {body.role}")
+        # Dezelfde bescherming als op de org- en RSO-route: een organisatie mag niet
+        # zonder beheerder komen te zitten, en het platform niet zonder Rhadix-beheerder.
+        # Deze route kende die controle alleen bij deactiveren en verwijderen.
+        controleer_rolwijziging(db, user, nieuwe_rol)
+        user.role = nieuwe_rol
     db.commit()
     db.refresh(user)
     audit_log(USER_UPDATED, user_id=str(user.id), email=user.email,
@@ -603,9 +636,21 @@ def _license_to_dict(lic: License, db: Session) -> dict:
             .all()
         if ta.application
     ]
+    # Organisatiecontext meegeven: zonder type en ouder zijn een RSO en een gelijknamige
+    # onderliggende organisatie in het overzicht niet uit elkaar te houden.
+    tenant = db.query(Tenant).filter(Tenant.id == lic.tenant_id).first()
+    ouder  = None
+    if tenant is not None and getattr(tenant, "parent_tenant_id", None):
+        ouder = db.query(Tenant).filter(Tenant.id == tenant.parent_tenant_id).first()
+
     return {
         "id":          str(lic.id),
         "tenant_id":   str(lic.tenant_id),
+        "tenant_name":        tenant.name if tenant else None,
+        "tenant_type":        (getattr(tenant, "tenant_type", "ORG") or "ORG") if tenant else None,
+        "parent_tenant_name": ouder.name if ouder else None,
+        "actieve_gebruikers": db.query(func.count(User.id)).filter(
+            User.tenant_id == lic.tenant_id, User.is_active == True).scalar() or 0,   # noqa: E712
         "name":        lic.name,
         "valid_from":  lic.valid_from.isoformat()  if lic.valid_from  else None,
         "valid_until": lic.valid_until.isoformat() if lic.valid_until else None,
@@ -637,6 +682,48 @@ def list_tenant_licenses(
     return [_license_to_dict(l, db) for l in licenses]
 
 
+def _controleer_geldigheidsperiode(valid_from, valid_until) -> None:
+    """Een einddatum mag niet vóór de begindatum liggen (bevinding 6).
+
+    Op DAGNIVEAU, net als de statusbepaling: een licentie die op één dag begint en eindigt
+    is geldig op die dag. Een datum in het verleden is wél toegestaan — een licentie die is
+    verlopen moet vastgelegd kunnen worden, en de gevolgen daarvan regelt de statusbepaling
+    en de gebruikerscontrole, niet een invoerverbod.
+    """
+    if valid_from is None or valid_until is None:
+        return
+    if valid_until.date() < valid_from.date():
+        raise HTTPException(
+            422,
+            f"De einddatum ({valid_until.strftime('%d-%m-%Y')}) ligt vóór de begindatum "
+            f"({valid_from.strftime('%d-%m-%Y')}). Kies een einddatum op of na de begindatum.",
+        )
+
+
+def _controleer_enige_actieve_licentie(db: Session, tenant_id, negeer_id=None) -> None:
+    """Een organisatie heeft ten hoogste één ACTIEVE licentie.
+
+    Historische licenties blijven bestaan, maar dan op inactief. Zonder deze regel
+    stapelen de maxima zich op (de telling in `auth/licentiegrens.py` sommeert ze), wat
+    niet uit te leggen is in een overzicht dat één licentie per organisatie toont.
+    """
+    query = db.query(License).filter(
+        License.tenant_id == tenant_id,
+        License.is_active == True,   # noqa: E712
+    )
+    if negeer_id is not None:
+        query = query.filter(License.id != negeer_id)
+
+    bestaande = query.first()
+    if bestaande:
+        raise HTTPException(
+            400,
+            f"Deze organisatie heeft al een actieve licentie ('{bestaande.name}'). "
+            f"Zet die eerst op inactief of pas hem aan; een organisatie kan maar één "
+            f"actieve licentie tegelijk hebben.",
+        )
+
+
 @router.post("/licenses/", status_code=201)
 def create_license(
     body:         CreateLicenseRequest,
@@ -646,6 +733,12 @@ def create_license(
     tid = _parse_uuid(body.tenant_id, "tenant_id")
     if not db.query(Tenant).filter(Tenant.id == tid).first():
         raise HTTPException(404, "Tenant not found")
+
+    if body.max_users is not None and body.max_users < 1:
+        raise HTTPException(422, "Het maximum aantal gebruikers moet ten minste 1 zijn.")
+    # Zonder opgegeven begindatum gaat de licentie vandaag in (server_default).
+    _controleer_geldigheidsperiode(body.valid_from or datetime.now(timezone.utc), body.valid_until)
+    _controleer_enige_actieve_licentie(db, tid)
 
     kwargs = dict(
         id            = uuid.uuid4(),
@@ -677,12 +770,32 @@ def update_license(
     lic = db.query(License).filter(License.id == lid).first()
     if not lic:
         raise HTTPException(404, "License not found")
-    if body.name        is not None: lic.name        = body.name
-    if body.valid_from  is not None: lic.valid_from  = body.valid_from
-    if body.valid_until is not None: lic.valid_until = body.valid_until
-    if body.max_users   is not None: lic.max_users   = body.max_users
-    if body.notes       is not None: lic.notes       = body.notes
-    if body.is_active   is not None: lic.is_active   = body.is_active
+
+    # Alleen meegestuurde velden aanraken. Voor max_users en valid_until betekent een
+    # meegestuurde `null` bewust WISSEN (onbeperkt / geen einddatum); die waarden ontlenen
+    # hun betekenis juist aan null. Zie UpdateLicenseRequest.
+    velden = body.model_fields_set
+
+    # name en valid_from zijn NOT NULL: daar wist null niets.
+    if "name"       in velden and body.name       is not None: lic.name       = body.name
+    if "valid_from" in velden and body.valid_from is not None: lic.valid_from = body.valid_from
+    if "is_active"  in velden and body.is_active  is not None: lic.is_active  = body.is_active
+
+    if "valid_until" in velden: lic.valid_until = body.valid_until
+    if "max_users"   in velden: lic.max_users   = body.max_users
+    if "notes"       in velden: lic.notes       = body.notes
+
+    if lic.max_users is not None and lic.max_users < 1:
+        raise HTTPException(422, "Het maximum aantal gebruikers moet ten minste 1 zijn.")
+    # Toetsen op de resulterende periode: een wijziging van één van beide datums kan de
+    # combinatie ongeldig maken, ook als het andere veld niet is meegestuurd.
+    _controleer_geldigheidsperiode(lic.valid_from, lic.valid_until)
+
+    # Bij het opnieuw activeren van een licentie geldt dezelfde regel als bij aanmaken:
+    # een organisatie heeft ten hoogste één actieve licentie.
+    if lic.is_active:
+        _controleer_enige_actieve_licentie(db, lic.tenant_id, negeer_id=lic.id)
+
     db.commit()
     db.refresh(lic)
     return _license_to_dict(lic, db)
@@ -754,6 +867,14 @@ def assign_app_to_tenant(
     if lid and not db.query(License).filter(License.id == lid, License.tenant_id == tid).first():
         raise HTTPException(404, "License not found or does not belong to this tenant")
 
+    # Zonder opgegeven licentie: de actieve licentie van de organisatie vastleggen als
+    # AUDITREFERENTIE — onder welke licentie is deze applicatie verstrekt. Dit veld stuurt
+    # NIETS: autorisatie loopt uitsluitend via het bestaan van de toewijzing zelf
+    # (app_toegang.app_slugs_voor). Zie ook de toelichting bij TenantApplication.
+    if lid is None:
+        huidige = actieve_licentie(db, tid)
+        lid = huidige.id if huidige else None
+
     existing = db.query(TenantApplication).filter(
         TenantApplication.tenant_id == tid,
         TenantApplication.application_id == aid,
@@ -769,12 +890,24 @@ def assign_app_to_tenant(
         assigned_by_id = current_user.id,
     )
     db.add(ta)
+    db.flush()
+
+    # Een organisatietoewijzing maakt de applicatie beschikbaar. Standaard krijgen de
+    # huidige gebruikers van de organisatie hem ook meteen, zoals beheerders gewend
+    # zijn; daarna kan de organisatiebeheerder per gebruiker intrekken en heeft dat
+    # effect. Zet `toewijzen_aan_bestaande_gebruikers` op false om alleen beschikbaar
+    # te maken.
+    aantal_gebruikers = 0
+    if getattr(body, "toewijzen_aan_bestaande_gebruikers", True):
+        aantal_gebruikers = wijs_toe_aan_bestaande_gebruikers(db, ta)
+
     db.commit()
     db.refresh(ta)
     return {
         "id":               str(ta.id),
         "tenant_id":        str(ta.tenant_id),
         "application_id":   str(ta.application_id),
+        "toegewezen_aan_gebruikers": aantal_gebruikers,
         "application_slug": ta.application.slug if ta.application else None,
         "application_name": ta.application.name if ta.application else None,
         "license_id":       str(ta.license_id) if ta.license_id else None,
@@ -826,6 +959,9 @@ def admin_toggle_user_active(
     # Alleen bij deactiveren (van actief -> inactief) de laatste-admin-check
     if user.is_active and _is_last_active_admin(db, user):
         raise HTTPException(400, "Dit is de laatste actieve Rhadix-beheerder; deactiveren is niet toegestaan")
+    # Alleen bij ACTIVEREN: de gebruiker gaat een plaats binnen de licentie innemen.
+    if not user.is_active:
+        controleer_ruimte(db, user.tenant_id)
 
     user.is_active = not user.is_active
     db.commit()

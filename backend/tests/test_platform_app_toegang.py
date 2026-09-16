@@ -54,11 +54,26 @@ def _app(db, slug, name=None):
     return a
 
 
-def _grant_tenant(db, tenant_id, slug, name=None):
-    """Organisatiebrede toewijzing (TenantApplication). Geeft de TenantApplication terug."""
+def _grant_tenant(db, tenant_id, slug, name=None, ook_aan_gebruikers=True):
+    """Organisatiebrede toewijzing (TenantApplication).
+
+    BIJGEWERKT bij bevinding 8/11: de claim is niet langer de vereniging maar de
+    doorsnede van organisatie- en gebruikerstoewijzing. Een organisatietoewijzing maakt
+    een applicatie BESCHIKBAAR; toegang ontstaat door de persoonlijke toewijzing.
+
+    `ook_aan_gebruikers` bootst het standaardgedrag van de beheerroute na, zodat deze
+    helper blijft betekenen wat hij hier altijd betekende: "de organisatie heeft deze
+    applicatie en de gebruikers kunnen erin". Zet hem op False om alleen beschikbaar te
+    maken.
+    """
+    from app.auth.app_toegang import wijs_toe_aan_bestaande_gebruikers
+
     a = _app(db, slug, name)
     ta = TenantApplication(id=uuid.uuid4(), tenant_id=tenant_id, application_id=a.id)
     db.add(ta)
+    db.flush()
+    if ook_aan_gebruikers:
+        wijs_toe_aan_bestaande_gebruikers(db, ta)
     db.commit()
     return ta
 
@@ -129,8 +144,14 @@ class TestScenario6GeldigeToewijzing:
     """Scenario 6 — met een geldige toewijzing hoort de app gewoon te openen."""
 
     def test_6_organisatiebrede_toewijzing_geeft_de_slug(self, client, db, tenant_a, token_org_user):
+        """Standaardgedrag: toewijzen aan de organisatie kent ook aan de gebruikers toe."""
         _grant_tenant(db, tenant_a.id, SLUG_DS, "Rhadix Datastation")
         assert SLUG_DS in _slugs(client, token_org_user)
+
+    def test_6e_alleen_beschikbaar_maken_geeft_nog_geen_toegang(self, client, db, tenant_a, token_org_user):
+        """Bevinding 8: beschikbaar zijn en toegang hebben zijn twee dingen."""
+        _grant_tenant(db, tenant_a.id, SLUG_DS, "Rhadix Datastation", ook_aan_gebruikers=False)
+        assert SLUG_DS not in _slugs(client, token_org_user)
 
     def test_6b_persoonlijke_toewijzing_geeft_de_slug(
         self, client, db, tenant_a, user_org_user, token_org_user

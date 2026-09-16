@@ -1,7 +1,9 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Happy Flow — AFAS Profit GET-connector XML-formaten
 # Veldnamen komen overeen met de Profit XML-uitvoer (niet de ONS/AFAS CSV-namen)
-# source_dataset matcht op zowel de echte connectornaam als het voorbeeldbestand
+# source_dataset = het voorbeeldbestand; source_aliases = de echte connectornaam.
+# De matching gaat op de bestandsstam zónder extensie, dus één alias dekt de export
+# als XML, JSON en CSV.
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ── Profit_Employees (volledig connector) ─────────────────────────────────────
@@ -9,6 +11,7 @@
   name: Profit Employees — totaal medewerkers
   description: Totaal aantal medewerkerrecords in de Profit Employees GET-connector.
   source_dataset: Profit_Employees_150_voorbeeld.xml
+  source_aliases: [Profit_Employees]
   aggregation:
     function: count
     field: EmployeeId
@@ -21,6 +24,7 @@
   name: Profit Employees — actieve medewerkers (geen einddatum)
   description: Medewerkers zonder EmploymentEnd (nog in dienst).
   source_dataset: Profit_Employees_150_voorbeeld.xml
+  source_aliases: [Profit_Employees]
   aggregation:
     function: count
     field: EmployeeId
@@ -37,6 +41,7 @@
   name: Profit Employees Basic — totaal
   description: Totaal aantal medewerkerrecords in de Profit Employees Basic GET-connector.
   source_dataset: Profit_Employees_basic_150_voorbeeld.xml
+  source_aliases: [Profit_Employees_basic]
   aggregation:
     function: count
     field: EmployeeId
@@ -49,6 +54,7 @@
   name: Profit Employees Basic — actief (DvId=ACTIEF)
   description: Medewerkers met status ACTIEF in de Profit Employees Basic connector.
   source_dataset: Profit_Employees_basic_150_voorbeeld.xml
+  source_aliases: [Profit_Employees_basic]
   aggregation:
     function: count
     field: EmployeeId
@@ -65,6 +71,7 @@
   name: Profit Employees Basic — unieke medewerkers
   description: Aantal unieke EmployeeId's in de Profit Employees Basic connector.
   source_dataset: Profit_Employees_basic_150_voorbeeld.xml
+  source_aliases: [Profit_Employees_basic]
   aggregation:
     function: nunique
     field: EmployeeId
@@ -78,6 +85,7 @@
   name: Profit Illness — totaal verzuimmeldingen
   description: Totaal aantal ziekteverzuimmeldingen in de Profit Illness GET-connector.
   source_dataset: Profit_Illness_150_voorbeeld.xml
+  source_aliases: [Profit_Illness]
   aggregation:
     function: count
     field: AbsenceId
@@ -90,6 +98,7 @@
   name: Profit Illness — lopende verzuimmeldingen (RecoveredCode=OPEN)
   description: Verzuimmeldingen die nog niet zijn afgesloten (RecoveredCode = OPEN).
   source_dataset: Profit_Illness_150_voorbeeld.xml
+  source_aliases: [Profit_Illness]
   aggregation:
     function: count
     field: AbsenceId
@@ -106,6 +115,7 @@
   name: Profit Illness — unieke medewerkers met verzuim
   description: Aantal unieke medewerkers (EmployeeId) met een verzuimmelding.
   source_dataset: Profit_Illness_150_voorbeeld.xml
+  source_aliases: [Profit_Illness]
   aggregation:
     function: nunique
     field: EmployeeId
@@ -119,6 +129,7 @@
   name: Profit Timetable — totaal contractregels
   description: Totaal aantal contractregelrecords in de Profit Timetable GET-connector.
   source_dataset: Profit_Timetable_150_voorbeeld.xml
+  source_aliases: [Profit_Timetable]
   aggregation:
     function: count
     field: EmployeeId
@@ -131,6 +142,7 @@
   name: Profit Timetable — actieve contractregels (geen einddatum)
   description: Contractregels zonder EndDate (lopend contract).
   source_dataset: Profit_Timetable_150_voorbeeld.xml
+  source_aliases: [Profit_Timetable]
   aggregation:
     function: count
     field: EmployeeId
@@ -146,6 +158,7 @@
   name: Profit Timetable — gemiddelde uren per week
   description: Gemiddeld aantal contracturen per week (HoursPerWeek) over alle actieve contractregels.
   source_dataset: Profit_Timetable_150_voorbeeld.xml
+  source_aliases: [Profit_Timetable]
   aggregation:
     function: mean
     field: HoursPerWeek

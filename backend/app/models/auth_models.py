@@ -116,6 +116,18 @@ class TenantApplication(Base):
     """
     Assignment of an Application to a Tenant, optionally tied to a License.
     Created by RHADIX_ADMIN.
+
+    `license_id` is uitsluitend een AUDITREFERENTIE: onder welke licentie is deze
+    applicatie aan deze organisatie verstrekt. Het veld stuurt niets en mag dat ook nooit
+    gaan doen — autorisatie loopt via het bestaan van deze toewijzing en van de
+    bijbehorende UserApplication (zie `auth/app_toegang.py`), en de gebruikersgrens en
+    geldigheid via `auth/licentiegrens.py` op organisatieniveau.
+
+    Een licentie geldt PER ORGANISATIE, niet per applicatie; er is bewust geen
+    licentiemodel per applicatie. Het veld wordt bij nieuwe toewijzingen automatisch
+    gevuld met de actieve licentie van de organisatie. Bestaande rijen zijn bewust NIET
+    met terugwerkende kracht gevuld: van die toewijzingen is niet bekend onder welke
+    licentie ze destijds zijn verstrekt, en een gok mag geen vastgelegd feit worden.
     """
     __tablename__ = "tenant_applications"
 

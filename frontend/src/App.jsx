@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { STANDAARD_TERUG, terugDoel } from './lib/navigatie'
 import EnvironmentBanner, { BANNER_HEIGHT } from './components/EnvironmentBanner'
 import { setAuthToken, clearAuthToken, login as apiLogin, getMe } from './services/api'
+import { centraleLogoutUrl } from './lib/sessie'
 import Landing                 from './pages/Landing'
 import { getInitialBrand } from './brand'
 import SelectSystems           from './pages/SelectSystems'
@@ -73,6 +75,14 @@ export default function App() {
   // Vanwaar we terugkeren naar het actuality-dashboard
   const [actualityBackStep, setActualityBackStep] = useState('dashboard')
   const [profilesBackStep, setProfilesBackStep]   = useState('systems')
+
+  // Vanwaar we terugkeren naar de drie dashboards (bevinding 2). Elk dashboard houdt een
+  // EIGEN herkomst bij: met één gedeelde variabele zou het platformdashboard na de
+  // drilldown naar zichzelf terugkeren. De standaardwaarde is het oude vaste doel, zodat
+  // er zonder vastgelegde herkomst niets verandert.
+  const [userDashboardBack,     setUserDashboardBack]     = useState(STANDAARD_TERUG)
+  const [orgDashboardBack,      setOrgDashboardBack]      = useState(STANDAARD_TERUG)
+  const [platformDashboardBack, setPlatformDashboardBack] = useState(STANDAARD_TERUG)
   const [readinessMatrix, setReadinessMatrix]       = useState(null)
   const [readinessProfile, setReadinessProfile]     = useState(null)
 
@@ -95,15 +105,25 @@ export default function App() {
     setEntry('login')
   }
 
-  const handleLogout = () => {
+  // Alleen de lokale state opruimen. Gebruikt als het token halverwege verloopt;
+  // dan is er niets uit te loggen en zou navigeren een lus opleveren.
+  const resetAuthState = () => {
     clearAuthToken()
     setAuthUser(null)
     setStep('login')
   }
 
+  // Uitloggen loopt via de centrale uitgang: die trekt het SSO-cookie in en zet de
+  // gebruiker weer op het Platform. Zonder die stap blijft het cookie staan en logt
+  // de eerstvolgende paginalading opnieuw in.
+  const handleLogout = () => {
+    resetAuthState()
+    window.location.replace(centraleLogoutUrl())
+  }
+
   // Re-login when token expires mid-session
   useEffect(() => {
-    const handler = () => handleLogout()
+    const handler = () => resetAuthState()
     window.addEventListener('rhadix:unauthorized', handler)
     return () => window.removeEventListener('rhadix:unauthorized', handler)
   }, [])
@@ -221,6 +241,22 @@ export default function App() {
     setStep('profiles')
   }
 
+  // De dashboards zijn vanaf meerdere schermen bereikbaar; onthoud vanwaar (bevinding 2).
+  const openUserDashboard = (backTo) => {
+    setUserDashboardBack(backTo)
+    setStep('user_dashboard')
+  }
+
+  const openOrgDashboard = (backTo) => {
+    setOrgDashboardBack(backTo)
+    setStep('org_dashboard')
+  }
+
+  const openPlatformDashboard = (backTo) => {
+    setPlatformDashboardBack(backTo)
+    setStep('platform_dashboard')
+  }
+
   const conceptMapping = activeScanResult?.concept_mapping || []
 
   const openReadiness = async (filename, profile) => {
@@ -282,7 +318,7 @@ export default function App() {
           brand={brand} onBrandChange={changeBrand}
           authUser={authUser}
           onTasks={() => setStep('tasks')}
-          onDashboard={() => setStep('user_dashboard')}
+          onDashboard={() => openUserDashboard('portal')}
           onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
           onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
           onRsoAdmin={authUser?.role === 'RSO_ADMIN' ? () => setStep('rso_admin') : null}
@@ -318,12 +354,12 @@ export default function App() {
           }}
           onBack={() => setStep('portal')}
           authUser={authUser}
-          onDashboard={() => setStep('user_dashboard')}
+          onDashboard={() => openUserDashboard('systems')}
           onAdmin={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('admin') : null}
           onOrgAdmin={authUser?.role === 'ORG_ADMIN' ? () => setStep('org_admin') : null}
           onRsoAdmin={authUser?.role === 'RSO_ADMIN' ? () => setStep('rso_admin') : null}
-          onOrgDashboard={(authUser?.role === 'ORG_ADMIN' || authUser?.role === 'RHADIX_ADMIN') ? () => setStep('org_dashboard') : null}
-          onPlatformDashboard={authUser?.role === 'RHADIX_ADMIN' ? () => setStep('platform_dashboard') : null}
+          onOrgDashboard={(authUser?.role === 'ORG_ADMIN' || authUser?.role === 'RHADIX_ADMIN') ? () => openOrgDashboard('systems') : null}
+          onPlatformDashboard={authUser?.role === 'RHADIX_ADMIN' ? () => openPlatformDashboard('systems') : null}
           onLogout={handleLogout}
         />
       )}
@@ -494,14 +530,14 @@ export default function App() {
       {/* ── Phase 3 Dashboards ── */}
       {step === 'user_dashboard' && (
         <UserDashboard
-          onBack={() => setStep('systems')}
+          onBack={() => setStep(terugDoel(userDashboardBack, 'user_dashboard'))}
           authUser={authUser}
         />
       )}
 
       {step === 'org_dashboard' && (
         <OrgDashboard
-          onBack={() => setStep('systems')}
+          onBack={() => setStep(terugDoel(orgDashboardBack, 'org_dashboard'))}
           authUser={authUser}
           tenantId={dashboardTenantId || undefined}
         />
@@ -509,11 +545,14 @@ export default function App() {
 
       {step === 'platform_dashboard' && (
         <PlatformDashboard
-          onBack={() => setStep('systems')}
+          onBack={() => setStep(terugDoel(platformDashboardBack, 'platform_dashboard'))}
           onOrgDrilldown={(tenantId, tenantName) => {
             setDashboardTenantId(tenantId)
             setDashboardTenantName(tenantName)
-            setStep('org_dashboard')
+            // Vanuit de drilldown hoort terug naar het platformdashboard, niet naar het
+            // bronscherm. De eigen herkomst van het platformdashboard blijft ongemoeid,
+            // zodat dáár terug nog steeds naar het bronscherm gaat.
+            openOrgDashboard('platform_dashboard')
           }}
         />
       )}

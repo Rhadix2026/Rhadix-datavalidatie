@@ -10,6 +10,7 @@ POST   /api/org/users/{user_id}/reset-password   — admin sets new password for
 GET    /api/org/users/{user_id}/apps             — list app assignments for a user
 POST   /api/org/users/{user_id}/apps             — assign an app to a user
 DELETE /api/org/users/{user_id}/apps/{app_id}    — revoke an app from a user
+GET    /api/org/license                          — eigen licentie inzien (alleen lezen)
 """
 import uuid
 
@@ -19,11 +20,16 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
+from app.auth.app_toegang import wijs_organisatie_apps_toe
+from app.auth.rolbescherming import controleer_rolwijziging
+from app.auth.licentiegrens import controleer_ruimte
+from app.auth.licentieweergave import licentieregel
 from app.auth.schemas import AssignUserAppRequest
 from app.auth.security import hash_password
 from app.database import get_db
 from app.models.auth_models import (
     Application,
+    Tenant,
     TenantApplication,
     User,
     UserApplication,
@@ -106,6 +112,14 @@ class CreateOrgUserRequest(BaseModel):
     full_name: Optional[str] = None
     password:  str
     role:      str = "ORG_USER"   # ORG_USER or ORG_ADMIN
+    # Standaard krijgt een nieuwe gebruiker de applicaties die zijn organisatie
+    # beschikbaar heeft; zonder die toewijzingen zou hij nergens in kunnen.
+    apps_toewijzen: bool = True
+
+class UpdateOrgUserRequest(BaseModel):
+    full_name: Optional[str] = None
+    role:      Optional[str] = None
+
 
 class ResetPasswordRequest(BaseModel):
     new_password: str
@@ -134,6 +148,9 @@ def create_org_user(
     if role == UserRole.RHADIX_ADMIN:
         raise HTTPException(403, "Rhadix-beheerdersrol kan niet worden toegewezen")
 
+    # De licentie bepaalt hoeveel gebruikers er tegelijk actief mogen zijn.
+    controleer_ruimte(db, current_user.tenant_id)
+
     user = User(
         id            = uuid.uuid4(),
         tenant_id     = current_user.tenant_id,
@@ -144,6 +161,67 @@ def create_org_user(
         is_active     = True,
     )
     db.add(user)
+    db.flush()
+    if body.apps_toewijzen:
+        wijs_organisatie_apps_toe(db, user)
+    db.commit()
+    db.refresh(user)
+    return {
+        "id":        str(user.id),
+        "email":     user.email,
+        "full_name": user.full_name,
+        "role":      user.role.value,
+        "is_active": user.is_active,
+    }
+
+
+# Rollen die een organisatiebeheerder mag toekennen. RHADIX_ADMIN en RSO_ADMIN staan er
+# bewust niet in: die worden op platform- respectievelijk RSO-niveau beheerd. Zelfde
+# afbakening als bij het AANMAKEN van een gebruiker hierboven.
+ROLLEN_VOOR_ORG_ADMIN = {UserRole.ORG_USER, UserRole.ORG_ADMIN}
+
+
+@router.patch("/users/{user_id}")
+def update_org_user(
+    user_id: str,
+    body:         UpdateOrgUserRequest,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(_org_roles),
+):
+    """Naam en/of rol van een gebruiker in de eigen organisatie wijzigen.
+
+    Een organisatiebeheerder kon een rol alleen bij het AANMAKEN zetten; daarna was er
+    geen weg meer en moest hij escaleren naar Rhadix (bevinding 14).
+
+    De grenzen volgen de bestaande routes in dit bestand: alleen binnen de eigen
+    organisatie, en alleen de rollen die een organisatiebeheerder ook bij het aanmaken
+    mag kiezen. De laatste actieve beheerder wordt beschermd via auth/rolbescherming.py,
+    zodat dezelfde regel geldt op alle drie de routes waarlangs een rol te wijzigen is.
+    """
+    uid  = _parse_uuid(user_id, "user_id")
+    user = db.query(User).filter(User.id == uid, User.tenant_id == current_user.tenant_id).first()
+    if not user:
+        raise HTTPException(404, "Gebruiker niet gevonden in uw organisatie")
+
+    if body.full_name is not None:
+        user.full_name = body.full_name
+
+    if body.role is not None:
+        try:
+            nieuwe_rol = UserRole(body.role)
+        except ValueError:
+            raise HTTPException(422, f"Ongeldige rol: {body.role!r}")
+
+        # Zowel de nieuwe als de huidige rol moet binnen het bereik vallen: een
+        # organisatiebeheerder mag een Rhadix- of RSO-beheerder niet degraderen.
+        if nieuwe_rol not in ROLLEN_VOOR_ORG_ADMIN:
+            raise HTTPException(403, "Deze rol kan hier niet worden toegekend")
+        if user.role not in ROLLEN_VOOR_ORG_ADMIN:
+            raise HTTPException(403, "De rol van deze gebruiker kan hier niet worden gewijzigd")
+
+        controleer_rolwijziging(db, user, nieuwe_rol)
+        user.role = nieuwe_rol
+
     db.commit()
     db.refresh(user)
     return {
@@ -168,6 +246,10 @@ def toggle_user_active(
         raise HTTPException(404, "Gebruiker niet gevonden in uw organisatie")
     if user.id == current_user.id:
         raise HTTPException(400, "U kunt uw eigen account niet deactiveren")
+
+    # Alleen bij ACTIVEREN: een gebruiker gaat een plaats binnen de licentie innemen.
+    if not user.is_active:
+        controleer_ruimte(db, user.tenant_id)
 
     user.is_active = not user.is_active
     db.commit()
@@ -319,3 +401,24 @@ def revoke_app_from_user(
 
     db.delete(ua)
     db.commit()
+
+
+@router.get("/license")
+def get_own_license(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ORG_ADMIN, UserRole.RSO_ADMIN, UserRole.RHADIX_ADMIN)),
+):
+    """De licentie van de eigen organisatie — ALLEEN LEZEN.
+
+    Licenties worden centraal beheerd door RHADIX_ADMIN; deze route kent daarom geen
+    tegenhanger om iets te wijzigen. Een organisatiebeheerder die tegen "het maximum
+    aantal actieve gebruikers is bereikt" aanloopt, moet wel kunnen zien waar die grens
+    vandaan komt en hoeveel gebruikers er meetellen.
+
+    Heeft de organisatie geen licentie, dan komt er een volwaardige regel terug met
+    `heeft_licentie=False` — geen 404, want "geen licentie" is een geldig antwoord.
+    """
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(404, "Organisatie niet gevonden")
+    return licentieregel(db, tenant)

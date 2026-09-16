@@ -10,9 +10,13 @@
  */
 import { useState, useEffect } from 'react'
 import { Nav, NavBack } from '../components/UI'
+import AppToewijzing from '../components/AppToewijzing'
+import { NIVEAU_GEBRUIKER } from '../lib/appToewijzing'
+import { gebruikTekst, isVol, maxUsersTekst, periodeTekst, statusWeergave } from '../lib/licentieweergave'
 import {
   getMyTenantApps, getOrgUsers, getUserApps, assignAppToUser, revokeAppFromUser,
   createOrgUser, toggleUserActive, deleteOrgUser, resetOrgUserPassword,
+  changeOwnPassword, updateOrgUser, getOwnLicense,
 } from '../services/api'
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -116,6 +120,131 @@ function ResetPasswordModal({ user, onClose, onDone }) {
   )
 }
 
+// ── Rol wijzigen ──────────────────────────────────────────────────────────────
+//
+// Een organisatiebeheerder kon een rol alleen bij het AANMAKEN zetten; daarna was er
+// geen weg meer (bevinding 14). Bewust alleen de twee rollen die binnen een organisatie
+// bestaan: Rhadix- en RSO-beheerder worden een niveau hoger beheerd, en de backend
+// weigert ze hier ook.
+
+function RolModal({ user, onClose, onDone }) {
+  const [rol,     setRol]     = useState(user.role)
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  const ongewijzigd = rol === user.role
+
+  async function handleSubmit(e) {
+    e.preventDefault(); setError(''); setLoading(true)
+    try { await updateOrgUser(user.id, { role: rol }); onDone(rol); onClose() }
+    catch (err) {
+      let m = 'Wijzigen mislukt'
+      try { m = JSON.parse(err.message)?.detail || m } catch { /* laat de standaardtekst staan */ }
+      setError(m)
+    }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div style={overlayStyle}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '32px 36px', width: 420, maxWidth: '90vw' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Rol wijzigen</h3>
+        <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 20 }}>
+          Voor <strong>{user.full_name || user.email}</strong>.
+        </p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Rol</span>
+            <select value={rol} onChange={e => setRol(e.target.value)} style={inputStyle}>
+              <option value="ORG_USER">Gebruiker</option>
+              <option value="ORG_ADMIN">Beheerder</option>
+            </select>
+          </label>
+          <div style={{ fontSize: 12, color: 'var(--text3)' }}>
+            Een beheerder kan gebruikers aanmaken, applicaties toewijzen en wachtwoorden
+            opnieuw instellen binnen deze organisatie.
+          </div>
+          <ErrBox msg={error} />
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, ...btnGhost }}>Annuleren</button>
+            <button type="submit" disabled={loading || ongewijzigd} style={{ flex: 2, ...btnPrimary, opacity: (loading || ongewijzigd) ? 0.6 : 1 }}>
+              {loading ? 'Opslaan…' : 'Opslaan'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Eigen wachtwoord wijzigen ─────────────────────────────────────────────────
+//
+// Voor het eigen account is de beheerdersreset niet de juiste route: die zet een
+// wachtwoord voor een ánder en vraagt niet om het huidige. Voor jezelf bestaat al de
+// zelfbedieningsroute (PATCH /auth/me/password), die het huidige wachtwoord wél
+// controleert. Deze modal gebruikt die route; er komt geen nieuwe inlogweg bij.
+
+function EigenWachtwoordModal({ user, onClose }) {
+  const [huidig,  setHuidig]  = useState('')
+  const [nieuw,   setNieuw]   = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+  const [klaar,   setKlaar]   = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault(); setError(''); setLoading(true)
+    try { await changeOwnPassword(huidig, nieuw); setKlaar(true) }
+    catch (err) {
+      let m = 'Wijzigen mislukt'
+      try { m = JSON.parse(err.message)?.detail || err.message || m } catch { m = err.message || m }
+      setError(m === 'Current password is incorrect' ? 'Het huidige wachtwoord klopt niet.' : m)
+    }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div style={overlayStyle}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '32px 36px', width: 420, maxWidth: '90vw' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Eigen wachtwoord wijzigen</h3>
+        {klaar ? (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 20 }}>
+              Het wachtwoord van <strong>{user.email}</strong> is gewijzigd.
+            </p>
+            <button onClick={onClose} style={{ width: '100%', ...btnPrimary }}>Sluiten</button>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 20 }}>
+              U wijzigt het wachtwoord van uw eigen account (<strong>{user.email}</strong>).
+              Ter controle vragen we eerst uw huidige wachtwoord.
+            </p>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Huidig wachtwoord</span>
+                <input type="password" required placeholder="••••••••••••" value={huidig}
+                  onChange={e => setHuidig(e.target.value)} style={inputStyle} autoFocus />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Nieuw wachtwoord (min. 12 tekens)</span>
+                <input type="password" required placeholder="••••••••••••" value={nieuw}
+                  onChange={e => setNieuw(e.target.value)} style={inputStyle} />
+              </label>
+              <ErrBox msg={error} />
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button type="button" onClick={onClose} style={{ flex: 1, ...btnGhost }}>Annuleren</button>
+                <button type="submit" disabled={loading} style={{ flex: 2, ...btnPrimary }}>
+                  {loading ? 'Wijzigen…' : 'Wachtwoord wijzigen'}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── User row ──────────────────────────────────────────────────────────────────
 
 function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
@@ -125,6 +254,8 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
   const [loading,    setLoading]   = useState(false)
   const [error,      setError]     = useState('')
   const [showReset,  setShowReset] = useState(false)
+  const [showEigen,  setShowEigen] = useState(false)
+  const [showRol,    setShowRol]   = useState(false)
   const [confirming, setConfirming] = useState(false)
 
   async function toggle() {
@@ -149,9 +280,6 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
     catch (err) { let m = 'Verwijderen mislukt'; try { m = JSON.parse(err.message)?.detail || m } catch {} setError(m); setLoading(false) }
   }
 
-  const assignedIds = new Set((userApps || []).map(ua => ua.application_id))
-  const availableToAssign = tenantApps.filter(ta => !assignedIds.has(ta.application_id))
-
   async function handleAssign(appId) {
     setLoading(true); setError('')
     try { await assignAppToUser(user.id, appId); setUserApps(await getUserApps(user.id)) }
@@ -172,6 +300,13 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
     <>
       {showReset && (
         <ResetPasswordModal user={user} onClose={() => setShowReset(false)} onDone={() => {}} />
+      )}
+      {showEigen && (
+        <EigenWachtwoordModal user={user} onClose={() => setShowEigen(false)} />
+      )}
+      {showRol && (
+        <RolModal user={user} onClose={() => setShowRol(false)}
+                  onDone={(rol) => setUser(u => ({ ...u, role: rol }))} />
       )}
 
       <tr style={{ background: rowBg, opacity: loading ? 0.7 : 1 }}>
@@ -194,9 +329,20 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
             <button onClick={toggle} style={btnGhost} disabled={loading}>
               {expanded ? '▲ Apps' : '▼ Apps'}
             </button>
-            <button onClick={() => setShowReset(true)} style={btnWarn} disabled={loading || isSelf} title="Wachtwoord resetten">
-              🔑 Reset
+            <button onClick={() => setShowRol(true)} style={btnGhost} disabled={loading}
+                    title="Rol wijzigen tussen gebruiker en beheerder">
+              👤 Rol
             </button>
+            {isSelf ? (
+              <button onClick={() => setShowEigen(true)} style={btnWarn} disabled={loading}
+                      title="Uw eigen wachtwoord wijzigen — vraagt om uw huidige wachtwoord">
+                🔑 Wachtwoord wijzigen
+              </button>
+            ) : (
+              <button onClick={() => setShowReset(true)} style={btnWarn} disabled={loading} title="Wachtwoord resetten">
+                🔑 Reset
+              </button>
+            )}
             {!isSelf && (
               <button onClick={handleToggleActive} style={user.is_active ? btnDanger : btnGhost} disabled={loading}>
                 {user.is_active ? 'Deactiveer' : 'Activeer'}
@@ -223,38 +369,16 @@ function UserRow({ user: initialUser, tenantApps, index, onRefresh, isSelf }) {
       {expanded && (
         <tr style={{ background: '#f8fafc' }}>
           <td colSpan={5} style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>
-              Toegewezen applicaties
-            </div>
-            {(userApps || []).length === 0 ? (
-              <p style={{ fontSize: 13, color: 'var(--text3)', margin: '0 0 16px' }}>Geen applicaties toegewezen.</p>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                {(userApps || []).map(ua => (
-                  <div key={ua.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#e0f2fe', borderRadius: 20, padding: '5px 10px 5px 14px', fontSize: 13, fontWeight: 600, color: '#0369a1' }}>
-                    {ua.application_name}
-                    <button onClick={() => handleRevoke(ua.application_id)} disabled={loading}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 16, lineHeight: 1, padding: 0 }}
-                      title="Toegang intrekken">×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {availableToAssign.length > 0 && (
-              <>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>
-                  Beschikbaar om toe te wijzen
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {availableToAssign.map(ta => (
-                    <button key={ta.application_id} onClick={() => handleAssign(ta.application_id)}
-                      disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.6 : 1 }}>
-                      + {ta.application_name}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+            {/* Gebruikersniveau: het aanbod is wat de organisatie heeft, nooit meer. */}
+            <AppToewijzing
+              toegewezen={userApps || []}
+              aanbod={tenantApps}
+              doelNaam={user.full_name || user.email}
+              niveau={NIVEAU_GEBRUIKER}
+              bezig={loading}
+              onToewijzen={handleAssign}
+              onIntrekken={handleRevoke}
+            />
           </td>
         </tr>
       )}
@@ -272,13 +396,19 @@ export default function OrgAdminDashboard({ onBack, authUser }) {
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
   const [showCreate,   setShowCreate]   = useState(false)
+  const [licentie,     setLicentie]     = useState(null)
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [ta, u] = await Promise.all([getMyTenantApps(), getOrgUsers()])
+      // De licentie is aanvullende informatie; als die niet op te halen is, moet het
+      // gebruikersbeheer gewoon blijven werken.
+      const [ta, u, lic] = await Promise.all([
+        getMyTenantApps(), getOrgUsers(), getOwnLicense().catch(() => null),
+      ])
       setTenantApps(ta)
       setUsers(u)
+      setLicentie(lic)
     } catch (err) { setError('Kon gegevens niet laden: ' + err.message) }
     finally { setLoading(false) }
   }
@@ -332,6 +462,83 @@ export default function OrgAdminDashboard({ onBack, authUser }) {
             </div>
           </div>
         )}
+
+        {/* Licentie — ALLEEN LEZEN.
+            Een beheerder die tegen "het maximum aantal actieve gebruikers is bereikt"
+            aanloopt, moet kunnen zien waar die grens vandaan komt en hoeveel plaatsen er
+            in gebruik zijn. Wijzigen kan alleen Rhadix; daarom staan hier geen knoppen. */}
+        {licentie && (
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>
+              Licentie
+            </div>
+            <div style={{ ...card, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+              {licentie.heeft_licentie ? (
+                <>
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>{licentie.licentie_naam}</span>
+                  {(() => {
+                    const w = statusWeergave(licentie.status, licentie.geen_einddatum)
+                    return (
+                      <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 999, background: w.achtergrond, color: w.tekst, fontSize: 11, fontWeight: 700 }}>
+                        {w.label}
+                      </span>
+                    )
+                  })()}
+                  <span style={{ fontSize: 13, color: 'var(--text2)' }}>
+                    Gebruikers:{' '}
+                    <strong style={{ color: isVol(licentie.actieve_gebruikers, licentie.max_users) ? '#b45309' : 'inherit' }}>
+                      {gebruikTekst(licentie.actieve_gebruikers, licentie.max_users)}
+                    </strong>
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--text2)' }}>
+                    Maximum: <strong>{maxUsersTekst(licentie.max_users)}</strong>
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--text3)' }}>
+                    {periodeTekst(licentie.valid_from, licentie.valid_until)}
+                  </span>
+
+                  {/* Drie redenen waarom er geen gebruiker bij kan; elk met de uitweg erbij. */}
+                  {licentie.status === 'verlopen' && (
+                    <span style={{ fontSize: 12, color: '#991b1b', background: '#fee2e2', borderRadius: 6, padding: '5px 10px' }}>
+                      De licentie is verlopen. Er kan geen gebruiker worden toegevoegd of
+                      opnieuw geactiveerd totdat Rhadix de licentie verlengt. U en uw
+                      collega's houden gewoon toegang.
+                    </span>
+                  )}
+                  {licentie.status === 'toekomstig' && (
+                    <span style={{ fontSize: 12, color: '#3730a3', background: '#e0e7ff', borderRadius: 6, padding: '5px 10px' }}>
+                      De licentie gaat pas in op {new Date(licentie.valid_from).toLocaleDateString('nl-NL')}.
+                      Tot die datum kan er geen gebruiker worden toegevoegd of opnieuw geactiveerd.
+                    </span>
+                  )}
+                  {licentie.verloopt_binnenkort && (
+                    <span style={{ fontSize: 12, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '5px 10px' }}>
+                      Deze licentie verloopt over {licentie.dagen_tot_verval}{' '}
+                      {licentie.dagen_tot_verval === 1 ? 'dag' : 'dagen'}. Neem tijdig
+                      contact op met Rhadix.
+                    </span>
+                  )}
+                  {licentie.status === 'actief' && isVol(licentie.actieve_gebruikers, licentie.max_users) && (
+                    <span style={{ fontSize: 12, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '5px 10px' }}>
+                      Het maximum is bereikt. Deactiveer eerst een gebruiker, of neem
+                      contact op met Rhadix voor een ruimere licentie.
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background: '#fef3c7', color: '#92400e', fontSize: 11, fontWeight: 700 }}>
+                    Geen licentie
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--text3)' }}>
+                    Er geldt op dit moment geen maximum aantal gebruikers voor uw organisatie.
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
 
         {/* Users table */}
         <div style={card}>

@@ -21,6 +21,7 @@ Rechten (conform besluit):
   GET   /api/rso/organisations/{tid}/applications
   POST  /api/rso/organisations/{tid}/applications
   DELETE/api/rso/organisations/{tid}/applications/{app_id}
+  GET   /api/rso/licenses                      (alleen lezen — beheer blijft centraal)
 """
 import uuid
 from typing import List, Optional
@@ -31,6 +32,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
+from app.auth.app_toegang import wijs_toe_aan_bestaande_gebruikers
+from app.auth.rolbescherming import controleer_rolwijziging
+from app.auth.licentiegrens import controleer_ruimte
+from app.auth.licentieweergave import actieve_licentie, licentieregel
 from app.auth.security import hash_password, validate_password_strength
 from app.database import get_db
 from app.models.auth_models import (
@@ -83,6 +88,16 @@ def _require_managed_user(db: Session, user: User, uid: uuid.UUID) -> User:
     if not target or target.tenant_id not in _managed_tenant_ids(db, user):
         raise HTTPException(404, "Gebruiker niet gevonden binnen deze samenwerkingsorganisatie")
     return target
+
+
+def _audit_licentie_id(db: Session, tenant_id):
+    """De actieve licentie van de organisatie, puur als auditreferentie.
+
+    Legt vast onder welke licentie een applicatie is verstrekt. Stuurt niets: toegang
+    volgt uit het bestaan van de toewijzing, niet uit dit veld.
+    """
+    lic = actieve_licentie(db, tenant_id)
+    return lic.id if lic else None
 
 
 def _tenant_dict(db: Session, t: Tenant, root_id: uuid.UUID) -> dict:
@@ -218,6 +233,9 @@ def create_rso_user(
     if role not in allowed:
         raise HTTPException(403, "Deze rol mag je hier niet toekennen")
 
+    # De licentie bepaalt hoeveel gebruikers er tegelijk actief mogen zijn.
+    controleer_ruimte(db, tid)
+
     u = User(id=uuid.uuid4(), tenant_id=tid, email=body.email.lower().strip(),
              password_hash=hash_password(body.password), full_name=body.full_name,
              role=role, is_active=True)
@@ -254,6 +272,9 @@ def update_rso_user(
             raise HTTPException(422, f"Ongeldige rol: {body.role}")
         if new_role not in allowed:
             raise HTTPException(403, "Deze rol mag je hier niet toekennen")
+        # Zelfde bescherming als op de org- en adminroute: de laatste actieve beheerder
+        # van een organisatie mag niet worden gedegradeerd.
+        controleer_rolwijziging(db, target, new_role)
         target.role = new_role
     db.commit()
     db.refresh(target)
@@ -286,6 +307,9 @@ def toggle_rso_user_active(
         raise HTTPException(400, "Je kunt je eigen account niet deactiveren")
     if target.is_active and _is_last_active_rso_admin(db, _rso_root_id(user), target):
         raise HTTPException(400, "Dit is de laatste actieve RSO-beheerder; deactiveren is niet toegestaan")
+    # Alleen bij ACTIVEREN: de gebruiker gaat een plaats binnen de licentie innemen.
+    if not target.is_active:
+        controleer_ruimte(db, target.tenant_id)
     target.is_active = not target.is_active
     db.commit()
     return {"id": str(target.id), "email": target.email, "is_active": target.is_active}
@@ -321,6 +345,30 @@ def reset_rso_user_password(
 # interne toegangschakelaars en horen niet in de toewijs-lijst.
 PRODUCT_SLUGS = {"datavalidatie", "uitvraag", "datastation", "rhadix-crm",
                  "reconciliation-engine"}
+
+
+@router.get("/licenses")
+def list_rso_licenses(
+    db: Session = Depends(get_db),
+    user: User  = Depends(_require_rso),
+):
+    """Licenties van de eigen RSO en van alle aangesloten organisaties — ALLEEN LEZEN.
+
+    Deze router kent bewust geen POST, PATCH of DELETE voor licenties: het beheer blijft
+    centraal bij RHADIX_ADMIN. Een RSO-beheerder moet wel kunnen zien welke grenzen voor
+    zijn organisaties gelden, anders is een melding als "het maximum is bereikt" niet te
+    plaatsen.
+
+    Organisaties zonder licentie komen hier gewoon in voor, met `heeft_licentie=False`.
+    """
+    root_id = _rso_root_id(user)
+    tenants = db.query(Tenant).filter(
+        Tenant.id.in_(_managed_tenant_ids(db, user))
+    ).order_by(Tenant.name).all()
+
+    # De eigen RSO bovenaan; daaronder de aangesloten organisaties op naam.
+    tenants.sort(key=lambda t: (t.id != root_id, t.name.lower()))
+    return [{**licentieregel(db, t), "is_eigen_rso": t.id == root_id} for t in tenants]
 
 
 @router.get("/applications")
@@ -374,12 +422,19 @@ def assign_rso_app(
         TenantApplication.tenant_id == tid, TenantApplication.application_id == aid).first():
         raise HTTPException(400, "Applicatie is al toegewezen aan deze organisatie")
     ta = TenantApplication(id=uuid.uuid4(), tenant_id=tid, application_id=aid,
-                           license_id=None, assigned_by_id=user.id)
+                           license_id=_audit_licentie_id(db, tid),
+                       assigned_by_id=user.id)
     db.add(ta)
+    db.flush()
+    # Zelfde standaardgedrag als bij het platformbeheer: de applicatie wordt
+    # beschikbaar én meteen bruikbaar voor de huidige gebruikers van de organisatie.
+    # Daarna kan de organisatiebeheerder per gebruiker intrekken.
+    aantal = wijs_toe_aan_bestaande_gebruikers(db, ta)
     db.commit()
     db.refresh(ta)
     return {"id": str(ta.id), "tenant_id": str(ta.tenant_id),
             "application_id": str(ta.application_id),
+            "toegewezen_aan_gebruikers": aantal,
             "application_name": ta.application.name if ta.application else None}
 
 

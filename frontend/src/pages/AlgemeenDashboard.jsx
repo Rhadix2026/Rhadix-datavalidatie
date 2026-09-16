@@ -2,6 +2,7 @@ import { MaakTakenButton } from '../components/TaskUI'
 import { useState } from 'react'
 import { Nav, NavBack, NavLink, Page , TruncationWarning } from '../components/UI'
 import BenchmarkBar from '../components/BenchmarkBar'
+import { voorbeeldenLabel } from '../lib/validatiemeldingen'
 
 function ScoreBadge({ value, size = 'md' }) {
   const color = value >= 85 ? '#059669' : value >= 65 ? 'var(--blue)' : value >= 50 ? '#f59e0b' : '#ef4444'
@@ -13,7 +14,9 @@ function ScoreBadge({ value, size = 'md' }) {
   )
 }
 
-function IssueRow({ issue }) {
+// Gedeeld met MultiSourceValidatie: één implementatie van de validatiemeldingen,
+// zodat de weergave in de enkelvoudige en de multi-bronflow identiek is.
+export function IssueRow({ issue }) {
   const [open, setOpen] = useState(false)
   const isError = issue.severity === 'error'
   return (
@@ -34,7 +37,7 @@ function IssueRow({ issue }) {
       {open && issue.examples?.length > 0 && (
         <div style={{ padding: '0 14px 12px', borderTop: '1px solid rgba(0,0,0,.05)' }}>
           <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6, fontWeight: 600 }}>
-            Voorbeelden{issue.count > issue.examples.length ? ` (eerste ${issue.examples.length} van ${issue.count})` : ''}:
+            {voorbeeldenLabel(issue.count, issue.examples.length)}:
           </div>
           <div style={{ maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
             {issue.examples.map((ex, i) => (
@@ -49,7 +52,9 @@ function IssueRow({ issue }) {
   )
 }
 
-function FileCard({ result }) {
+// Gedeeld met MultiSourceValidatie. `result` is één element uit file_results zoals de
+// validatie-API het teruggeeft.
+export function FileCard({ result }) {
   const [open, setOpen] = useState(false)
   const issues   = result.issues || []
   const errors   = issues.filter(i => i.severity === 'error')

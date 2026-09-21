@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
 from app.routers import validate, history, reference, export, reports, profiles, tasks
+from app.routers import readiness   # publiek, geïsoleerd: geen db, geen auth, geen tenant
 from app.routers.admin import router as admin_router
 from app.routers.org import router as org_router
 from app.routers.rso import router as rso_router
@@ -446,6 +447,11 @@ app.include_router(branding_router,   prefix="/api/branding",      tags=["Brandi
 
 # ── Dashboard (alle rollen, met per-endpoint autorisatie) ─────────────────────
 app.include_router(tasks.router,      prefix="/api/tasks",         tags=["Tasks"])
+
+# Publiek Readiness-endpoint voor de Rhoderlanden-website. Staat bewust los van
+# de rest: geen databasesessie, geen authenticatie, geen tenantcontext. Zie
+# routers/readiness.py voor de afbakening.
+app.include_router(readiness.router, prefix="/api/readiness",     tags=["Readiness"])
 app.include_router(dashboard_router)
 
 

@@ -47,16 +47,26 @@ LIJN = "#dfe4d4"
 TINT = "#eef4e3"
 
 
+def _uit_omgeving(sleutel: str, standaard: str) -> str:
+    """Leest een instelling, maar behandelt een lege waarde als niet gezet.
+
+    De compose-bestanden geven deze variabelen altijd door, desnoods leeg
+    (`${READINESS_REPLY_TO:-}`). Zonder deze controle zou zo'n lege waarde de
+    standaard overrulen en zouden er mails zonder ontvanger ontstaan.
+    """
+    return (os.getenv(sleutel) or "").strip() or standaard
+
+
 def intern_adres() -> str:
-    return os.getenv("READINESS_INTERN_ADRES", STANDAARD_ADRES)
+    return _uit_omgeving("READINESS_INTERN_ADRES", STANDAARD_ADRES)
 
 
 def antwoordadres() -> str:
-    return os.getenv("READINESS_REPLY_TO", STANDAARD_ADRES)
+    return _uit_omgeving("READINESS_REPLY_TO", STANDAARD_ADRES)
 
 
 def afzendernaam() -> str:
-    return os.getenv("READINESS_AFZENDERNAAM", "Rhoderlanden Groep")
+    return _uit_omgeving("READINESS_AFZENDERNAAM", "Rhoderlanden Groep")
 
 
 def _esc(tekst: str) -> str:

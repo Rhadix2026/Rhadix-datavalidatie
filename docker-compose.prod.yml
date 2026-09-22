@@ -59,6 +59,15 @@ services:
       AUTH_RESET_TTL_MIN:    ${AUTH_RESET_TTL_MIN:-60}
       AUTH_INVITE_TTL_DAYS:  ${AUTH_INVITE_TTL_DAYS:-7}
       AUTH_VERIFY_TTL_HOURS: ${AUTH_VERIFY_TTL_HOURS:-24}
+      # ── Readiness-rapport (Rhoderlanden-website) ──────────────────────────
+      # Wie de interne signaalmail ontvangt, welk antwoordadres de bezoeker
+      # krijgt en onder welke naam wordt verstuurd. Zonder deze waarden valt de
+      # code terug op info@rhoderlandengroep.nl; op staging wijzen we ze bewust
+      # naar een testadres zodat er tijdens het testen niets bij Rhoderlanden
+      # binnenkomt.
+      READINESS_INTERN_ADRES: ${READINESS_INTERN_ADRES:-}
+      READINESS_REPLY_TO:     ${READINESS_REPLY_TO:-}
+      READINESS_AFZENDERNAAM: ${READINESS_AFZENDERNAAM:-}
     volumes:
       - rhadix_profiles:/app/data/profiles
     ports:

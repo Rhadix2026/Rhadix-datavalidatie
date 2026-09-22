@@ -220,6 +220,20 @@ def test_adressen_zijn_instelbaar(smtp, rapport, monkeypatch):
     assert smtp[1]["Reply-To"] == "advies@rhoderlandengroep.nl"
 
 
+def test_lege_omgevingsvariabele_valt_terug_op_de_standaard(monkeypatch):
+    """De compose-bestanden geven deze variabelen altijd door, desnoods leeg.
+    Een lege waarde mag de standaard niet overrulen — anders vertrekt er een
+    mail zonder ontvanger."""
+    for sleutel in ("READINESS_INTERN_ADRES", "READINESS_REPLY_TO", "READINESS_AFZENDERNAAM"):
+        monkeypatch.setenv(sleutel, "")
+    assert rm.intern_adres() == "info@rhoderlandengroep.nl"
+    assert rm.antwoordadres() == "info@rhoderlandengroep.nl"
+    assert rm.afzendernaam() == "Rhoderlanden Groep"
+
+    monkeypatch.setenv("READINESS_INTERN_ADRES", "   ")
+    assert rm.intern_adres() == "info@rhoderlandengroep.nl", "alleen spaties telt als niet gezet"
+
+
 def test_html_ontsnapt_ingevoerde_tekst(rapport):
     """Naam en organisatie komen van een publiek formulier; ze mogen geen HTML
     in de mail kunnen injecteren."""

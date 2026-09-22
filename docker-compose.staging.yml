@@ -84,6 +84,15 @@ services:
       READINESS_INTERN_ADRES: ${READINESS_INTERN_ADRES:-}
       READINESS_REPLY_TO:     ${READINESS_REPLY_TO:-}
       READINESS_AFZENDERNAAM: ${READINESS_AFZENDERNAAM:-}
+      # Ontvanger van het contactformulier op de website. Zonder waarde geldt
+      # info@rhoderlandengroep.nl; op staging wijst dit naar een testpostbus.
+      CONTACT_ONTVANGER:      ${CONTACT_ONTVANGER:-}
+      # CRM-registratie van rapportaanvragen. Zonder serviceaccount slaat de
+      # koppeling over; de rapportaanvraag werkt dan gewoon door.
+      CRM_BASIS_URL:          ${CRM_BASIS_URL:-}
+      CRM_LOGIN_URL:          ${CRM_LOGIN_URL:-}
+      CRM_SERVICE_EMAIL:      ${CRM_SERVICE_EMAIL:-}
+      CRM_SERVICE_WACHTWOORD: ${CRM_SERVICE_WACHTWOORD:-}
     volumes:
       - rhadix_staging_profiles:/app/data/profiles
     ports:

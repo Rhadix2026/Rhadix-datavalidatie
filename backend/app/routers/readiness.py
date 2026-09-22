@@ -8,13 +8,19 @@ Bewust geïsoleerd
 Deze router staat volledig los van de rest van Datavalidatie:
 
 * **geen databasesessie** — er is geen `Depends(get_db)` en er wordt geen model
-  geïmporteerd. Deze code kan dus niets lezen of schrijven in de
-  productiegegevens van Datavalidatie, Rhadix of het CRM;
+  geïmporteerd. Deze code kan dus niets lezen of schrijven in de database van
+  Datavalidatie of Rhadix;
 * **geen authenticatie en geen tenantcontext** — geen `Depends(get_current_user)`,
   geen organisatie, geen rol, geen applicatietoegang;
-* **geen opslag** — naam, organisatie en e-mailadres worden gebruikt om twee
-  mails te versturen en daarna losgelaten. De begrenzing bewaart alleen hashes
-  in het geheugen van het proces.
+* **geen opslag hier** — naam, organisatie en e-mailadres worden gebruikt om
+  twee mails te versturen en daarna losgelaten. De begrenzing bewaart alleen
+  hashes in het geheugen van het proces.
+
+Eén uitzondering op dat laatste: de aanvraag wordt voor commerciële opvolging
+geregistreerd in het **CRM**. Dat gebeurt niet via de database maar over HTTPS,
+met een eigen serviceaccount, in `readiness_crm.py` — het enige punt dat naar
+buiten praat. Lukt dat niet, dan merkt de bezoeker er niets van: hij heeft zijn
+rapport dan al ontvangen. Zie stap 7 hieronder.
 
 Wat het endpoint wél doet, staat hieronder in `rapport()`, in die volgorde.
 
@@ -33,6 +39,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from app.services import readiness_crm as crm
 from app.services import readiness_limiet as limiet
 from app.services import readiness_mail as mail
 from app.services.readiness_pdf import bouw_pdf
@@ -62,6 +69,21 @@ class RapportVerzoek(BaseModel):
     email: EmailStr
     website: str = Field(default="", max_length=200,
                          description="honeypot — hoort leeg te blijven")
+    # Campagnegegevens uit de URL, voor de opvolging in het CRM. Puur
+    # herkomstinformatie; ze raken de uitslag, het rapport of de mail niet.
+    utm_source: str = Field(default="", max_length=120)
+    utm_medium: str = Field(default="", max_length=120)
+    utm_campaign: str = Field(default="", max_length=160)
+    utm_content: str = Field(default="", max_length=160)
+    utm_term: str = Field(default="", max_length=160)
+
+    def campagne(self) -> dict:
+        velden = {
+            "utm_source": self.utm_source, "utm_medium": self.utm_medium,
+            "utm_campaign": self.utm_campaign, "utm_content": self.utm_content,
+            "utm_term": self.utm_term,
+        }
+        return {k: v.strip() for k, v in velden.items() if v.strip()}
 
     @field_validator("check")
     @classmethod
@@ -156,6 +178,13 @@ def rapport(verzoek: RapportVerzoek, response: Response) -> RapportAntwoord:
     #     gewoon staan; dit mag zijn verzoek niet laten falen.
     if not mail.verstuur_signaal(opzet, verzoek.email):
         log.warning("Readiness: signaalmail naar Rhoderlanden mislukt")
+
+    # 7 — Registratie in het CRM voor commerciële opvolging. Nadrukkelijk ná de
+    #     verzending en nadrukkelijk niet blokkerend: het rapport is al onderweg
+    #     en een storing in het CRM mag de bezoeker niets kosten. Dezelfde PDF
+    #     gaat mee, er wordt er geen tweede gemaakt.
+    crm.registreer(uitslag, naam=verzoek.naam, organisatie=verzoek.organisatie,
+                   email=verzoek.email, pdf=pdf, campagne=verzoek.campagne())
 
     limiet.leg_vast(afdruk, verzoek.email)
 

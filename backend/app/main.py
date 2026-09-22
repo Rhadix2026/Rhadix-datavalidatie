@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth.router import router as auth_router
 from app.routers import validate, history, reference, export, reports, profiles, tasks
 from app.routers import readiness   # publiek, geïsoleerd: geen db, geen auth, geen tenant
+from app.routers import contact     # idem
 from app.routers.admin import router as admin_router
 from app.routers.org import router as org_router
 from app.routers.rso import router as rso_router
@@ -452,6 +453,7 @@ app.include_router(tasks.router,      prefix="/api/tasks",         tags=["Tasks"
 # de rest: geen databasesessie, geen authenticatie, geen tenantcontext. Zie
 # routers/readiness.py voor de afbakening.
 app.include_router(readiness.router, prefix="/api/readiness",     tags=["Readiness"])
+app.include_router(contact.router,   prefix="/api/contact",       tags=["Contact"])
 app.include_router(dashboard_router)
 
 

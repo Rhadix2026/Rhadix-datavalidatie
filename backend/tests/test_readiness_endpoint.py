@@ -283,7 +283,13 @@ def test_verzoekmodel_weigert_onbekende_velden():
 
     assert RapportVerzoek.model_config.get("extra") == "forbid"
     assert set(RapportVerzoek.model_fields) == {
-        "check", "antwoorden", "naam", "organisatie", "email", "website"}
+        "check", "antwoorden", "naam", "organisatie", "email", "website",
+        # Campagneherkomst voor de CRM-opvolging. Geen persoonsgegevens, en ze
+        # raken de uitslag niet — zie test_readiness_crm.py.
+        "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"}
+    # Wat er nadrukkelijk níét in mag: een door de browser bepaalde uitslag.
+    for verboden in ("totaal", "score", "dimensies", "categorie", "tenant_id"):
+        assert verboden not in RapportVerzoek.model_fields
 
 
 def test_endpoint_werkt_zonder_enige_authenticatie(verstuurd):

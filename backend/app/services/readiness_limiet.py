@@ -31,6 +31,7 @@ import hashlib
 import os
 import threading
 import time
+from collections.abc import Sequence
 
 # Twee keer exact dezelfde aanvraag binnen dit venster → geen tweede mail.
 HERHAALVENSTER_SECONDEN = int(os.getenv("READINESS_HERHAALVENSTER", "900"))      # 15 minuten
@@ -43,13 +44,19 @@ _vingerafdrukken: dict[str, float] = {}
 _per_adres: dict[str, list[float]] = {}
 
 
-def vingerafdruk(email: str, check: str, antwoorden: list[int]) -> str:
+def vingerafdruk(email: str, soort: str, kenmerken: Sequence[object]) -> str:
     """Stabiele sleutel voor 'dezelfde aanvraag'.
+
+    `kenmerken` is wat de aanvraag onderscheidt: bij een Readiness-rapport de
+    vijftien antwoorden, bij een contactbericht de ingevulde tekst. Geef daar de
+    **inhoud** mee, niet een afgeleide als de lengte — twee verschillende
+    berichten van toevallig gelijke lengte zouden anders als duplicaat gelden en
+    zou het tweede stilzwijgend verdwijnen.
 
     Het e-mailadres wordt genormaliseerd en gehasht; we bewaren het adres dus
     niet in leesbare vorm in het geheugen van het proces.
     """
-    ruw = "|".join([email.strip().lower(), check, ",".join(str(a) for a in antwoorden)])
+    ruw = "|".join([email.strip().lower(), soort, "\u0000".join(str(k) for k in kenmerken)])
     return hashlib.sha256(ruw.encode("utf-8")).hexdigest()
 
 

@@ -22,7 +22,8 @@ from dataclasses import dataclass, field
 
 from app.services.readiness_content import INHOUD
 from app.services.readiness_scoring import (
-    Uitslag, antwoordlabel_voor_vraag, band, interpretatie, is_sterk_punt,
+    VRAGEN_PER_DIMENSIE, Uitslag, antwoordlabel_voor_vraag, band, interpretatie,
+    is_sterk_punt,
 )
 
 TITEL = "Indicatief Readiness-rapport op basis van uw antwoorden"
@@ -55,7 +56,7 @@ class DimensieBlok:
     interpretatie: str
     wat_al_staat: list[str] = field(default_factory=list)
     aandachtspunten: list[str] = field(default_factory=list)
-    deels_geregeld: list[str] = field(default_factory=list)
+    deels_geregeld: list[tuple[str, str]] = field(default_factory=list)   # (vraag, antwoord)
     verbeteractie: str = ""
 
 
@@ -75,7 +76,7 @@ class Rapport:
     sterke_punten: list[tuple[str, str]]      # (dimensie, tekst)
     geen_sterke_punten: str | None
     blokken: list[DimensieBlok]               # oplopend op score
-    prioritering: list[tuple[str, list[tuple[str, int, str]]]]
+    prioritering: list[tuple[str, list[tuple[str, int, str, str]]]]  # (dim, score, tekst, antwoord)
     bijlage: list[tuple[str, list[tuple[str, str]]]]   # (dimensie, [(vraag, antwoord)])
     voorbehoud: str
     vervolg: str
@@ -123,7 +124,13 @@ def _samenvatting(u: Uitslag) -> str:
     return " ".join(regels)
 
 
-def _blok(dim, rang: int) -> DimensieBlok:
+def _antwoord(check: str, dim, vraag_nummer: int) -> str:
+    """Het label dat de bezoeker bij deze vraag koos."""
+    return antwoordlabel_voor_vraag(
+        check, dim.index * VRAGEN_PER_DIMENSIE + vraag_nummer, dim.punten[vraag_nummer])
+
+
+def _blok(check: str, dim, rang: int) -> DimensieBlok:
     d = dim.definitie
     sterk = is_sterk_punt(dim)
     prioriteit = (
@@ -141,13 +148,24 @@ def _blok(dim, rang: int) -> DimensieBlok:
         # weg — dat zou hetzelfde twee keer zeggen. Zo doet het scherm het ook.
         wat_al_staat=[] if sterk else [d["strengths"][i] for i, p in enumerate(dim.punten) if p == 3],
         aandachtspunten=[d["findings"][i] for i, p in enumerate(dim.punten) if p <= 1],
-        deels_geregeld=[d["q"][i].rstrip("?") for i, p in enumerate(dim.punten) if p == 2],
+        # Vraag én gegeven antwoord, zodat het rapport herleidbaar blijft naar
+        # wat de bezoeker werkelijk heeft aangeklikt. Sinds de antwoorden per
+        # vraag verschillen, zegt "2 punten" op zichzelf niet meer genoeg.
+        deels_geregeld=[(d["q"][i].rstrip("?"), _antwoord(check, dim, i))
+                        for i, p in enumerate(dim.punten) if p == 2],
         verbeteractie=d["advice"],
     )
 
 
-def _prioritering(u: Uitslag) -> list[tuple[str, list[tuple[str, int, str]]]]:
-    """Drie groepen, zelfde verdeling en zelfde formulering als op het scherm."""
+def _prioritering(u: Uitslag) -> list[tuple[str, list[tuple[str, int, str, str]]]]:
+    """Drie groepen, zelfde verdeling en zelfde formulering als op het scherm.
+
+    De tekst per dimensie volgt uit het zwakste antwoord binnen die dimensie.
+    Bij twee punten luidde die vroeger "Aantoonbaar maken: …", maar dat leidde
+    een betekenis af uit de score die er niet meer in zit: sinds elke vraag
+    eigen antwoorden heeft, betekent twee punten niet overal hetzelfde. Het is
+    nu "Volgende stap: …", met het werkelijk gegeven antwoord erbij.
+    """
     laag = [d for d in u.gerangschikt if band(d.score) < 3]
     hoog = [d for d in u.gerangschikt if band(d.score) >= 3]
     groepen = [
@@ -166,10 +184,10 @@ def _prioritering(u: Uitslag) -> list[tuple[str, list[tuple[str, int, str]]]]:
                 tekst = "Vasthouden en benutten: " + d.definitie["high"]
             elif laagste == 2:
                 s = d.definitie["strengths"][i]
-                tekst = "Aantoonbaar maken: " + s[0].lower() + s[1:]
+                tekst = "Volgende stap: " + s[0].lower() + s[1:]
             else:
                 tekst = d.definitie["findings"][i]
-            regels.append((d.naam, d.score, tekst))
+            regels.append((d.naam, d.score, tekst, _antwoord(u.check, d, i)))
         uit.append((kop, regels))
     return uit
 
@@ -180,8 +198,7 @@ def _bijlage(u: Uitslag) -> list[tuple[str, list[tuple[str, str]]]]:
     for di, dim in enumerate(u.dimensies):
         vragen = []
         for qi, vraag in enumerate(dim.definitie["q"]):
-            index = di * 3 + qi
-            vragen.append((vraag, antwoordlabel_voor_vraag(u.check, index, dim.punten[qi])))
+            vragen.append((vraag, _antwoord(u.check, dim, qi)))
         uit.append((dim.naam, vragen))
     return uit
 
@@ -204,7 +221,7 @@ def bouw(u: Uitslag, naam: str, organisatie: str) -> Rapport:
         dimensies=[(d.naam, d.score) for d in u.dimensies],
         sterke_punten=sterke,
         geen_sterke_punten=None if sterke else GEEN_STERKE_PUNTEN,
-        blokken=[_blok(d, rang) for rang, d in enumerate(u.gerangschikt)],
+        blokken=[_blok(u.check, d, rang) for rang, d in enumerate(u.gerangschikt)],
         prioritering=_prioritering(u),
         bijlage=_bijlage(u),
         voorbehoud=VOORBEHOUD,

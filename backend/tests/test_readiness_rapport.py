@@ -107,12 +107,14 @@ def test_aandachtspunten_volgen_de_afzonderlijke_antwoorden():
     assert blok.deels_geregeld == []
 
 
-def test_deels_geregeld_toont_de_vraag_zonder_vraagteken():
+def test_deels_geregeld_toont_vraag_en_gegeven_antwoord():
+    """Herleidbaar naar de invoer: niet alleen dát er twee punten zijn gegeven,
+    maar welk antwoord dat was."""
     r = maak(antwoorden=[2, 0, 0] + [0] * 12)
     blok = next(b for b in r.blokken if b.naam == INHOUD["checks"]["data"]["dims"][0]["name"])
     vraag = INHOUD["checks"]["data"]["dims"][0]["q"][0]
-    assert blok.deels_geregeld == [vraag.rstrip("?")]
-    assert not blok.deels_geregeld[0].endswith("?")
+    assert blok.deels_geregeld == [(vraag.rstrip("?"), "Ja, voor de meeste toepassingen bekend")]
+    assert not blok.deels_geregeld[0][0].endswith("?")
 
 
 def test_sterke_dimensie_herhaalt_wat_al_staat_niet():
@@ -137,18 +139,31 @@ def test_prioritering_kent_drie_groepen():
     assert verdeeld == 5, "elke dimensie komt precies één keer voor"
 
 
+def test_prioritering_draagt_het_gegeven_antwoord_mee():
+    r = maak()
+    for _, regels in r.prioritering:
+        for naam, score, tekst, antwoord in regels:
+            assert antwoord, f"{naam} mist het gegeven antwoord"
+
+
+def test_prioritering_leidt_geen_aantoonbaarheid_meer_af_uit_score_twee():
+    r = maak(antwoorden=[2, 2, 2] + [0] * 12)
+    teksten = [t for _, regels in r.prioritering for _, _, t, _ in regels]
+    assert not any(t.startswith("Aantoonbaar maken") for t in teksten)
+
+
 def test_alles_maximaal_zet_alles_in_verder_ontwikkelen():
     r = maak(antwoorden=[3] * 15)
     eerst, daarna, verder = r.prioritering
     assert eerst[1] == [] and daarna[1] == []
     assert len(verder[1]) == 5
-    assert all("Vasthouden en benutten" in tekst for _, _, tekst in verder[1])
+    assert all("Vasthouden en benutten" in tekst for _, _, tekst, _ in verder[1])
 
 
-def test_aantoonbaar_maken_bij_grotendeels_geregeld():
+def test_volgende_stap_bij_deels_geregeld():
     r = maak(antwoorden=[2, 2, 2] + [0] * 12)
-    regels = [t for _, regels in r.prioritering for _, _, t in regels]
-    assert any(t.startswith("Aantoonbaar maken: ") for t in regels)
+    regels = [t for _, regels in r.prioritering for _, _, t, _ in regels]
+    assert any(t.startswith("Volgende stap: ") for t in regels)
 
 
 # ── Antwoordenbijlage ─────────────────────────────────────────────────────────
@@ -163,7 +178,16 @@ def test_bijlage_geeft_per_vraag_het_gegeven_antwoord():
     r = maak(antwoorden=[3, 2, 1] + [0] * 12)
     _, vragen = r.bijlage[0]
     assert [antwoord for _, antwoord in vragen] == [
-        "Aantoonbaar geregeld", "Grotendeels geregeld", "Beperkt geregeld"]
+        "Ja, volledig vastgelegd en actueel",
+        "Voor de meeste gegevens is dit bekend",
+        "Alleen met aanzienlijke handmatige bewerkingen"]
+
+
+def test_bijlage_van_de_data_check_gebruikt_de_eigen_labels():
+    r = maak(antwoorden=[0] * 15)
+    alle = [antwoord for _, vragen in r.bijlage for _, antwoord in vragen]
+    assert all(a.startswith("Nee") for a in alle)
+    assert len(set(alle)) == 15, "elke vraag heeft haar eigen nulantwoord"
 
 
 def test_bijlage_toont_weet_ik_niet_bij_de_kikv_datastationvraag():

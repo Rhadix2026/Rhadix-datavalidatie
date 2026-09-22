@@ -167,7 +167,10 @@ def is_sterk_punt(dim: DimensieScore) -> bool:
 
 
 def antwoordlabel(punten: int) -> str:
-    """Het label dat bij een aantal punten hoort, bijvoorbeeld 3 → 'Aantoonbaar geregeld'."""
+    """Het globale label bij een aantal punten, bijvoorbeeld 3 → 'Aantoonbaar geregeld'.
+
+    Dit is de terugval voor checks zonder eigen labels per vraag.
+    """
     for label, waarde in INHOUD["answers"]:
         if waarde == punten:
             return label
@@ -175,17 +178,53 @@ def antwoordlabel(punten: int) -> str:
 
 
 def antwoordlabel_voor_vraag(check: str, vraag_index: int, punten: int) -> str:
-    """Als bovenstaande, maar houdt rekening met een extra antwoordmogelijkheid
-    bij een specifieke vraag. Bij KIK-V, dimensie 5, vraag 1 bestaat naast
-    'Nee / onbekend' ook 'Weet ik niet'; beide leveren 0 punten op.
+    """Het label dat de bezoeker bij déze vraag heeft aangeklikt.
 
-    Die twee zijn achteraf niet uit elkaar te houden — de browser stuurt alleen
-    het puntenaantal mee. We tonen daarom bij 0 punten op zo'n vraag beide
-    mogelijkheden, zodat de antwoordenbijlage niets suggereert wat niet vaststaat.
+    De Data Readiness Check heeft per vraag eigen antwoorden, vastgelegd in
+    `qa` van de dimensie en geordend 3-2-1-0. Dat is een stuk zeggender dan één
+    set voor alle vijftien vragen: 'Nee, dit overzicht ontbreekt' vertelt meer
+    dan 'Nee / onbekend', en de antwoordenbijlage in het rapport wordt er
+    controleerbaar van.
+
+    Ontbreekt `qa` — zoals bij de KIK-V-check — dan gelden de globale labels.
+
+    Bij KIK-V, dimensie 5, vraag 1 bestaat naast 'Nee / onbekend' ook
+    'Weet ik niet'; beide leveren 0 punten op. Die twee zijn achteraf niet uit
+    elkaar te houden, want de browser stuurt alleen het puntenaantal mee. We
+    tonen daar bij 0 punten dus beide mogelijkheden, zodat het rapport niets
+    suggereert wat niet vaststaat.
     """
     di, qi = divmod(vraag_index, VRAGEN_PER_DIMENSIE)
-    extra = INHOUD["checks"][check]["dims"][di].get("extra")
+    dim = INHOUD["checks"][check]["dims"][di]
+
+    eigen = dim.get("qa")
+    if eigen:
+        # qa staat aflopend: index 0 is 3 punten, index 3 is 0 punten.
+        return eigen[qi][3 - punten]
+
+    extra = dim.get("extra")
     basis = antwoordlabel(punten)
     if extra and extra["idx"] == qi and punten == 0:
         return f"{basis} / {extra['label']}"
     return basis
+
+
+def antwoordmogelijkheden(check: str, vraag_index: int) -> list[tuple[str, int]]:
+    """Alle antwoorden bij een vraag als (label, punten), in schermvolgorde.
+
+    Dezelfde volgorde en dezelfde inhoud als de browser toont, inclusief een
+    eventuele extra mogelijkheid.
+    """
+    di, qi = divmod(vraag_index, VRAGEN_PER_DIMENSIE)
+    dim = INHOUD["checks"][check]["dims"][di]
+
+    eigen = dim.get("qa")
+    if eigen:
+        lijst = [(label, 3 - i) for i, label in enumerate(eigen[qi])]
+    else:
+        lijst = [(label, punten) for label, punten in INHOUD["answers"]]
+
+    extra = dim.get("extra")
+    if extra and extra["idx"] == qi:
+        lijst.append((extra["label"], 0))
+    return lijst

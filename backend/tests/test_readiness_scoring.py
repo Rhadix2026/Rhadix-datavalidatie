@@ -59,13 +59,60 @@ def test_vijf_dimensies_van_drie_vragen(check):
     assert sum(len(d["q"]) for d in dims) == S.AANTAL_VRAGEN == 15
 
 
-def test_antwoordmogelijkheden_ongewijzigd():
+def test_globale_antwoordmogelijkheden_ongewijzigd():
+    """De globale vier blijven bestaan als terugval voor checks zonder eigen
+    labels per vraag — vandaag alleen nog de KIK-V-check."""
     assert INHOUD["answers"] == [
         ["Aantoonbaar geregeld", 3],
         ["Grotendeels geregeld", 2],
         ["Beperkt geregeld", 1],
         ["Nee / onbekend", 0],
     ]
+
+
+def test_data_check_heeft_vier_eigen_antwoorden_per_vraag():
+    for dim in INHOUD["checks"]["data"]["dims"]:
+        assert len(dim["qa"]) == 3
+        for vraag_labels in dim["qa"]:
+            assert len(vraag_labels) == 4
+            assert all(isinstance(x, str) and x.strip() for x in vraag_labels)
+
+
+def test_eigen_antwoorden_staan_aflopend():
+    """Index 0 hoort bij 3 punten, index 3 bij 0 punten — daar rust de
+    omrekening in antwoordlabel_voor_vraag op."""
+    for i in range(15):
+        lijst = S.antwoordmogelijkheden("data", i)
+        assert [punten for _, punten in lijst] == [3, 2, 1, 0]
+
+
+@pytest.mark.parametrize("vraag, punten, verwacht", [
+    (0, 3, "Ja, volledig vastgelegd en actueel"),
+    (0, 0, "Nee, dit is niet of nauwelijks in beeld"),
+    (11, 0, "Nee, deze zijn niet structureel onderdeel van het dataproces"),
+    (14, 3, "Ja, architectuur en techniek zijn hierop ingericht"),
+])
+def test_label_per_vraag(vraag, punten, verwacht):
+    assert S.antwoordlabel_voor_vraag("data", vraag, punten) == verwacht
+
+
+def test_onbekend_is_mogelijk_waar_de_vraag_dat_vraagt():
+    """Vijf van de vijftien nulantwoorden noemen 'onbekend' met zoveel woorden.
+
+    Dat is een keuze per vraag, geen sjabloon. Het gaat om vragen naar een
+    technische mogelijkheid of naar een feit elders in de organisatie, waar
+    'ik weet het niet' niet logisch samenvalt met 'nee': of systemen te
+    verbinden zijn (9), of geautomatiseerd ontsluiten kan (13) en of de
+    omgeving is voorbereid (15) — naast (3) en (8), die het al hadden.
+
+    Bij de overige tien dekt de formulering het al. Wie niet weet of definities
+    organisatiebreed zijn vastgelegd, beantwoordt daarmee de vraag: dan zijn ze
+    dat niet."""
+    met_onbekend = [i for i in range(15)
+                    if "onbeken" in S.antwoordlabel_voor_vraag("data", i, 0).lower()]
+    assert met_onbekend == [2, 7, 8, 12, 14]
+    for i in met_onbekend:
+        assert S.antwoordlabel_voor_vraag("data", i, 0).startswith("Nee")
 
 
 def test_bandgrenzen_ongewijzigd():
@@ -249,7 +296,13 @@ def test_antwoordlabel_toont_beide_mogelijkheden_bij_nul():
     assert S.antwoordlabel_voor_vraag("kikv", 12, 0) == "Nee / onbekend / Weet ik niet"
     assert S.antwoordlabel_voor_vraag("kikv", 12, 3) == "Aantoonbaar geregeld"
     assert S.antwoordlabel_voor_vraag("kikv", 13, 0) == "Nee / onbekend"
-    assert S.antwoordlabel_voor_vraag("data", 12, 0) == "Nee / onbekend"
+
+
+def test_data_check_gebruikt_nooit_de_globale_labels():
+    globaal = {label for label, _ in INHOUD["answers"]}
+    for i in range(15):
+        for _, punten in S.antwoordmogelijkheden("data", i):
+            assert S.antwoordlabel_voor_vraag("data", i, punten) not in globaal
 
 
 # ── Afgeleide teksten ─────────────────────────────────────────────────────────

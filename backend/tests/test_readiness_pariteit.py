@@ -60,9 +60,10 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
 import readiness_js_harnas as harnas                      # noqa: E402
 from app.scripts.genereer_readiness_config import (        # noqa: E402
-    PAGINAS, REGEL, configuratieregel,
+    CONFIGBESTAND, PAGINAS, REGEL, configuratieregel,
 )
 from app.services import readiness_scoring as S            # noqa: E402
+from app.services.readiness_content import INHOUD          # noqa: E402
 
 beschikbaar, reden = harnas.beschikbaar()
 vereist_baseline = pytest.mark.skipif(
@@ -115,31 +116,30 @@ def _vergelijk(gevallen: list[dict]) -> int:
 # ── Inhoudelijke pariteit ─────────────────────────────────────────────────────
 
 @vereist_baseline
-@pytest.mark.parametrize("pagina", PAGINAS)
-def test_gegenereerde_configuratie_is_identiek_aan_de_baseline(pagina):
+def test_gegenereerde_configuratie_is_identiek_aan_de_baseline():
     """De kern van het centraliseren: genereren verandert niets aan de site."""
-    pad = harnas.sitemap() / pagina
+    pad = harnas.sitemap() / CONFIGBESTAND
     treffer = REGEL.search(pad.read_text(encoding="utf-8"))
-    assert treffer, f"{pagina} bevat geen configuratieregel"
+    assert treffer, f"{CONFIGBESTAND} bevat geen configuratieregel"
     assert treffer.group(0) == configuratieregel(), (
-        f"De uit readiness_content.py gegenereerde configuratie wijkt af van {pagina}."
+        f"De uit readiness_content.py gegenereerde configuratie wijkt af van {CONFIGBESTAND}."
     )
 
 
 @vereist_baseline
-def test_beide_paginas_dragen_dezelfde_configuratie():
-    regels = {
-        p: REGEL.search((harnas.sitemap() / p).read_text(encoding="utf-8")).group(0)
-        for p in PAGINAS
-    }
-    assert len(set(regels.values())) == 1
+@pytest.mark.parametrize("pagina", PAGINAS)
+def test_checkpagina_laadt_de_configuratie(pagina):
+    """Zonder dit script staat de wizard stil."""
+    tekst = (harnas.sitemap() / pagina).read_text(encoding="utf-8")
+    assert CONFIGBESTAND in tekst
+    assert "assets/site.js" in tekst
 
 
 @vereist_baseline
 def test_baseline_bevat_de_verwachte_checks_en_vragen():
     """Vangt op dat de site stilletjes andere vragen zou gaan tonen."""
     ruwe = REGEL.search(
-        (harnas.baseline_pagina()).read_text(encoding="utf-8")
+        (harnas.configbestand()).read_text(encoding="utf-8")
     ).group(1)
     uit_de_site = json.loads(ruwe)
     assert list(uit_de_site["checks"]) == ["data", "kikv"]
@@ -157,6 +157,68 @@ def test_baseline_bevat_de_verwachte_checks_en_vragen():
 def test_pagina_kiest_de_juiste_check(pagina, verwachte_check):
     tekst = (harnas.sitemap() / pagina).read_text(encoding="utf-8")
     assert re.search(rf'class="wizard" data-check="{verwachte_check}"', tekst)
+
+
+# ── Labelpariteit ─────────────────────────────────────────────────────────────
+
+@vereist_node
+def test_browser_en_rapport_tonen_dezelfde_antwoorden():
+    """Wat de bezoeker aanklikt, is wat het rapport terugleest.
+
+    Sinds de Data Readiness Check eigen antwoorden per vraag heeft, is dit geen
+    vanzelfsprekendheid meer: de browser leest ze uit `qa`, het rapport uit
+    dezelfde bron via `antwoordmogelijkheden()`. Deze test haalt de lijsten uit
+    de échte browsercode en legt ze naast de serverzijde.
+    """
+    checks = ["data", "kikv"]
+    with tempfile.TemporaryDirectory() as tmp:
+        uit_de_browser = harnas.draai_antwoorden(checks, pathlib.Path(tmp))
+
+    for check, per_vraag in zip(checks, uit_de_browser):
+        assert len(per_vraag) == S.AANTAL_VRAGEN
+        for i, browserlijst in enumerate(per_vraag):
+            serverlijst = [list(x) for x in S.antwoordmogelijkheden(check, i)]
+            assert browserlijst == serverlijst, (
+                f"{check}, vraag {i + 1}:\n  browser: {browserlijst}\n  server : {serverlijst}")
+
+
+@vereist_node
+def test_elk_gegeven_antwoord_leest_hetzelfde_terug():
+    """Voor elke vraag en elk puntenaantal: het label dat het rapport toont is
+    precies de knop die de bezoeker heeft aangeklikt."""
+    with tempfile.TemporaryDirectory() as tmp:
+        uit_de_browser = harnas.draai_antwoorden(["data"], pathlib.Path(tmp))[0]
+
+    for i, browserlijst in enumerate(uit_de_browser):
+        for label, punten in browserlijst:
+            assert S.antwoordlabel_voor_vraag("data", i, punten) == label
+
+
+def test_data_check_heeft_eigen_antwoorden_per_vraag():
+    dims = INHOUD["checks"]["data"]["dims"]
+    assert all("qa" in d for d in dims)
+    for d in dims:
+        assert len(d["qa"]) == 3
+        assert all(len(v) == 4 for v in d["qa"])
+    alle = [label for d in dims for v in d["qa"] for label in v]
+    assert len(alle) == 60
+
+    # Binnen één vraag moeten de vier antwoorden uiteraard verschillen. Over
+    # vragen heen mag een formulering terugkomen: "Grotendeels, maar niet voor
+    # alle gegevens" past zowel bij eigenaarschap als bij ontsluiting. Dat is
+    # geen knip-en-plakfout maar dezelfde nuance bij een andere vraag.
+    for d in dims:
+        for vraag_labels in d["qa"]:
+            assert len(set(vraag_labels)) == 4
+
+
+def test_kikv_valt_terug_op_de_globale_antwoorden():
+    """De KIK-V-check blijft technisch ongewijzigd."""
+    assert all("qa" not in d for d in INHOUD["checks"]["kikv"]["dims"])
+    assert S.antwoordmogelijkheden("kikv", 0) == [
+        ("Aantoonbaar geregeld", 3), ("Grotendeels geregeld", 2),
+        ("Beperkt geregeld", 1), ("Nee / onbekend", 0)]
+    assert S.antwoordmogelijkheden("kikv", 12)[-1] == ("Weet ik niet", 0)
 
 
 # ── Scoringspariteit ──────────────────────────────────────────────────────────
@@ -209,11 +271,14 @@ def test_grenswaarden_leveren_in_beide_implementaties_dezelfde_categorie():
 
 if __name__ == "__main__":
     print("Pariteit van inhoud")
+    pad = harnas.sitemap() / CONFIGBESTAND
+    gelijk = REGEL.search(pad.read_text(encoding="utf-8")).group(0) == configuratieregel()
+    print(f"  {CONFIGBESTAND:<28s} {'byte-identiek' if gelijk else 'AFWIJKING'}")
+    assert gelijk
     for pagina in PAGINAS:
-        pad = harnas.sitemap() / pagina
-        gelijk = REGEL.search(pad.read_text(encoding="utf-8")).group(0) == configuratieregel()
-        print(f"  {pagina:<24s} {'byte-identiek' if gelijk else 'AFWIJKING'}")
-        assert gelijk
+        laadt = CONFIGBESTAND in (harnas.sitemap() / pagina).read_text(encoding="utf-8")
+        print(f"  {pagina:<28s} {'laadt de configuratie' if laadt else 'LAADT NIET'}")
+        assert laadt
 
     print("\nPariteit van scoring — browsercode uit de baseline tegen de server")
     ok, waarom = harnas.beschikbaar()

@@ -96,7 +96,7 @@ def rapport_html(rapport: Rapport) -> str:
     punten = rapport.prioritering[0][1][:2] if rapport.prioritering else []
     lijst = "".join(
         f'<li style="margin-bottom:8px;"><b>{_esc(naam)}</b> ({score} van 100) — {_esc(tekst)}</li>'
-        for naam, score, tekst in punten
+        for naam, score, tekst, _antwoord in punten
     )
     rijen = "".join(
         f'<tr><td style="padding:6px 0;border-bottom:1px solid {LIJN};">{_esc(naam)}</td>'
@@ -167,7 +167,7 @@ def signaal_html(rapport: Rapport, email: str) -> str:
     punten = rapport.prioritering[0][1][:2] if rapport.prioritering else []
     lijst = "".join(
         f'<li style="margin-bottom:6px;"><b>{_esc(naam)}</b> ({score}) — {_esc(tekst)}</li>'
-        for naam, score, tekst in punten
+        for naam, score, tekst, _antwoord in punten
     )
     rijen = "".join(
         f'<tr><td style="padding:4px 12px 4px 0;color:#7a8272;">{k}</td>'

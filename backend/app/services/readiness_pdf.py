@@ -105,8 +105,8 @@ def bouw_pdf(rapport: Rapport) -> bytes:
             story += R.text("Concrete aandachtspunten", "small")
             story += R.bullets([_esc(t) for t in blok.aandachtspunten])
         if blok.deels_geregeld:
-            punten = "; ".join(f'"{_esc(v)}"' for v in blok.deels_geregeld)
-            story += R.text(f"Grotendeels geregeld, nog niet aantoonbaar: {punten}.", "small")
+            for vraag, antwoord in blok.deels_geregeld:
+                story += R.text(f'Deels geregeld: "{_esc(vraag)}" — <b>{_esc(antwoord)}</b>', "small")
         story += R.text(f"<b>Verbeteractie.</b> {_esc(blok.verbeteractie)}")
         story += R.separator(space_before=6, space_after=6)
 
@@ -115,7 +115,9 @@ def bouw_pdf(rapport: Rapport) -> bytes:
     for kop, regels in rapport.prioritering:
         story += R.text(f"<b>{_esc(kop)}</b>")
         if regels:
-            story += R.bullets([f"<b>{_esc(n)} ({s}).</b> {_esc(t)}" for n, s, t in regels])
+            story += R.bullets([f"<b>{_esc(n)} ({s}).</b> {_esc(t)}<br/>"
+                                f'<font size="7">Uw antwoord: {_esc(a)}</font>'
+                                for n, s, t, a in regels])
         else:
             story += R.text("Geen dimensies in deze groep.", "small")
     story += R.separator()

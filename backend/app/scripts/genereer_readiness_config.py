@@ -2,7 +2,7 @@
 genereer_readiness_config.py — Schrijft de browserconfiguratie uit de canonieke bron.
 
 De Readiness Checks op rhoderlanden.rhadix.nl halen hun vragen, adviezen en
-grenswaarden uit één regel JavaScript in elke pagina:
+grenswaarden uit één regel JavaScript in `assets/readiness-config.js`:
 
     window.RG_READINESS = {...};
 
@@ -33,7 +33,12 @@ import sys
 
 from app.services.readiness_content import INHOUD
 
-# De pagina's die de configuratie dragen.
+# Het bestand dat de configuratie draagt. Tot de scheiding van de gedeelde
+# assets stond deze regel in elke checkpagina; nu staat hij één keer, en laden
+# de twee checkpagina's hem als apart script.
+CONFIGBESTAND = "assets/readiness-config.js"
+
+# De pagina's die de configuratie gebruiken — gecontroleerd op hun verwijzing.
 PAGINAS = ("data-readiness.html", "kik-v-readiness.html")
 
 # Eén regel, exact zoals hij in de pagina staat.
@@ -58,38 +63,49 @@ def _huidige_regel(pad: pathlib.Path) -> str | None:
 def controleer(sitemap: pathlib.Path) -> int:
     verwacht = configuratieregel()
     afwijkingen = 0
-    for naam in PAGINAS:
-        pad = sitemap / naam
-        if not pad.exists():
-            print(f"  ONTBREEKT  {naam}")
-            afwijkingen += 1
-            continue
+
+    pad = sitemap / CONFIGBESTAND
+    if not pad.exists():
+        print(f"  ONTBREEKT  {CONFIGBESTAND}")
+        afwijkingen += 1
+    else:
         huidig = _huidige_regel(pad)
         if huidig is None:
-            print(f"  GEEN CONFIGURATIE  {naam}")
+            print(f"  GEEN CONFIGURATIE  {CONFIGBESTAND}")
             afwijkingen += 1
         elif huidig == verwacht:
-            print(f"  gelijk     {naam}  ({len(verwacht)} tekens)")
+            print(f"  gelijk     {CONFIGBESTAND}  ({len(verwacht)} tekens)")
         else:
-            print(f"  VERSCHIL   {naam}  (pagina {len(huidig)} tekens, bron {len(verwacht)})")
+            print(f"  VERSCHIL   {CONFIGBESTAND}  (bestand {len(huidig)} tekens, bron {len(verwacht)})")
             afwijkingen += 1
+
+    # De checkpagina's moeten de configuratie ook werkelijk laden.
+    for naam in PAGINAS:
+        pagina = sitemap / naam
+        if not pagina.exists():
+            print(f"  ONTBREEKT  {naam}")
+            afwijkingen += 1
+        elif CONFIGBESTAND not in pagina.read_text(encoding="utf-8"):
+            print(f"  LAADT DE CONFIGURATIE NIET  {naam}")
+            afwijkingen += 1
+        else:
+            print(f"  laadt      {naam}")
     return afwijkingen
 
 
 def schrijf(sitemap: pathlib.Path) -> int:
     verwacht = configuratieregel()
-    for naam in PAGINAS:
-        pad = sitemap / naam
-        tekst = pad.read_text(encoding="utf-8")
-        if not REGEL.search(tekst):
-            print(f"  OVERGESLAGEN  {naam}: geen configuratieregel gevonden")
-            continue
-        nieuw = REGEL.sub(lambda _: verwacht, tekst, count=1)
-        if nieuw == tekst:
-            print(f"  ongewijzigd   {naam}")
-        else:
-            pad.write_text(nieuw, encoding="utf-8")
-            print(f"  bijgewerkt    {naam}")
+    pad = sitemap / CONFIGBESTAND
+    tekst = pad.read_text(encoding="utf-8")
+    if not REGEL.search(tekst):
+        print(f"  OVERGESLAGEN  {CONFIGBESTAND}: geen configuratieregel gevonden")
+        return 1
+    nieuw = REGEL.sub(lambda _: verwacht, tekst, count=1)
+    if nieuw == tekst:
+        print(f"  ongewijzigd   {CONFIGBESTAND}")
+    else:
+        pad.write_text(nieuw, encoding="utf-8")
+        print(f"  bijgewerkt    {CONFIGBESTAND}")
     return 0
 
 

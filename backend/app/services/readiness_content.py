@@ -26,9 +26,14 @@ cats         : [(ondergrens, bovengrens, categorie)] — bovenste band erft
 positioning  : de drie treden check → rapport → onderzoek
 checks       : per sleutel ("data" / "kikv") titel, top, kind, diensten,
                vier duidingen (een per band) en vijf dimensies
-dims[i]      : name, q[3], advice, low, high, findings[3], strengths[3]
-               en optioneel `extra` — een vijfde antwoordmogelijkheid bij
-               een specifieke vraag (KIK-V, Datastation: "Weet ik niet")
+dims[i]      : name, q[3], advice, low, high, findings[3], strengths[3],
+               optioneel `qa` en optioneel `extra`
+qa[j]        : de vier antwoordlabels van vraag j, in de volgorde 3-2-1-0.
+               Ontbreekt `qa`, dan gelden de globale labels uit `answers`.
+               De Data Readiness Check heeft eigen labels per vraag; de
+               KIK-V-check valt terug op de globale vier.
+extra        : een vijfde antwoordmogelijkheid bij een specifieke vraag
+               (KIK-V, Datastation: "Weet ik niet"), eveneens 0 punten
 """
 
 INHOUD = {'answers': [['Aantoonbaar geregeld', 3],
@@ -104,7 +109,19 @@ INHOUD = {'answers': [['Aantoonbaar geregeld', 3],
                                              'Van de benodigde gegevens is het bronsysteem '
                                              'bekend.',
                                              'Gegevens komen zonder omvangrijk handwerk uit de '
-                                             'bronsystemen beschikbaar.']},
+                                             'bronsystemen beschikbaar.'],
+                               'qa': [['Ja, volledig vastgelegd en actueel',
+                                       'Ja, voor de meeste toepassingen bekend',
+                                       'Deels en vooral vanuit de praktijk bekend',
+                                       'Nee, dit is niet of nauwelijks in beeld'],
+                                      ['Ja, volledig vastgelegd per gegeven',
+                                       'Voor de meeste gegevens is dit bekend',
+                                       'Voor een deel van de gegevens is dit bekend',
+                                       'Nee, dit overzicht ontbreekt'],
+                                      ['Ja, grotendeels automatisch en reproduceerbaar',
+                                       'Ja, met beperkte handmatige bewerkingen',
+                                       'Alleen met aanzienlijke handmatige bewerkingen',
+                                       'Nee, of dit is onbekend']]},
                               {'name': 'Datakwaliteit',
                                'q': ['Wordt de kwaliteit van belangrijke gegevens periodiek en '
                                      'aantoonbaar gecontroleerd?',
@@ -137,8 +154,19 @@ INHOUD = {'answers': [['Aantoonbaar geregeld', 3],
                                              'en aantoonbaar gecontroleerd.',
                                              'Afwijkingen worden structureel geregistreerd en '
                                              'opgelost.',
-                                             'De ontwikkeling van datakwaliteit is '
-                                             'aantoonbaar.']},
+                                             'De ontwikkeling van datakwaliteit is aantoonbaar.'],
+                               'qa': [['Ja, structureel en aantoonbaar',
+                                       'Ja, maar niet voor alle belangrijke gegevens',
+                                       'Incidenteel of alleen bij problemen',
+                                       'Nee, er vindt geen structurele controle plaats'],
+                                      ['Ja, structureel geregistreerd, opgevolgd en opgelost',
+                                       'Meestal, maar nog niet organisatiebreed',
+                                       'Alleen incidenteel of bij acute problemen',
+                                       'Nee, hiervoor bestaat geen vaste werkwijze'],
+                                      ['Ja, de ontwikkeling wordt structureel gemeten',
+                                       'Ja, voor een belangrijk deel van de gegevens',
+                                       'Beperkt, vooral via losse metingen',
+                                       'Nee, ontwikkeling is niet inzichtelijk']]},
                               {'name': 'Standaardisatie & betekenis',
                                'q': ['Zijn definities van belangrijke gegevens eenduidig '
                                      'vastgelegd en binnen de organisatie bekend?',
@@ -174,7 +202,20 @@ INHOUD = {'answers': [['Aantoonbaar geregeld', 3],
                                              'Landelijke en sectorale standaarden worden waar '
                                              'mogelijk gebruikt.',
                                              'Gegevens uit verschillende systemen zijn eenduidig '
-                                             'te verbinden en te interpreteren.']},
+                                             'te verbinden en te interpreteren.'],
+                               'qa': [['Ja, eenduidig vastgelegd en organisatiebreed gebruikt',
+                                       'Grotendeels, met enkele verschillen of hiaten',
+                                       'Alleen voor een beperkt aantal gegevens',
+                                       'Nee, definities ontbreken of verschillen sterk'],
+                                      ['Ja, structureel waar relevante standaarden bestaan',
+                                       'Grotendeels, maar nog niet overal',
+                                       'Alleen voor enkele toepassingen of gegevens',
+                                       'Nee, of het gebruik ervan is onbekend'],
+                                      ['Ja, structureel en op basis van vaste afspraken',
+                                       'Ja, voor de meeste belangrijke gegevens',
+                                       'Alleen met aanvullende handmatige interpretatie',
+                                       'Nee, gegevens zijn niet eenduidig te verbinden of dit is '
+                                       'onbekend']]},
                               {'name': 'Governance & eigenaarschap',
                                'q': ['Is voor belangrijke gegevens duidelijk wie '
                                      'verantwoordelijk is voor kwaliteit en beschikbaarheid?',
@@ -209,7 +250,21 @@ INHOUD = {'answers': [['Aantoonbaar geregeld', 3],
                                              'Er zijn afspraken over het onderzoeken en '
                                              'herstellen van fouten.',
                                              'Privacy, beveiliging en toegangsrechten zijn '
-                                             'onderdeel van het dataproces.']},
+                                             'onderdeel van het dataproces.'],
+                               'qa': [['Ja, eigenaarschap en verantwoordelijkheden zijn '
+                                       'vastgelegd',
+                                       'Grotendeels, maar niet voor alle gegevens',
+                                       'Informeel of slechts voor enkele gegevens',
+                                       'Nee, verantwoordelijkheden zijn niet duidelijk'],
+                                      ['Ja, rollen en werkwijze zijn duidelijk vastgelegd',
+                                       'Grotendeels, maar niet in alle situaties',
+                                       'Er zijn vooral informele afspraken',
+                                       'Nee, hierover zijn geen duidelijke afspraken'],
+                                      ['Ja, structureel en aantoonbaar ingebed',
+                                       'Grotendeels, maar niet in alle processen',
+                                       'Alleen op onderdelen of achteraf',
+                                       'Nee, deze zijn niet structureel onderdeel van het '
+                                       'dataproces']]},
                               {'name': 'Techniek & hergebruik',
                                'q': ['Kunnen gegevens geautomatiseerd worden ontsloten voor '
                                      'andere toepassingen of partijen?',
@@ -247,7 +302,22 @@ INHOUD = {'answers': [['Aantoonbaar geregeld', 3],
                                              'Brondata wordt hergebruikt voor meerdere '
                                              'informatievragen.',
                                              'De technische omgeving is voorbereid op '
-                                             'standaardisatie en elektronische uitwisseling.']}]},
+                                             'standaardisatie en elektronische uitwisseling.'],
+                               'qa': [['Ja, via gestandaardiseerde en geautomatiseerde '
+                                       'koppelingen',
+                                       'Grotendeels, maar niet voor alle gegevens',
+                                       'Beperkt, met veel maatwerk of handwerk',
+                                       'Nee, geautomatiseerde ontsluiting is niet mogelijk of '
+                                       'onbekend'],
+                                      ['Ja, brondata wordt structureel meervoudig gebruikt',
+                                       'Grotendeels, maar soms zijn aparte bewerkingen nodig',
+                                       'Beperkt, vaak worden nieuwe bestanden gemaakt',
+                                       'Nee, informatievragen worden afzonderlijk opgebouwd'],
+                                      ['Ja, architectuur en techniek zijn hierop ingericht',
+                                       'Grotendeels, enkele aanpassingen zijn nog nodig',
+                                       'Beperkt, aanzienlijke aanpassingen zijn nodig',
+                                       'Nee, de huidige omgeving is hier niet op voorbereid of '
+                                       'dit is onbekend']]}]},
             'kikv': {'title': 'KIK-V Readiness Check',
                      'top': 'KIK-V-gereed',
                      'kind': 'KIK-V',

@@ -29,8 +29,24 @@ def _public_url() -> str:
     return (os.getenv("PUBLIC_BASE_URL", "") or "").rstrip("/")
 
 
-def send_email(to: str, subject: str, html: str, text: str | None = None) -> bool:
-    """Verstuur één e-mail via SMTP. No-op (False) als mail uit/niet geconfigureerd is."""
+def send_email(to: str, subject: str, html: str, text: str | None = None,
+               attachments: list[tuple[str, bytes, str, str]] | None = None,
+               from_name: str | None = None,
+               reply_to: str | None = None) -> bool:
+    """Verstuur één e-mail via SMTP. No-op (False) als mail uit/niet geconfigureerd is.
+
+    De drie laatste parameters zijn optioneel en veranderen niets aan bestaande
+    aanroepen; zonder die parameters is het gedrag exact als voorheen.
+
+    attachments : [(bestandsnaam, inhoud, hoofdtype, subtype)], bijvoorbeeld
+                  [("rapport.pdf", pdf_bytes, "application", "pdf")].
+                  `EmailMessage` kan bijlagen van huis uit — geen extra pakket.
+    from_name   : overschrijft de weergavenaam (SMTP_FROM_NAME) voor deze ene mail.
+                  Het From-*adres* blijft ongewijzigd; dat moet vanwege DMARC met
+                  strikte alignment het geverifieerde domein blijven.
+    reply_to    : overschrijft SMTP_REPLY_TO voor deze ene mail. Reply-To valt
+                  buiten DMARC-alignment en mag dus een ander domein zijn.
+    """
     if not mail_enabled():
         log.info("Mail uit of niet geconfigureerd — overslaan (%s)", subject)
         return False
@@ -42,17 +58,21 @@ def send_email(to: str, subject: str, html: str, text: str | None = None) -> boo
     user   = os.getenv("SMTP_USER")
     pw     = os.getenv("SMTP_PASSWORD")
     sender = os.getenv("SMTP_FROM", "noreply@rhadix.nl")
-    name   = os.getenv("SMTP_FROM_NAME", "Rhadix")
+    name   = from_name or os.getenv("SMTP_FROM_NAME", "Rhadix")
 
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"]    = formataddr((name, sender))
     msg["To"]      = to
-    reply_to = os.getenv("SMTP_REPLY_TO")   # bv. support@rhadix.nl (zodra die postbus bestaat)
-    if reply_to:
-        msg["Reply-To"] = reply_to
+    # bv. support@rhadix.nl (zodra die postbus bestaat), of per mail meegegeven
+    antwoordadres = reply_to or os.getenv("SMTP_REPLY_TO")
+    if antwoordadres:
+        msg["Reply-To"] = antwoordadres
     msg.set_content(text or _html_to_text(html))
     msg.add_alternative(html, subtype="html")
+    for bestandsnaam, inhoud, hoofdtype, subtype in (attachments or []):
+        msg.add_attachment(inhoud, maintype=hoofdtype, subtype=subtype,
+                           filename=bestandsnaam)
 
     try:
         ctx = ssl.create_default_context()

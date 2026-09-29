@@ -151,6 +151,29 @@ def test_nieuw_contact_en_nieuwe_organisatie(nep):
     assert cp["bron_type"] == "Data Readiness Check"
 
 
+def test_lead_krijgt_geen_rso_of_regio(nep):
+    """Een bezoeker die zich aanmeldt is een lead, en verder weten we niets.
+
+    Zonder expliciete categorie blijft het veld leeg, en toont het CRM de eerste
+    keuze uit de lijst -- RSO -- alsof dat is vastgelegd. En zonder expliciete
+    soort zet het CRM er VVT op: verpleeg- en verzorgingshuizen en thuiszorg.
+    Allebei een indeling waar niemand op heeft gestuurd.
+    """
+    crm.registreer(uitslag(), naam="Jan de Vries",
+                   organisatie="Kreuwel Consultancy", email="jan@voorbeeld.nl")
+
+    cp = nep.contacten[0]
+    assert cp["categorie"] == "Lead"
+    assert not cp.get("rso_regio")
+    assert not cp.get("rolniveau")
+    assert cp["opmerking"] == "Aangemeld via de Data Readiness Check op de website."
+
+    org = nep.organisaties[0]
+    assert org["soort"] == "OVERIG"
+    assert not org.get("rso_naam")
+    assert not org.get("werkgebied")
+
+
 def test_activiteit_bevat_de_afgesproken_gegevens(nep):
     crm.registreer(uitslag(), naam="Jan de Vries", organisatie="Zorggroep Voorbeeld",
                    email="jan@voorbeeld.nl",

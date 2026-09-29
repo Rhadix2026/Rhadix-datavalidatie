@@ -55,6 +55,8 @@ TOKENMARGE = 60          # seconden vóór het verlopen alvast opnieuw inloggen
 
 ACTIVITEIT_TITEL = "Data Readiness Check – rapport aangevraagd"
 BRON = "Data Readiness Check"
+# Categorie voor contacten die zichzelf via de website aanmelden.
+CATEGORIE = "Lead"
 
 _slot = threading.Lock()
 _token: dict = {"waarde": None, "geldig_tot": 0.0}
@@ -189,6 +191,11 @@ def zoek_organisatie(naam: str) -> dict | None:
 def _maak_organisatie(naam: str) -> dict | None:
     return _aanroep("POST", "/api/crm/organisaties", json={
         "naam": naam,
+        # Expliciet OVERIG. Laten we soort weg, dan zet het CRM er "VVT" op --
+        # verpleeg- en verzorgingshuizen en thuiszorg. Van een organisatie die
+        # zichzelf via de website aanmeldt weten we dat niet, en zo'n label komt
+        # later terug als een indeling waar niemand op heeft gestuurd.
+        "soort": "OVERIG",
         "bron_opmerking": f"Automatisch aangemaakt vanuit de {BRON} op de website.",
         "betrouwbaarheid": "Laag",
     })
@@ -201,6 +208,10 @@ def _maak_contact(naam: str, email: str, organisatie: str, organisatie_id: str |
         "organisatie_id": organisatie_id,
         "organisatie_naam": organisatie,
         "bron_type": BRON,
+        # Een binnenkomende aanvraag is een lead, geen RSO. Zonder deze waarde
+        # blijft de categorie leeg, en dan toont het CRM de eerste keuze uit de
+        # lijst -- RSO -- alsof dat is vastgelegd.
+        "categorie": CATEGORIE,
         "zekerheid": "Hoog",          # de bezoeker heeft het zelf ingevuld
         "opmerking": f"Aangemeld via de {BRON} op de website.",
     })

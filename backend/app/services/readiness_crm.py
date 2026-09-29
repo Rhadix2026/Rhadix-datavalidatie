@@ -422,9 +422,12 @@ def registreer_bericht(naam: str, email: str, organisatie: str = "", telefoon: s
                       "(naam=%s organisatie=%s email=%s)", naam, organisatie, email)
             return None
 
-        titel = f"Contactformulier – {kanaal.lower()}"
+        # Bij kanaal "Contactformulier" zou het voorvoegsel zichzelf herhalen.
+        titel = ("Contactformulier" if kanaal == cta.STANDAARD_KANAAL
+                 else f"Contactformulier – {kanaal.lower()}")
         if interesse and interesse != cta.STANDAARD_INTERESSE:
-            titel = f"Contactformulier – {kanaal.lower()} {interesse}"
+            titel = f"{titel} – {interesse}" if kanaal == cta.STANDAARD_KANAAL \
+                else f"{titel} {interesse}"
 
         activiteit = _aanroep("POST", "/api/crm/activiteiten", json={
             "titel": titel[:255],

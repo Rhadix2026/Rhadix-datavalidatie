@@ -48,6 +48,8 @@ from datetime import date, datetime, timezone
 
 import requests
 
+from app.services import website_cta as cta
+
 log = logging.getLogger("rhadix.readiness.crm")
 
 TIJDSLIMIET = 8          # seconden per aanroep; een traag CRM mag niemand laten wachten
@@ -55,8 +57,9 @@ TOKENMARGE = 60          # seconden vóór het verlopen alvast opnieuw inloggen
 
 ACTIVITEIT_TITEL = "Data Readiness Check – rapport aangevraagd"
 BRON = "Data Readiness Check"
-# Categorie voor contacten die zichzelf via de website aanmelden.
-CATEGORIE = "Lead"
+# Herkomst: iedereen die via de website binnenkomt. Het relatietype (categorie)
+# blijft leeg -- dat weten we niet en raden we niet.
+HERKOMST = "Website"
 
 _slot = threading.Lock()
 _token: dict = {"waarde": None, "geldig_tot": 0.0}
@@ -188,7 +191,7 @@ def zoek_organisatie(naam: str) -> dict | None:
     return None
 
 
-def _maak_organisatie(naam: str) -> dict | None:
+def _maak_organisatie(naam: str, bron_opmerking: str) -> dict | None:
     return _aanroep("POST", "/api/crm/organisaties", json={
         "naam": naam,
         # Expliciet OVERIG. Laten we soort weg, dan zet het CRM er "VVT" op --
@@ -196,24 +199,32 @@ def _maak_organisatie(naam: str) -> dict | None:
         # zichzelf via de website aanmeldt weten we dat niet, en zo'n label komt
         # later terug als een indeling waar niemand op heeft gestuurd.
         "soort": "OVERIG",
-        "bron_opmerking": f"Automatisch aangemaakt vanuit de {BRON} op de website.",
+        "bron_opmerking": bron_opmerking,
         "betrouwbaarheid": "Laag",
     })
 
 
-def _maak_contact(naam: str, email: str, organisatie: str, organisatie_id: str | None) -> dict | None:
+def _maak_contact(naam: str, email: str, organisatie: str, organisatie_id: str | None,
+                  status: str, bronpagina: str, opmerking: str,
+                  telefoon: str = "") -> dict | None:
     return _aanroep("POST", "/api/crm/contactpersonen", json={
         "naam": naam,
         "email": email,
+        "telefoon": telefoon,
         "organisatie_id": organisatie_id,
         "organisatie_naam": organisatie,
-        "bron_type": BRON,
-        # Een binnenkomende aanvraag is een lead, geen RSO. Zonder deze waarde
-        # blijft de categorie leeg, en dan toont het CRM de eerste keuze uit de
-        # lijst -- RSO -- alsof dat is vastgelegd.
-        "categorie": CATEGORIE,
+        # Herkomst en waar de eerste aanraking plaatsvond.
+        "bron_type": HERKOMST,
+        "bronpagina": bronpagina,
+        "bron_url": cta.bron_url(bronpagina),
+        # Waar deze persoon in het proces staat.
+        "status": status,
+        # Het relatietype blijft BEWUST leeg. We weten niet of dit een
+        # zorgorganisatie, een leverancier of een adviesbureau is, en een keuze
+        # uit een lijst is geen kennis. Leeg betekent onbekend, en dat is
+        # bruikbare informatie.
         "zekerheid": "Hoog",          # de bezoeker heeft het zelf ingevuld
-        "opmerking": f"Aangemeld via de {BRON} op de website.",
+        "opmerking": opmerking,
     })
 
 
@@ -271,7 +282,9 @@ def registreer(uitslag, naam: str, organisatie: str, email: str,
         # 1 — Bestaat de organisatie al?
         org = zoek_organisatie(organisatie)
         if org is None and organisatie:
-            org = _maak_organisatie(organisatie)
+            org = _maak_organisatie(
+                organisatie,
+                f"Automatisch aangemaakt vanuit de {BRON} op de website.")
             if org:
                 log.info("CRM: organisatie aangemaakt — %s", organisatie)
         org_id = (org or {}).get("id")
@@ -279,7 +292,11 @@ def registreer(uitslag, naam: str, organisatie: str, email: str,
         # 2 — Bestaat het contact al? Zo ja, laten staan: niets overschrijven.
         contact = zoek_contact(email)
         if contact is None:
-            contact = _maak_contact(naam, email, organisatie, org_id)
+            contact = _maak_contact(
+                naam, email, organisatie, org_id,
+                status=cta.STATUS_READINESS,
+                bronpagina="data-readiness",
+                opmerking=f"Aangemeld via de {BRON} op de website.")
             if contact:
                 log.info("CRM: contactpersoon aangemaakt — %s", email)
         else:
@@ -300,6 +317,10 @@ def registreer(uitslag, naam: str, organisatie: str, email: str,
             "datum": date.today().isoformat(),
             "organisatie_id": org_id,
             "contactpersoon_id": contact_id,
+            "kanaal": cta.KANAAL_READINESS,
+            "interesse": cta.INTERESSE_READINESS,
+            "bronpagina": "data-readiness",
+            "campagne": cta.campagne_kort(campagne),
             "omschrijving": _omschrijving(uitslag, naam, organisatie, email, campagne),
         })
         if not activiteit:
@@ -321,4 +342,109 @@ def registreer(uitslag, naam: str, organisatie: str, email: str,
 
     except Exception:
         log.exception("CRM: onverwachte fout bij het registreren van %s (%s)", email, organisatie)
+        return None
+
+
+# ── Het contactformulier ──────────────────────────────────────────────────────
+
+def _omschrijving_bericht(naam: str, organisatie: str, email: str, telefoon: str,
+                          onderwerp: str, bericht: str, kanaal: str, interesse: str,
+                          bronpagina: str, campagne: dict | None) -> str:
+    moment = datetime.now(timezone.utc).astimezone().strftime("%d-%m-%Y %H:%M")
+    regels = [
+        "Bron: contactformulier (website)",
+        f"Ontvangen op: {moment}",
+        f"Kanaal: {kanaal}",
+        f"Interesse: {interesse}",
+        f"Vanaf pagina: {cta.bron_url(bronpagina)}",
+        "",
+        f"Naam: {naam}",
+        f"Organisatie: {organisatie or '—'}",
+        f"E-mailadres: {email}",
+        f"Telefoon: {telefoon or '—'}",
+    ]
+    if onderwerp:
+        regels.append(f"Onderwerp: {onderwerp}")
+    if bericht:
+        regels += ["", "Bericht:", bericht]
+    if campagne:
+        regels.append("")
+        regels.append("Campagne:")
+        for sleutel in sorted(campagne):
+            if campagne[sleutel]:
+                regels.append(f"  {sleutel}: {campagne[sleutel]}")
+    return "\n".join(regels)
+
+
+def registreer_bericht(naam: str, email: str, organisatie: str = "", telefoon: str = "",
+                       onderwerp: str = "", bericht: str = "",
+                       van: str = "", cta_code: str = "",
+                       campagne: dict | None = None) -> dict | None:
+    """Legt een inzending van het contactformulier vast in het CRM.
+
+    Zelfde opzet als `registreer()`: organisatie en contact alleen als ze nog
+    niet bestaan, en altijd een nieuwe activiteit. Een bestaand contact wordt
+    nooit overschreven -- ook zijn status niet, ook niet als die al "Klant" is.
+    Er komt alleen een moment bij.
+
+    Werpt nooit een uitzondering: het bericht van de bezoeker gaat voor.
+    """
+    if not ingeschakeld():
+        log.debug("CRM: geen koppeling ingesteld, bericht niet geregistreerd")
+        return None
+
+    kanaal, interesse, status, bronpagina = cta.duiding(van, cta_code)
+
+    try:
+        org = zoek_organisatie(organisatie) if organisatie else None
+        if org is None and organisatie:
+            org = _maak_organisatie(
+                organisatie, "Automatisch aangemaakt vanuit het contactformulier "
+                             "op de website.")
+            if org:
+                log.info("CRM: organisatie aangemaakt — %s", organisatie)
+        org_id = (org or {}).get("id")
+
+        contact = zoek_contact(email)
+        if contact is None:
+            contact = _maak_contact(
+                naam, email, organisatie, org_id,
+                status=status, bronpagina=bronpagina, telefoon=telefoon,
+                opmerking="Aangemeld via het contactformulier op de website.")
+            if contact:
+                log.info("CRM: contactpersoon aangemaakt — %s (status %s)", email, status)
+        else:
+            log.info("CRM: bestaand contact gevonden — %s, status blijft ongewijzigd", email)
+        contact_id = (contact or {}).get("id")
+
+        if not contact_id and not org_id:
+            log.error("CRM: geen contact en geen organisatie; bericht niet vastgelegd "
+                      "(naam=%s organisatie=%s email=%s)", naam, organisatie, email)
+            return None
+
+        titel = f"Contactformulier – {kanaal.lower()}"
+        if interesse and interesse != cta.STANDAARD_INTERESSE:
+            titel = f"Contactformulier – {kanaal.lower()} {interesse}"
+
+        activiteit = _aanroep("POST", "/api/crm/activiteiten", json={
+            "titel": titel[:255],
+            "soort": "notitie",
+            "status": "open",
+            "datum": date.today().isoformat(),
+            "organisatie_id": org_id,
+            "contactpersoon_id": contact_id,
+            "kanaal": kanaal,
+            "interesse": interesse,
+            "bronpagina": bronpagina,
+            "campagne": cta.campagne_kort(campagne),
+            "omschrijving": _omschrijving_bericht(
+                naam, organisatie, email, telefoon, onderwerp, bericht,
+                kanaal, interesse, bronpagina, campagne),
+        })
+        if activiteit:
+            log.info("CRM: activiteit %s vastgelegd — %s", activiteit.get("id"), titel)
+        return activiteit
+
+    except Exception:
+        log.exception("CRM: registratie van het bericht mislukte; het bericht zelf is wel verstuurd")
         return None

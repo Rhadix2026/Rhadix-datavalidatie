@@ -30,6 +30,7 @@ from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.services import contact_mail
+from app.services import readiness_crm as crm
 from app.services import readiness_limiet as limiet
 
 log = logging.getLogger("rhadix.contact")
@@ -49,6 +50,18 @@ class ContactVerzoek(BaseModel):
     onderwerp: str = Field(default="", max_length=160)
     website: str = Field(default="", max_length=200,
                          description="honeypot — hoort leeg te blijven")
+
+    # Waar vandaan en via welke knop. De site geeft ze mee als ?van= en ?cta=;
+    # ontbreken ze, dan is het gewoon het algemene contactformulier.
+    van: str = Field(default="", max_length=64)
+    cta: str = Field(default="", max_length=64)
+
+    # Campagneherkomst, dezelfde vijf als bij het Readiness-rapport.
+    utm_source: str = Field(default="", max_length=120)
+    utm_medium: str = Field(default="", max_length=120)
+    utm_campaign: str = Field(default="", max_length=160)
+    utm_content: str = Field(default="", max_length=160)
+    utm_term: str = Field(default="", max_length=160)
 
     @field_validator("naam", "organisatie", "telefoon", "onderwerp")
     @classmethod
@@ -120,4 +133,21 @@ def contact(verzoek: ContactVerzoek, response: Response) -> ContactAntwoord:
         )
 
     limiet.leg_vast(afdruk, verzoek.email)
+
+    # 5 — Vastleggen in het CRM. Staat bewust ná de verzending en vangt zijn
+    #     eigen fouten af: het bericht van de bezoeker is belangrijker dan de
+    #     registratie, en een haperend CRM mag nooit een contactformulier breken.
+    #
+    #     Spam komt hier niet: honeypot en herhaling keren hierboven al terug,
+    #     vóór dit punt. Alleen berichten die werkelijk zijn doorgestuurd,
+    #     belanden in het CRM.
+    campagne = {s: getattr(verzoek, s) for s in
+                ("utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term")
+                if getattr(verzoek, s)}
+    crm.registreer_bericht(
+        naam=verzoek.naam, email=verzoek.email, organisatie=verzoek.organisatie,
+        telefoon=verzoek.telefoon, onderwerp=verzoek.onderwerp, bericht=verzoek.bericht,
+        van=verzoek.van, cta_code=verzoek.cta, campagne=campagne or None,
+    )
+
     return ContactAntwoord(ok=True, verzonden=True)

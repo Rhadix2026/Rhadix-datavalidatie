@@ -148,7 +148,32 @@ def test_nieuw_contact_en_nieuwe_organisatie(nep):
     assert cp["email"] == "jan@voorbeeld.nl"
     assert cp["naam"] == "Jan de Vries"
     assert cp["organisatie_id"] == org["id"]
-    assert cp["bron_type"] == "Data Readiness Check"
+    # Herkomst is de website; dát het via de Readiness Check ging, staat op de
+    # activiteit als kanaal. Twee verschillende vragen, twee verschillende plekken.
+    assert cp["bron_type"] == "Website"
+    assert nep.activiteiten[0]["kanaal"] == "Data Readiness Check"
+
+
+def test_readiness_geeft_status_nieuw_en_geen_relatietype(nep):
+    """Een rapportaanvraag is nog geen blijk van vervolginteresse.
+
+    Wie alleen zijn uitslag wil, krijgt status "Nieuw". Lead is voor wie
+    expliciet een gesprek, een pilot of een dienst aanvraagt. De activiteit legt
+    wel precies vast wát er gebeurde, ook bij status Nieuw.
+    """
+    crm.registreer(uitslag(), naam="Jan de Vries",
+                   organisatie="Kreuwel Consultancy", email="jan@voorbeeld.nl")
+
+    cp = nep.contacten[0]
+    assert cp["status"] == "Nieuw"
+    assert not cp.get("categorie")          # relatietype onbekend, niet geraden
+    assert cp["bron_type"] == "Website"
+    assert cp["bronpagina"] == "data-readiness"
+
+    a = nep.activiteiten[0]
+    assert a["kanaal"] == "Data Readiness Check"
+    assert a["interesse"] == "Readiness Check"
+    assert a["bronpagina"] == "data-readiness"
 
 
 def test_lead_krijgt_geen_rso_of_regio(nep):
@@ -163,7 +188,7 @@ def test_lead_krijgt_geen_rso_of_regio(nep):
                    organisatie="Kreuwel Consultancy", email="jan@voorbeeld.nl")
 
     cp = nep.contacten[0]
-    assert cp["categorie"] == "Lead"
+    assert not cp.get("categorie")
     assert not cp.get("rso_regio")
     assert not cp.get("rolniveau")
     assert cp["opmerking"] == "Aangemeld via de Data Readiness Check op de website."

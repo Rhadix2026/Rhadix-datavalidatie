@@ -1,0 +1,69 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 13.4
+# Parameters: ?peildatum
+# Ontologie: versie 3.0 of nieuwer
+
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-pers: <http://purl.org/ozo/onz-pers#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+    ("Aantal:" AS ?Indeling)
+    (IF(SUM(?noemer_waarde) = 0, "Ongedefinieerd", 100 * SUM(?teller_waarde)/SUM(?noemer_waarde)) AS ?Procent_personeelsleden_met_een_aflopend_kwalificatieniveau)
+{
+    SELECT
+        (IF(?niveau_eerder > 0 && ?niveau_peildatum > 0, 1, 0) AS ?noemer_waarde)
+        (IF(?noemer_waarde = 1 && ?niveau_eerder > ?niveau_peildatum, 1, 0) AS ?teller_waarde)
+    {
+        SELECT
+            ?werknemer
+            (MAX(?op_peildatum) AS ?niveau_peildatum)
+            (MAX(?op_peildatum_eerder) AS ?niveau_eerder)
+        {
+            SELECT
+                ?werknemer
+                ?op_peildatum
+                ?op_peildatum_eerder
+            {   
+                # BIND(xsd:date("2024-05-12") AS ?peildatum)
+                BIND((?peildatum - "P3M"^^xsd:duration) AS ?peildatum_eerder)
+                
+                # Alle werknemers met een zorgverlenerfunctie
+                ?overeenkomst
+                    a onz-pers:ArbeidsOvereenkomst ;
+                    onz-pers:heeftOpdrachtnemer ?werknemer ;
+                    onz-g:hasPart ?overeenkomst_afspraak .
+                ?overeenkomst_afspraak
+                    a onz-pers:WerkOvereenkomstAfspraak ;
+                    onz-g:isAbout ?functie ;
+                    onz-g:startDatum ?start_afspraak .
+                ?functie 
+                    a onz-pers:ZorgverlenerFunctie ;
+                    onz-g:hasQuality /onz-g:hasQualityValue ?functie_niveau .
+                
+                OPTIONAL {
+                    ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak
+                }
+                # selecteer kwalificatie niveau en converteer naar integer
+                ?functie_niveau
+                    a onz-pers:ODBKwalificatieWaarde ;
+                    rdfs:label ?niveau .
+                BIND(xsd:integer(REPLACE(?niveau, "\\D+", "")) AS ?niveau_number)
+                
+                # filter medewerkers met kwalificatieniveau 1 t/m 6
+                FILTER((?niveau_number >=1) && (?niveau_number <=6))
+
+                # filter de functies relevant tijdens de peildatum
+                BIND(IF(?start_afspraak <= ?peildatum && ((?eind_afspraak >= ?peildatum)||(!BOUND(?eind_afspraak))), ?niveau_number, 0) AS ?op_peildatum)
+                BIND(IF(?start_afspraak <= ?peildatum_eerder && ((?eind_afspraak >= ?peildatum_eerder)||(!BOUND(?eind_afspraak))), ?niveau_number, 0) AS ?op_peildatum_eerder)
+            }
+        }
+        GROUP BY ?werknemer
+    }
+}

@@ -1,0 +1,245 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 23.3.0 
+# Parameters: ?startperiode, ?eindperiode
+# Ontologie: versie 3.0.0 of nieuwer
+
+PREFIX onz-fin: <http://purl.org/ozo/onz-fin#>
+PREFIX onz-zorg:  <http://purl.org/ozo/onz-zorg#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+    ("CAPEX" AS ?Kental)
+    (IF(?noemer = 0, "Ongedefinieerd"^^xsd:string, ROUND((?teller / ?noemer) * 100) / 100) AS ?Waarde)
+WHERE
+{
+    # A Vaste Activa op begin meetperiode - peildatum startperiode
+    {
+        SELECT (SUM(?bedrag_rubriek) AS ?bedrag_start)
+        WHERE {
+            {
+                SELECT
+                    (SUM(?geld_bedrag) + SUM(?saldo_waarde)/count(?saldo_waarde) AS ?bedrag_rubriek) 
+                    ?rubriek ?categorie
+                WHERE {
+                    	# BIND("2024-01-01"^^xsd:date AS ?startperiode)
+                    {
+                        SELECT
+                            ?rubriek ?categorie
+                            (IF(BOUND(?saldo_bedrag), ?saldo_bedrag, 0) AS ?saldo_waarde)
+                            (IF(BOUND(?saldo_datum), ?saldo_datum, ?unbound) AS ?begin_datum)
+                            ?saldo_datum ?saldo
+                        WHERE {
+                            # BIND("2024-01-01"^^xsd:date AS ?startperiode)
+                            {
+                                {
+                                    ?rubriek a onz-fin:Grootboekrubriek .
+                                }
+                                UNION
+                                {
+                                    ?rubriek a onz-fin:Grootboekrekening .
+                                }
+                                BIND(STRAFTER(STR(?rubriek), STR(onz-fin:)) AS ?rubriekCode)
+                                VALUES (?prismantPrefix ?categorie) {
+                                    ("00" "A.I")
+                                    ("01" "A.II")
+                                    ("03" "A.III")
+                                }
+                                FILTER(STRSTARTS(?rubriekCode, ?prismantPrefix))
+                            }
+                            UNION
+                            {
+                                VALUES (?rubriekCode ?categorie) {
+                                    ("BIva" "A.I")
+                                    ("BMva" "A.II")
+                                    ("BFva" "A.III")
+                                    ("BVas" "A.III")
+                                }
+                                BIND(IRI(CONCAT(STR(onz-fin:), ?rubriekCode)) AS ?rubriek)
+                                {
+                                    ?rubriek a onz-fin:Grootboekrubriek .
+                                }
+                                UNION
+                                {
+                                    ?rubriek a onz-fin:Grootboekrekening .
+                                }
+                            }
+                            OPTIONAL {
+                                ?rubriek onz-g:isAbout ?saldo .
+                                ?saldo
+                                    a onz-fin:EindSaldo ;
+                                    onz-fin:heeftGeldBedrag ?saldo_bedrag ;
+                                    onz-g:hasDate ?saldo_datum .
+                                FILTER (?saldo_datum <= ?startperiode)
+                            }
+                            FILTER NOT EXISTS {
+                                ?rubriek onz-g:isAbout ?saldo2 .
+                                ?saldo2 a onz-fin:EindSaldo ;
+                                        onz-g:hasDate ?saldo_datum2 .
+                                FILTER(?saldo2 != ?saldo)
+                                FILTER(?saldo_datum2 <= ?startperiode)
+                                FILTER(
+                                    ?saldo_datum2 > ?saldo_datum
+                                    || (
+                                        ?saldo_datum2 = ?saldo_datum
+                                        && STR(?saldo2) > STR(?saldo)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    OPTIONAL {
+                        ?grootboek_post a onz-fin:Grootboekpost ;
+                                        onz-g:partOf ?rubriek ;
+                                        onz-g:hasDate ?datum ;
+                                        onz-fin:heeftGeldBedrag ?geld_bedrag_temp .
+                        FILTER NOT EXISTS {
+                            ?grootboek_post onz-g:partOf ?specifiekereRubriek .
+                            ?specifiekereRubriek onz-g:partOf+ ?rubriek .
+                        }
+                        FILTER (?datum <= ?startperiode && (?datum > ?begin_datum || !BOUND(?begin_datum)))
+                    }
+                    BIND(IF(BOUND(?geld_bedrag_temp), ?geld_bedrag_temp, 0) AS ?geld_bedrag)
+                } GROUP BY ?rubriek ?categorie
+            }
+        }
+    }
+
+    # A Vaste Activa op eind meetperiode - peildatum eindperiode
+    {
+        SELECT (SUM(?bedrag_rubriek) AS ?bedrag_eind)
+        WHERE {
+                
+            {
+                SELECT
+                    (SUM(?geld_bedrag) + SUM(?saldo_waarde)/count(?saldo_waarde) AS ?bedrag_rubriek) 
+                    ?rubriek ?categorie
+                WHERE {
+                    	# BIND("2024-12-31"^^xsd:date AS ?eindperiode)
+                    {
+                        SELECT
+                            ?rubriek ?categorie
+                            (IF(BOUND(?saldo_bedrag), ?saldo_bedrag, 0) AS ?saldo_waarde)
+                            (IF(BOUND(?saldo_datum), ?saldo_datum, ?unbound) AS ?begin_datum)
+                            ?saldo_datum ?saldo
+                        WHERE {
+                            # BIND("2024-12-31"^^xsd:date AS ?eindperiode)        
+                            {
+                                {
+                                    ?rubriek a onz-fin:Grootboekrubriek .
+                                }
+                                UNION
+                                {
+                                    ?rubriek a onz-fin:Grootboekrekening .
+                                }
+                                BIND(STRAFTER(STR(?rubriek), STR(onz-fin:)) AS ?rubriekCode)
+                                VALUES (?prismantPrefix ?categorie) {
+                                    ("00" "A.I")
+                                    ("01" "A.II")
+                                    ("03" "A.III")
+                                }
+                                FILTER(STRSTARTS(?rubriekCode, ?prismantPrefix))
+                            }
+                            UNION
+                            {
+                                VALUES (?rubriekCode ?categorie) {
+                                    ("BIva" "A.I")
+                                    ("BMva" "A.II")
+                                    ("BFva" "A.III")
+                                    ("BVas" "A.III")
+                                }
+                                BIND(IRI(CONCAT(STR(onz-fin:), ?rubriekCode)) AS ?rubriek)
+                                {
+                                    ?rubriek a onz-fin:Grootboekrubriek .
+                                }
+                                UNION
+                                {
+                                    ?rubriek a onz-fin:Grootboekrekening .
+                                }
+                            }
+                            OPTIONAL {
+                                ?rubriek onz-g:isAbout ?saldo .
+                                ?saldo
+                                    a onz-fin:EindSaldo ;
+                                    onz-fin:heeftGeldBedrag ?saldo_bedrag ;
+                                    onz-g:hasDate ?saldo_datum .
+                                FILTER (?saldo_datum <= ?eindperiode)
+                            }
+                            FILTER NOT EXISTS {
+                                ?rubriek onz-g:isAbout ?saldo2 .
+                                ?saldo2 a onz-fin:EindSaldo ;
+                                        onz-g:hasDate ?saldo_datum2 .
+                                FILTER(?saldo2 != ?saldo)
+                                FILTER(?saldo_datum2 <= ?eindperiode)
+                                FILTER(
+                                    ?saldo_datum2 > ?saldo_datum
+                                    || (
+                                        ?saldo_datum2 = ?saldo_datum
+                                        && STR(?saldo2) > STR(?saldo)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    OPTIONAL {
+                        ?grootboek_post a onz-fin:Grootboekpost ;
+                                        onz-g:partOf ?rubriek ;
+                                        onz-g:hasDate ?datum ;
+                                        onz-fin:heeftGeldBedrag ?geld_bedrag_temp .
+                        FILTER NOT EXISTS {
+                            ?grootboek_post onz-g:partOf ?specifiekereRubriek .
+                            ?specifiekereRubriek onz-g:partOf+ ?rubriek .
+                        }
+                        FILTER (?datum <= ?eindperiode && (?datum > ?begin_datum || !BOUND(?begin_datum)))
+                    }
+                    BIND(IF(BOUND(?geld_bedrag_temp), ?geld_bedrag_temp, 0) AS ?geld_bedrag)
+                } GROUP BY ?rubriek ?categorie
+            }
+        }
+    }
+
+    # Noemer: Q.VI afschrijvingen tijdens meetperiode
+    { 
+      SELECT (SUM(?bedrag_rubriek) AS ?noemer_raw) 
+      WHERE { 
+        SELECT ?categorie (SUM(?geld_bedrag) AS ?bedrag_rubriek) 
+        WHERE {
+               # BIND("2024-01-01"^^xsd:date AS ?startperiode)
+               # BIND("2024-12-31"^^xsd:date AS ?eindperiode)
+          { 
+            SELECT DISTINCT ?rubriek 
+            WHERE { 
+              { ?rubriek a onz-fin:Grootboekrubriek . }
+              UNION
+              { ?rubriek a onz-fin:Grootboekrekening . }
+              FILTER(STRSTARTS(STR(?rubriek), STR(onz-fin:))) 
+            } 
+          } 
+          BIND(STRAFTER(STR(?rubriek), STR(onz-fin:)) AS ?rubriekCode) 
+          BIND(COALESCE(
+                IF(STRSTARTS(?rubriekCode, "480") || STRSTARTS(?rubriekCode, "481") || STRSTARTS(?rubriekCode, "482") || 
+                   STRSTARTS(?rubriekCode, "483") || STRSTARTS(?rubriekCode, "484") || STRSTARTS(?rubriekCode, "WAfs"), "Q.VI", ?unbound), "other") AS ?categorie
+          ) 
+          FILTER(?categorie != "other") 
+          ?grootboek_post a onz-fin:Grootboekpost ; 
+                          onz-g:partOf ?rubriek ; 
+                          onz-g:hasDate ?datum ; 
+                          onz-fin:heeftGeldBedrag ?geld_bedrag . 
+          FILTER NOT EXISTS {
+              ?grootboek_post onz-g:partOf ?specifiekereRubriek .
+              ?specifiekereRubriek onz-g:partOf+ ?rubriek .
+          }
+          FILTER (?datum >= ?startperiode && ?datum <= ?eindperiode) 
+        } 
+      GROUP BY ?categorie 
+      } 
+    } 
+    BIND(IF(BOUND(?noemer_raw), ?noemer_raw, 0) AS ?noemer)
+
+    # Teller berekening
+    BIND(?bedrag_eind - ?bedrag_start AS ?teller)
+}

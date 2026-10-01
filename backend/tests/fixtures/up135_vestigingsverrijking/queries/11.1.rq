@@ -1,0 +1,212 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: ZK 11.1 
+# Parameters: ?jaar, ?kwartaal, ?zorgkantoor
+# Ontologie: versie 3.0 of nieuwer
+
+PREFIX onz-g:   <http://purl.org/ozo/onz-g#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX time:    <http://www.w3.org/2006/time#>
+PREFIX onz-pers:<http://purl.org/ozo/onz-pers#>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+SELECT 
+  (?vestiging AS ?Indeling)
+  (IF(SUM(?noemer_som_zorg) = 0, "Ongedefinieerd",
+    ROUND( (100.0 * SUM(?ziekte_som_zorg) / SUM(?noemer_som_zorg)) * 100 ) / 100
+    ) AS ?Zorg)
+  (IF(SUM(?noemer_som_niet_zorg) = 0, "Ongedefinieerd",
+    ROUND( (100.0 * SUM(?ziekte_som_niet_zorg) / SUM(?noemer_som_niet_zorg)) * 100 ) / 100
+    ) AS ?Niet_zorg)
+  (IF(SUM(?noemer_som_totaal) = 0, "Ongedefinieerd",
+    ROUND( (100.0 * SUM(?ziekte_som_totaal) / SUM(?noemer_som_totaal)) * 100 ) / 100
+    ) AS ?Totaal)
+WHERE 
+{
+  {
+    SELECT
+      ?overeenkomst_afspraak 
+      ?persoon 
+      (SUM(?ziekte_verzuim_zorg) AS ?ziekte_som_zorg) 
+      (SUM(?noemer_afspraak_zorg) AS ?noemer_som_zorg) 
+      (SUM(?ziekte_verzuim_niet_zorg) AS ?ziekte_som_niet_zorg) 
+      (SUM(?noemer_afspraak_niet_zorg) AS ?noemer_som_niet_zorg) 
+      (SUM(?ziekte_verzuim_totaal) AS ?ziekte_som_totaal) 
+      (SUM(?noemer_afspraak_totaal) AS ?noemer_som_totaal) 
+    WHERE
+    {
+      # TELLER: selecteer het ?ziekte_verzuim van de medewerkers per persoon per werkovereenkomstafspraak
+      {
+        SELECT    
+          ?overeenkomst_afspraak
+          ?persoon
+          ?ziekte_verzuim_zorg
+          ?ziekte_verzuim_niet_zorg
+          ?ziekte_verzuim_totaal
+          ("0.0"^^xsd:decimal AS ?noemer_afspraak_zorg)
+          ("0.0"^^xsd:decimal AS ?noemer_afspraak_niet_zorg)
+          ("0.0"^^xsd:decimal AS ?noemer_afspraak_totaal)
+        WHERE {
+                 
+        #  BIND(2024 AS ?jaar)  # Parameter
+        #  BIND("Q2" AS ?kwartaal)  # Parameter           
+          BIND(IF(?kwartaal = 'Q1', xsd:date(CONCAT(STR(?jaar), '-01-01')),
+                 IF(?kwartaal = 'Q2', xsd:date(CONCAT(STR(?jaar), '-04-01')),
+                 IF(?kwartaal = 'Q3', xsd:date(CONCAT(STR(?jaar), '-07-01')),
+                 IF(?kwartaal = 'Q4', xsd:date(CONCAT(STR(?jaar), '-10-01')),
+                 ?unbound)))) AS ?start_periode)
+          BIND(?start_periode + "P3M"^^xsd:duration + "-P1D"^^xsd:duration AS ?eind_periode)
+
+          # Selecteer alle arbeidsovereenkomsten die geldig zijn
+          ?overeenkomst a onz-pers:ArbeidsOvereenkomst ; onz-g:hasPart ?overeenkomst_afspraak ; onz-pers:heeftOpdrachtnemer ?persoon .
+          ?overeenkomst_afspraak a onz-pers:WerkOvereenkomstAfspraak ; onz-g:hasPart ?omvang ; onz-g:startDatum ?start_afspraak .
+          OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }
+          FILTER (?start_afspraak <= ?eind_periode && (?eind_afspraak >= ?start_periode || !BOUND(?eind_afspraak)))
+
+          # Bepaal per overeenkomstafspraak de ptf en zorg/niet-zorg
+          ?omvang a onz-pers:ContractOmvang ; onz-g:isAbout ?omvang_waarde .
+          ?omvang_waarde a onz-pers:ContractOmvangWaarde ; onz-g:hasDataValue ?omvang_getal ; onz-g:hasUnitOfMeasure ?omvang_eenheid .
+          ?omvang_eenheid onz-g:hasDataValue ?eenheid_factor .
+          BIND(?omvang_getal/(36/?eenheid_factor) AS ?ptf)
+
+          # Check zorg/niet zorg personeel
+          BIND(IF(EXISTS {?overeenkomst_afspraak onz-g:isAbout/a onz-pers:ZorgverlenerFunctie}, 1, 0) AS ?is_zorg)
+          
+          # Clip de afspraak op het kwartaal
+          BIND(IF(?start_afspraak < ?start_periode, ?start_periode, ?start_afspraak) AS ?start_afspraak_corr)
+          BIND(IF(?eind_afspraak > ?eind_periode || !BOUND(?eind_afspraak), ?eind_periode, ?eind_afspraak) AS ?eind_afspraak_corr)
+
+          # Check per afspraak of er ziekteverzuim is en wanneer deze start en eindigt 
+          OPTIONAL {
+            VALUES ?type_verzuim { onz-pers:ZiektePeriode }
+            ?ziekte a ?type_verzuim ; onz-g:definedBy ?overeenkomst ; onz-g:startDatum ?start_ziekte_periode .
+            ?start_ziekte_periode ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_ziekte_periode_reken .
+            OPTIONAL { ?ziekte onz-g:eindDatum ?eind_ziekte_periode }
+
+            OPTIONAL {
+              ?ziekte onz-g:hasQuality ?verzuim_tijd .
+              ?verzuim_tijd a onz-pers:VerzuimTijdKwaliteit ; onz-g:hasQualityValue ?verzuim_waarde .
+              ?verzuim_waarde onz-g:hasUnitOfMeasure onz-g:percent ; onz-g:startDatum ?start_verzuim_waarde_temp .
+              OPTIONAL { ?verzuim_waarde onz-g:hasDataValue ?verzuim_percentage }
+              OPTIONAL { ?verzuim_waarde onz-g:eindDatum ?eind_verzuim_waarde_temp }
+            }
+          }
+
+          # Zorg ervoor dat ziekteperiodes overlappen met de looptijd van de afspraak en het kwartaal 
+          FILTER((?start_ziekte_periode <= ?eind_afspraak_corr && (?eind_ziekte_periode >= ?start_afspraak_corr || !BOUND(?eind_ziekte_periode))))
+		      FILTER ((?start_ziekte_periode <= ?eind_periode && (?eind_ziekte_periode >= ?start_periode || !BOUND(?eind_ziekte_periode))))
+
+          # Zorg ervoor dat verzuimperiodes overlappen met de looptijd van de afspraak en het kwartaal 
+          FILTER ((?start_verzuim_waarde_temp <= ?eind_periode && (?eind_verzuim_waarde_temp >= ?start_periode || !BOUND(?eind_verzuim_waarde_temp))))
+          FILTER ((?start_verzuim_waarde_temp <= ?eind_afspraak_corr && (!BOUND(?eind_verzuim_waarde_temp) || ?eind_verzuim_waarde_temp >= ?start_afspraak_corr)) )
+
+          # Bepaal de einddatum van de ziekteperiode (als langer doorloopt óf geen einddatum: klip op het einde van het kwartaal)
+          BIND(IF(!BOUND(?ziekte), ?unbound, IF(!BOUND(?eind_ziekte_periode) || ?eind_ziekte_periode > ?eind_periode, ?eind_periode, ?eind_ziekte_periode)) AS ?eind_ziekte_periode_clip)
+          OPTIONAL { FILTER(BOUND(?eind_ziekte_periode_clip)) ?eind_ziekte_periode_clip ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_ziekte_periode_reken }
+
+          # Filter op kortdurende ziekte (<= 28 dagen)
+          BIND(IF( !BOUND(?eind_ziekte_periode_reken) || !BOUND(?start_ziekte_periode_reken), ?unbound, ?eind_ziekte_periode_reken - ?start_ziekte_periode_reken + 1) AS ?dagen_ziekte_periode)
+          FILTER(?dagen_ziekte_periode <= 28)
+
+          # Zorg dat de start- en eind verzuimdatum binnen de meetperiode vallen
+          BIND(IF(?start_verzuim_waarde_temp < ?start_afspraak_corr, ?start_afspraak_corr, ?start_verzuim_waarde_temp) AS ?start_verzuim_waarde_final)
+          BIND(IF(!BOUND(?eind_verzuim_waarde_temp), ?eind_afspraak_corr, IF(?eind_verzuim_waarde_temp > ?eind_afspraak_corr, ?eind_afspraak_corr, ?eind_verzuim_waarde_temp)) AS 
+                        ?eind_verzuim_waarde_final)
+
+          # Bereken per verzuimperiode het aantal zieke dagen
+          OPTIONAL {
+            FILTER(BOUND(?start_verzuim_waarde_final) && BOUND(?eind_verzuim_waarde_final))
+            ?start_verzuim_waarde_final ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_verzuim_waarde_final_reken .
+            ?eind_verzuim_waarde_final  ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_verzuim_waarde_final_reken .
+            BIND(?eind_verzuim_waarde_final_reken - ?start_verzuim_waarde_final_reken + 1 AS ?dagen_verzuim_periode)
+          }
+
+          # Bereken het ziekteverzuim per dag (PTF * ZIEKTEPERCENTAGE * DAGEN VERZUIM PERIODE)
+          BIND(IF(BOUND(?verzuim_percentage), xsd:decimal(?verzuim_percentage), 100.0) AS ?pct)
+          BIND(IF(BOUND(?dagen_verzuim_periode), ?ptf * (?pct / 100.0) * ?dagen_verzuim_periode, ?unbound) AS ?ziekte_verzuim_totaal)
+          BIND(?ziekte_verzuim_totaal * ?is_zorg AS ?ziekte_verzuim_zorg)
+          BIND(?ziekte_verzuim_totaal - ?ziekte_verzuim_zorg AS ?ziekte_verzuim_niet_zorg)
+        } 
+      }   
+      UNION
+      # Noemer: selecteer ptf * dagen afspraak van de medewerkers per persoon per afspraak, ongeacht verzuim
+      {
+        SELECT    
+          ?overeenkomst_afspraak
+          ?persoon
+          ("0.0"^^xsd:decimal AS ?ziekte_verzuim_niet_zorg)
+          ("0.0"^^xsd:decimal AS ?ziekte_verzuim_zorg)
+          ("0.0"^^xsd:decimal AS ?ziekte_verzuim_totaal)
+          ?noemer_afspraak_niet_zorg
+          ?noemer_afspraak_zorg
+          ?noemer_afspraak_totaal
+        WHERE 
+        {
+        #  BIND(2024 AS ?jaar)  # Parameter
+        #  BIND("Q2" AS ?kwartaal)  # Parameter             
+          BIND(IF(?kwartaal = 'Q1', xsd:date(CONCAT(STR(?jaar), '-01-01')),
+                 IF(?kwartaal = 'Q2', xsd:date(CONCAT(STR(?jaar), '-04-01')),
+                 IF(?kwartaal = 'Q3', xsd:date(CONCAT(STR(?jaar), '-07-01')),
+                 IF(?kwartaal = 'Q4', xsd:date(CONCAT(STR(?jaar), '-10-01')),
+                 ?unbound)))) AS ?start_periode)
+          BIND(?start_periode + "P3M"^^xsd:duration + "-P1D"^^xsd:duration AS ?eind_periode)
+
+          # Selecteer alle arbeidsovereenkomsten die geldig zijn
+          ?overeenkomst a onz-pers:ArbeidsOvereenkomst ; onz-g:hasPart ?overeenkomst_afspraak ; onz-pers:heeftOpdrachtnemer ?persoon .
+          ?overeenkomst_afspraak a onz-pers:WerkOvereenkomstAfspraak ; onz-g:hasPart ?omvang ; onz-g:startDatum ?start_afspraak .
+          OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }
+          FILTER (?start_afspraak <= ?eind_periode && (?eind_afspraak >= ?start_periode || !BOUND(?eind_afspraak)))
+
+          # Bepaal per overeenkomstafspraak de ptf en zorg/niet-zorg
+          ?omvang a onz-pers:ContractOmvang ; onz-g:isAbout ?omvang_waarde .
+          ?omvang_waarde a onz-pers:ContractOmvangWaarde ; onz-g:hasDataValue ?omvang_getal ; onz-g:hasUnitOfMeasure ?omvang_eenheid .
+          ?omvang_eenheid onz-g:hasDataValue ?eenheid_factor .
+          BIND(?omvang_getal/(36/?eenheid_factor) AS ?ptf)
+          
+          # Check zorg/niet zorg personeel
+          BIND(IF(EXISTS {?overeenkomst_afspraak onz-g:isAbout/a onz-pers:ZorgverlenerFunctie}, 1, 0) AS ?is_zorg)
+
+          # Clip de afspraak op het kwartaal
+          BIND(IF(?start_afspraak < ?start_periode, ?start_periode, ?start_afspraak) AS ?start_afspraak_corr)
+          BIND(IF(?eind_afspraak > ?eind_periode || !BOUND(?eind_afspraak), ?eind_periode, ?eind_afspraak) AS ?eind_afspraak_corr)
+
+          # Bereken hoeveel dagen van de afspraak overlappen met de meetperiode
+          ?start_afspraak_corr ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_afspraak_reken .
+          ?eind_afspraak_corr  ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_afspraak_reken .
+          BIND(?eind_afspraak_reken - ?start_afspraak_reken + 1 AS ?dagen_afspraak)
+          
+          # Noemer per afspraak = PTF * kalenderdagen binnen meetperiode
+          BIND(?ptf * ?dagen_afspraak AS ?noemer_afspraak_totaal)
+          BIND(?noemer_afspraak_totaal * ?is_zorg AS ?noemer_afspraak_zorg)
+          BIND(?noemer_afspraak_totaal - ?noemer_afspraak_zorg AS ?noemer_afspraak_niet_zorg)
+        } 
+      }   
+    } 
+    GROUP BY ?overeenkomst_afspraak ?persoon
+  } 
+
+  {
+   ?overeenkomst_afspraak onz-g:isAbout ?locatie .
+   # Tak 1: echte vestiging + afleiding zorgkantoorregio
+   ?locatie a onz-g:StationaryArtifact ; onz-g:partOf* ?vestiging_uri .
+   ?vestiging_uri a onz-org:Vestiging ;
+     onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 .
+   BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+   ?pc_gebied onz-g:identifiedBy ?postcode ; onz-g:partOf+ ?zk_regio .
+   ?zk_regio a onz-org:ZorgkantoorRegio .
+   ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+   ?vestiging_uri onz-g:identifiedBy ?vest_nr .
+   ?vest_nr a onz-org:Vestigingsnummer ; onz-g:hasDataValue ?vestiging .
+   }
+   UNION
+   {
+   # Tak 2: totaal organisatie, laat ?zk_regio ongebonden (leeg in output)
+   BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+   }
+
+} 
+GROUP BY ?vestiging
+ORDER BY ?Indeling

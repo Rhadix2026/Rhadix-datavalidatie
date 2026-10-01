@@ -1,0 +1,221 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 20.2.0
+# Parameters: ?peildatum
+# Ontologie: versie 3.0.0 of nieuwer
+#
+PREFIX onz-fin: <http://purl.org/ozo/onz-fin#>
+PREFIX onz-g:   <http://purl.org/ozo/onz-g#>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  ("Weerstandsvermogen" AS ?Kental)
+  ( 
+    IF(
+      BOUND(?bedrijfsopbrengsten) && (?bedrijfsopbrengsten != 0),
+      ROUND(xsd:decimal(?eigenvermogen) / xsd:decimal(?bedrijfsopbrengsten) * 100) / 100,
+      "Ongedefinieerd"
+    ) AS ?Waarde
+  )
+
+WHERE {
+  # DEEL 1: D Eigen vermogen (balans op peildatum, uit 18.1)
+  {
+    SELECT
+      (SUM(IF(?jaarrekeningpost = "D Eigen vermogen", ?bedrag, 0)) AS ?eigenvermogen)
+    WHERE {
+      {
+        SELECT ?jaarrekeningpost (SUM(?bedrag_rubriek) AS ?bedrag)
+        WHERE {
+          {
+            # Middle select: totaal per rubriek (saldo + latere mutaties)
+            SELECT ?rubriek ?categorie (SUM(?geld_bedrag_post) + SUM(?saldo_waarde) / COUNT(?saldo_waarde) AS ?bedrag_rubriek)
+            WHERE {
+              {
+                # Innerste subquery: meest recente saldo per rubriek
+                SELECT ?rubriek ?categorie
+                       (IF(BOUND(?saldo_bedrag), ?saldo_bedrag, 0) AS ?saldo_waarde)
+                       ?peildatum_argument
+                       (IF(BOUND(?saldo_datum), ?saldo_datum, ?unbound) AS ?begin_datum)
+                WHERE {
+                  # BIND("2024-12-31"^^xsd:date AS ?peildatum)
+                  BIND(?peildatum AS ?peildatum_argument)
+
+                  # Prismant: prefix-mapping op 6-cijferige Grootboekrubrieken
+                  {
+                      { ?rubriek a onz-fin:Grootboekrubriek }
+                      UNION
+                      { ?rubriek a onz-fin:Grootboekrekening }
+                      BIND(STRAFTER(STR(?rubriek), STR(onz-fin:)) AS ?rubriekCode)
+                      FILTER(REGEX(?rubriekCode, "^[0-9]{6}$"))
+                      VALUES (?prismantPrefix ?categorie) {
+                          ("0511"  "D.I")
+                          ("05413" "D.IV")
+                          ("05311" "D.V")
+                          ("05342" "D.V")
+                          ("05423" "D.V")
+                          ("05323" "D.VI")
+                          ("0539"  "D.VII")
+                          ("05493" "D.VII")
+                          ("05915" "D.VII")
+                          ("091"   "D.VIII")
+                      }
+                      FILTER(STRSTARTS(?rubriekCode, ?prismantPrefix))
+                  }
+                  UNION
+                  {
+                  # RGS: exacte mapping
+                      VALUES (?rubriekCode ?categorie) {
+                          ("BEivGok" "D.I")
+                          ("BEivAgi" "D.II")
+                          ("BEivHer" "D.III")
+                          ("BEivWer" "D.IV")
+                          ("BEivStr" "D.IV")
+                          ("BEivBer" "D.V")
+                          ("BEivBef" "D.VI")
+                          ("BEivOvr" "D.VII")
+                          ("BEivOre" "D.VIII")
+                      }
+                      BIND(IRI(CONCAT(STR(onz-fin:), ?rubriekCode)) AS ?rubriek)
+                      { ?rubriek a onz-fin:Grootboekrubriek }
+                      UNION
+                      { ?rubriek a onz-fin:Grootboekrekening }
+                  }
+
+                  # Meest recente eindsaldo per rubriek (tiebreaker binnen OPTIONAL)
+                  OPTIONAL {
+                    ?rubriek onz-g:isAbout ?saldo .
+                    ?saldo a onz-fin:EindSaldo ;
+                           onz-fin:heeftGeldBedrag ?saldo_bedrag ;
+                           onz-g:hasDate ?saldo_datum .
+                    FILTER(?saldo_datum <= ?peildatum_argument)
+                    FILTER NOT EXISTS {
+                      ?rubriek onz-g:isAbout ?otherSaldo .
+                      ?otherSaldo a onz-fin:EindSaldo ;
+                                  onz-g:hasDate ?otherDatum .
+                      FILTER(
+                        ?otherSaldo != ?saldo
+                        && ?otherDatum <= ?peildatum_argument
+                        && (
+                          ?otherDatum > ?saldo_datum
+                          || (?otherDatum = ?saldo_datum && STR(?otherSaldo) > STR(?saldo))
+                        )
+                      )
+                    }
+                  }
+                }
+              }
+
+              # Grootboekposten na saldo
+              OPTIONAL {
+                ?grootboek_post a onz-fin:Grootboekpost ;
+                      onz-g:partOf ?rubriek ;
+                      onz-g:hasDate ?datum ;
+                      onz-fin:heeftGeldBedrag ?geld_bedrag_temp .
+                # Anti-dubbeltelling
+                FILTER NOT EXISTS {
+                    ?grootboek_post onz-g:partOf ?child .
+                    ?child onz-g:partOf ?rubriek .
+                    FILTER(?child != ?rubriek)
+                    { { ?child a onz-fin:Grootboekrekening } UNION { ?child a onz-fin:Grootboekrubriek } }
+                }
+                FILTER(
+                  ?datum <= ?peildatum_argument
+                  && (!BOUND(?begin_datum) || ?datum > ?begin_datum)
+                )
+              }
+              BIND(IF(BOUND(?geld_bedrag_temp), ?geld_bedrag_temp, 0) AS ?geld_bedrag_post)
+            }
+            GROUP BY ?rubriek ?categorie
+          }
+          VALUES (?categorie ?jaarrekeningpost) {
+            ("D.I"    "D Eigen vermogen")
+            ("D.II"   "D Eigen vermogen")
+            ("D.III"  "D Eigen vermogen")
+            ("D.IV"   "D Eigen vermogen")
+            ("D.V"    "D Eigen vermogen")
+            ("D.VI"   "D Eigen vermogen")
+            ("D.VII"  "D Eigen vermogen")
+            ("D.VIII" "D Eigen vermogen")
+          }
+        }
+        GROUP BY ?jaarrekeningpost
+      }
+    }
+  }
+
+  # DEEL 2: Bedrijfsopbrengsten (W&V over meetperiode, uit 18.2)
+  {
+    SELECT ((?p_totaal) AS ?bedrijfsopbrengsten)
+    WHERE {
+      {
+        SELECT (SUM(?p_bedrag) AS ?p_totaal)
+        WHERE {
+
+          #BIND("2024-12-31"^^xsd:date AS ?peildatum)
+          BIND(
+            IF(
+                MONTH(?peildatum) = 12 && DAY(?peildatum) = 31,
+                xsd:date(CONCAT(STR(YEAR(?peildatum)), "-01-01")),
+                xsd:date(CONCAT(STR(YEAR(?peildatum)-1), "-07-01"))
+            )
+            AS ?startperiode)
+          BIND(?peildatum AS ?eindperiode)
+
+          # Selecteer rubrieken: zowel Prismant (Grootboekrubriek) als RGS (Grootboekrekening)
+          {
+              { ?rubriek a onz-fin:Grootboekrubriek }
+              UNION
+              { ?rubriek a onz-fin:Grootboekrekening }
+          }
+          FILTER(STRSTARTS(STR(?rubriek), STR(onz-fin:)))
+          BIND(STRAFTER(STR(?rubriek), STR(onz-fin:)) AS ?rubriekCode)
+
+          ?post a onz-fin:Grootboekpost ;
+                onz-g:partOf ?rubriek ;
+                onz-g:hasDate ?datum ;
+                onz-fin:heeftGeldBedrag ?geld_bedrag .
+          # Anti-dubbeltelling
+          FILTER NOT EXISTS {
+              ?post onz-g:partOf ?child .
+              ?child onz-g:partOf ?rubriek .
+              FILTER(?child != ?rubriek)
+              { { ?child a onz-fin:Grootboekrekening } UNION { ?child a onz-fin:Grootboekrubriek } }
+          }
+          FILTER(?datum >= ?startperiode && ?datum <= ?eindperiode)
+
+          # Categorie-toewijzing
+          # Prismant: 81, 82, 83, 89, 919, 920, 930 → P
+          # RGS: WOmz, WRev, WRvi, WRgr, WWvv, WNoa, WLbe, WBat, WWiv, WWivGpv, WOvb → P
+          BIND(
+            IF(
+                STRSTARTS(?rubriekCode, "81") ||
+                STRSTARTS(?rubriekCode, "82") ||
+                STRSTARTS(?rubriekCode, "83") ||
+                STRSTARTS(?rubriekCode, "89") ||
+                STRSTARTS(?rubriekCode, "919") ||
+                STRSTARTS(?rubriekCode, "920") ||
+                STRSTARTS(?rubriekCode, "930") ||
+                STRSTARTS(?rubriekCode, "WOmz") ||
+                STRSTARTS(?rubriekCode, "WRev") ||
+                STRSTARTS(?rubriekCode, "WRvi") ||
+                STRSTARTS(?rubriekCode, "WRgr") ||
+                STRSTARTS(?rubriekCode, "WWvv") ||
+                STRSTARTS(?rubriekCode, "WNoa") ||
+                STRSTARTS(?rubriekCode, "WLbe") ||
+                STRSTARTS(?rubriekCode, "WBat") ||
+                STRSTARTS(?rubriekCode, "WWiv") ||
+                STRSTARTS(?rubriekCode, "WWivGpv") ||
+                STRSTARTS(?rubriekCode, "WOvb"),
+                ?geld_bedrag, 0
+            ) AS ?p_bedrag
+          )
+        }
+      }
+    }
+  }
+}
+ORDER BY ?Kental

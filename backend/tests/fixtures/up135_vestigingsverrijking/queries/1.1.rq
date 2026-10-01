@@ -1,0 +1,134 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 1.1
+# Parameters: ?jaar, ?kwartaal, ?zorgkantoor
+# Ontologie: versie 3.0.0 of nieuwer
+
+PREFIX onz-g:   <http://purl.org/ozo/onz-g#>
+PREFIX onz-pers:<http://purl.org/ozo/onz-pers#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+PREFIX time:    <http://www.w3.org/2006/time#>
+
+SELECT
+  (?vestiging AS ?Indeling)
+  (ROUND(SUM(IF(?dagen_periode <= 0, 0, IF(?zorg_aandeel       / ?dagen_periode > 1, 1, ?zorg_aandeel       / ?dagen_periode))) * 100) / 100 AS ?Zorg)
+  (ROUND(SUM(IF(?dagen_periode <= 0, 0, IF(?niet_zorg_aandeel  / ?dagen_periode > 1, 1, ?niet_zorg_aandeel  / ?dagen_periode))) * 100) / 100 AS ?Niet_zorg)
+  (ROUND(SUM(IF(?dagen_periode <= 0, 0, IF((?zorg_aandeel + ?niet_zorg_aandeel) / ?dagen_periode > 1, 1, (?zorg_aandeel + ?niet_zorg_aandeel) / ?dagen_periode))) * 100) / 100 AS ?Totaal)
+WHERE {
+  SELECT
+    ?vestiging
+    ?zorgkantoor_vestiging
+    ?persoon
+    ?dagen_periode
+    (SUM(?zorg_dagen_uniek)      AS ?zorg_aandeel)
+    (SUM(?niet_zorg_dagen_uniek) AS ?niet_zorg_aandeel)
+  WHERE {
+    {
+      SELECT
+        ?vestiging
+        ?zorgkantoor_vestiging
+        ?persoon
+        ?dagen_periode
+        (COUNT(DISTINCT ?dag_num_zorg)     AS ?zorg_dagen_uniek)
+        (COUNT(DISTINCT ?dag_num_nietzorg) AS ?niet_zorg_dagen_uniek)
+      WHERE {
+        #BIND(2024 AS ?jaar)
+        #BIND("Q1" AS ?kwartaal)
+        
+        # Gedeeld patroon :  Overeenkomsten die (deels) binnen deze periode vallen en berekening aantal dagen binnen deze periode
+        BIND(
+          IF(?kwartaal = 'Q1', xsd:date(CONCAT(STR(?jaar), '-01-01')),
+          IF(?kwartaal = 'Q2', xsd:date(CONCAT(STR(?jaar), '-04-01')),
+          IF(?kwartaal = 'Q3', xsd:date(CONCAT(STR(?jaar), '-07-01')),
+          IF(?kwartaal = 'Q4', xsd:date(CONCAT(STR(?jaar), '-10-01')),
+          '')))) AS ?start_periode
+        )
+        BIND(?start_periode + "P3M"^^xsd:duration + "-P1D"^^xsd:duration AS ?eind_periode)
+
+        # Maak van de datums een numerieke waarden zodat we later met unieke dagnummers kunnen rekenen
+        ?start_periode ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_periode_numeriek .
+        ?eind_periode  ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?eind_periode_numeriek .
+        BIND(?eind_periode_numeriek - ?start_periode_numeriek + 1 AS ?dagen_periode)
+
+        VALUES ?personeels_overeenkomst {
+          onz-pers:ArbeidsOvereenkomst
+          onz-pers:UitzendOvereenkomst
+          onz-pers:InhuurOvereenkomst
+        }
+
+        ?overeenkomst a ?personeels_overeenkomst ;
+          onz-pers:heeftOpdrachtnemer ?persoon ;
+          onz-g:startDatum ?overeenkomst_start ;
+          onz-g:hasPart ?overeenkomst_afspraak .
+        OPTIONAL { ?overeenkomst onz-g:eindDatum ?overeenkomst_eind }
+
+        ?overeenkomst_afspraak a onz-pers:WerkOvereenkomstAfspraak ;
+          onz-g:startDatum ?start_afspraak ;
+          onz-g:isAbout ?functie.
+        OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }
+        FILTER( ?overeenkomst_start <= ?eind_periode &&
+          ( ?overeenkomst_eind >= ?start_periode || !BOUND(?overeenkomst_eind) ) )
+        
+        ?functie a onz-g:OccupationalPositionRole .
+        BIND( IF(EXISTS { ?functie a onz-pers:ZorgverlenerFunctie }, 1, 0) AS ?zorg_boolean )
+        
+        # De correcte start en einddatum van de overeenkomst. Indien buiten periode dan start en eind periode
+        BIND( IF(?overeenkomst_start <  ?start_periode, ?start_periode, ?overeenkomst_start) AS ?start_ovk_corr )
+        BIND( IF(!BOUND(?overeenkomst_eind) || ?overeenkomst_eind > ?eind_periode, ?eind_periode, ?overeenkomst_eind) AS ?eind_ovk_corr )
+
+        # De correcte start en einddatum van de afspraak. Fallback zijn de waarden van de overeenkomst zoals hierboven berekend. Dit is de waarde waarmee wordt gerekend.
+        BIND( IF(?start_afspraak > ?start_ovk_corr, ?start_afspraak, ?start_ovk_corr) AS ?start_afspraak_corr )
+        BIND( IF(BOUND(?eind_afspraak) && ?eind_afspraak < ?eind_ovk_corr, ?eind_afspraak, ?eind_ovk_corr) AS ?eind_afspraak_corr )
+        FILTER(?start_afspraak_corr <= ?eind_afspraak_corr)
+
+        {
+          # Per vestiging: deze tak koppelt de medewerkers aan een vestiging via de locatie van de werkovereenkomst afspraak
+          ?overeenkomst_afspraak onz-g:isAbout ?locatie.
+          ?locatie a onz-g:StationaryArtifact ;
+            onz-g:partOf* ?vestiging_uri .
+          ?vestiging_uri a onz-org:Vestiging ;
+            onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 ;
+            onz-g:identifiedBy ?vest_nr .
+          ?vest_nr a onz-org:Vestigingsnummer 
+            ; onz-g:hasDataValue ?vestiging .
+
+          BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+          ?pc_gebied onz-g:identifiedBy ?postcode ; onz-g:partOf+ ?zk_regio .
+          ?zk_regio a onz-org:ZorgkantoorRegio .
+          ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+        }
+        UNION
+        {
+          # Totaal organisatie: deze tak maakt voor alle medewerkers uit gedeelde patroon (incl medewerkers die geen locatie op de werkovereenkomstafspraak hebben) een totaal organisatie regel aan
+          BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+        }
+
+
+        # Kalender: alle dagen in dit kwartaal numeriek maken (offset 0..99, gefilterd tot eind) 
+        VALUES ?tiendetal {0 1 2 3 4 5 6 7 8 9}
+        VALUES ?eental   {0 1 2 3 4 5 6 7 8 9}
+        BIND((?tiendetal*10 + ?eental) AS ?offset)
+        BIND(?start_periode_numeriek + ?offset AS ?dag_num)
+        FILTER(?dag_num <= ?eind_periode_numeriek)
+
+        # Hier worden de gecorrigeerde start en einddatum ook numeriek gemaakt 
+        ?start_afspraak_corr ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?start_num .
+        ?eind_afspraak_corr  ^time:inXSDDate/time:inTemporalPosition/time:numericPosition ?end_num .
+        FILTER(?start_num <= ?dag_num && ?dag_num <= ?end_num)
+
+        # DISTINCT in de COUNT voorkomt dubbeltelling bij overlap op dezelfde dag
+        BIND(IF(?zorg_boolean = 1, ?dag_num, ?unbound) AS ?dag_num_zorg)
+        BIND(IF(?zorg_boolean = 0, ?dag_num, ?unbound) AS ?dag_num_nietzorg)
+      }
+      GROUP BY ?vestiging ?zorgkantoor_vestiging ?persoon ?dagen_periode
+    }
+  }
+  GROUP BY ?vestiging ?zorgkantoor_vestiging ?persoon ?dagen_periode
+}
+GROUP BY ?vestiging ?zorgkantoor_vestiging
+ORDER BY ?vestiging

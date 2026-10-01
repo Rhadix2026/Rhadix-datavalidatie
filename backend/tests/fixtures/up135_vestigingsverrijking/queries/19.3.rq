@@ -1,0 +1,278 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 19.3.0
+# Parameters: ?peildatum
+# Ontologie: versie 3.0.0 of nieuwer
+
+PREFIX onz-fin: <http://purl.org/ozo/onz-fin#>
+PREFIX onz-g:   <http://purl.org/ozo/onz-g#>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+    ("Werkkapitaalratio" AS ?Kental)
+    (
+        IF(
+            BOUND(?p_totaal) && (?p_totaal != 0),
+            ROUND((xsd:decimal(?werkkapitaal_op_korte_termijn) / xsd:decimal(?p_totaal)) * 100) / 100,
+            "Ongedefinieerd"
+        ) AS ?Waarde
+	)
+WHERE {
+    #DEEL 1: Werkkapitaal op korte termijn
+    {
+        SELECT
+        	(
+                SUM(IF(?jaarrekeningpost = "B Vlottende activa", ?Bedrag, 0)) -
+                SUM(IF(?jaarrekeningpost = "G Kortlopende schulden (ten hoogste 1 jaar)", ?Bedrag, 0)) 
+                AS ?werkkapitaal_op_korte_termijn
+        	)
+        WHERE {
+            SELECT
+                ?jaarrekeningpost
+                (IF(SUM(?heeftData) > 0, SUM(?bedrag_rubriek), 0) AS ?Bedrag)
+            WHERE { 
+                { # Subquery 1: Jaarrekeningposten 
+                    {	# Middle select: Bereken het totaal per rubriek (saldo + latere mutaties)
+                        SELECT  
+                            ?rubriek ?jaarrekeningpost_child 
+                            (SUM(?geld_bedrag_post) + SUM(?saldo_waarde)/COUNT(?saldo_waarde) AS ?bedrag_rubriek)
+                        	(IF(COUNT(?heeftBeginsaldo) + COUNT(?heeftGrootboekPost) = 0, 0, 1) AS ?heeftData) 
+                        WHERE {
+                            {	# Innermost select: 
+                                #  - Haal het meest recente saldo per rubriek op als beginsaldo, 0 indien geen saldo in data
+                                #  - Haal de bijbehorende datum op om alle posten na beginsaldo bij toe te voegen
+                                SELECT  
+                                    ?rubriek ?jaarrekeningpost_child
+                                    (IF(BOUND(?saldo_bedrag), ?saldo_bedrag, 0) AS ?saldo_waarde)
+                                    ?peildatum_argument
+                                    (IF(BOUND(?saldo_datum), ?saldo_datum, ?unbound) AS ?begin_datum)
+                                    ?saldo_datum ?saldo ?heeftBeginsaldo
+                                WHERE { 
+                                    # BIND("2024-12-31"^^xsd:date AS ?peildatum)
+                                    BIND(?peildatum as ?peildatum_argument)
+
+                                    # Bind jaarrekeningpost_child(jaarrekening subpost)op basis van rubriekCode
+                                    # Deze code gaat ervan uit dat alle prismant codes die met cijfers beginnen en 6 cijfers hebben
+                                    # Er bestaan ook codes die eruit zien als onz-fin:rubriek05
+                                    # deze nemen we bewust niet mee (want dat zijn verzamelniveaus)
+                                    {
+                                        # Prismant: prefix-mapping, want Prismant consolideert niet dus we willen onderliggende rubrieken
+                                        {
+                                            ?rubriek a onz-fin:Grootboekrubriek .
+                                        }
+                                        UNION
+                                        {
+                                            ?rubriek a onz-fin:Grootboekrekening .
+                                            # in de testdata is deze branch overbodig, voor de zekerheid laten staan omdat in werkelijkheid 
+                                            # de codes waarschijnlijk grootboekrekeningen zijn 
+                                        }
+                                        BIND(STRAFTER(STR(?rubriek), STR(onz-fin:)) AS ?rubriekCode)
+
+                                        VALUES (?prismantPrefix ?jaarrekeningpost_child) {
+                                            ("3"     "B.I")
+                                            ("12"    "B.II")
+                                            ("131"   "B.III")
+                                            ("132"   "B.IV")
+
+                                            ("14"    "G")
+                                            ("15"    "G")
+                                        }
+                                        FILTER(STRSTARTS(?rubriekCode, ?prismantPrefix))
+                                    }
+                                    UNION
+                                    {
+                                        # RGS: exacte mapping, want RGS consolideert zelf onderliggende rubrieken
+                                        # Dit houdt in dat rubrieken naast de directe boekingen ook de totaaltelling
+                                        # van alle boekingen op alle onderliggende rubrieken bevatten (algemene uitgangspunten)BELANGRIJK  
+                                        # We willen dus niet dubbel tellen en vandaar exacte match
+                                        VALUES (?rubriekCode ?jaarrekeningpost_child) {
+                                            ("BVrd"    "B.I")
+                                            ("BPro"    "B.I")
+                                            ("BObd"    "B.I")
+                                            ("BVor"    "B.II")
+                                            ("BVfi"    "B.II")
+                                            ("BEff"    "B.III")
+                                            ("BLim"    "B.IV")
+
+                                            ("BSch"    "G")
+                                        }
+
+                                        BIND(IRI(CONCAT(STR(onz-fin:), ?rubriekCode)) AS ?rubriek)
+                                        {
+                                            ?rubriek a onz-fin:Grootboekrubriek .
+                                        }
+                                        UNION
+                                        {
+                                            ?rubriek a onz-fin:Grootboekrekening .
+                                        }
+                                    }
+
+                                    OPTIONAL {
+                                        ?rubriek onz-g:isAbout ?saldo .
+                                        ?saldo
+                                            a onz-fin:EindSaldo ;
+                                            onz-fin:heeftGeldBedrag ?saldo_bedrag ;
+                                            onz-g:hasDate ?saldo_datum .
+
+                                        FILTER (?saldo_datum <= ?peildatum_argument)
+
+                                        FILTER NOT EXISTS {  
+                                            ?rubriek onz-g:isAbout ?saldo2 .
+                                            ?saldo2
+                                                a onz-fin:EindSaldo ;
+                                            	onz-g:hasDate ?saldo_datum2 .
+
+                                            FILTER(?saldo2 != ?saldo)
+                                            FILTER(?saldo_datum2 <= ?peildatum_argument)
+                                            FILTER(
+                                                ?saldo_datum2 > ?saldo_datum || 
+                                                (
+                                                    ?saldo_datum2 = ?saldo_datum 
+                                                    && STR(?saldo2) > STR(?saldo)
+                                                )
+                                            )
+                                        }
+                                    }
+                                    # Bind alleen als er een saldo in de data aanwezig was
+                                    BIND(IF(BOUND(?saldo_bedrag), 1, ?unbound) AS ?heeftBeginsaldo)  
+
+                                }
+                            } # End of innermost query: Alle aanwezige beginsaldos zijn gevonden
+
+                            # Selecteer de bijbehorende grootboekpost bij de rubriek 
+                            OPTIONAL {  
+                                ?grootboek_post
+                                    a onz-fin:Grootboekpost ;
+                                    onz-g:partOf ?rubriek ;
+                                    onz-g:hasDate ?datum ;
+                                    onz-fin:heeftGeldBedrag ?geld_bedrag_temp .
+                                # Behoud de grootboek post alleen voor de meest specifieke rubriek, 
+                                # om dubbeltelling bij meerdere rubrieken te voorkomen
+                                FILTER NOT EXISTS {
+                                    ?grootboek_post onz-g:partOf ?specifiekereRubriek .
+                                    ?specifiekereRubriek onz-g:partOf+ ?rubriek .
+                                }
+                                FILTER (?datum <= ?peildatum_argument && (?datum > ?begin_datum || !BOUND(?begin_datum)))
+                                BIND (1 AS ?heeftGrootboekPost)
+                            }
+                            BIND(IF(BOUND(?geld_bedrag_temp), ?geld_bedrag_temp, 0) AS ?geld_bedrag_post)
+
+                        } GROUP BY ?rubriek ?jaarrekeningpost_child 
+                    } # End of middle query: Alle beginsaldos + transacties daarna zijn gevonden (eindtotaal bekend)
+
+                    # De rest van subquery 1 breidt de jaarrekeningposten uit met hun bijbehorende totaal posten
+                    VALUES (?jaarrekeningpost_child ?jaarrekeningpost_child_uitgebreid) {
+                        ("B.I"    "B.I Voorraden")
+                        ("B.II"   "B.II Vorderingen")
+                        ("B.III"  "B.III Effecten")
+                        ("B.IV"   "B.IV Liquide middelen")
+
+                        ("G"      "G Kortlopende schulden (ten hoogste 1 jaar)")
+                    }
+
+                    BIND(
+                        IF(STRSTARTS(?jaarrekeningpost_child, "B."), "B Vlottende activa",
+                        ?unbound) AS ?jaarrekeningpost_parent # Fallback naar ?unbound om dubbeltelling te voorkomen
+                    )
+
+                    VALUES ?x {1 2 3}
+                    BIND(
+                        IF(?x = 1, ?jaarrekeningpost_child_uitgebreid,
+                        IF(?x = 2, ?jaarrekeningpost_parent,
+                        IF(?x = 3, ?jaarrekeningpost_grandparent, 
+                        ?unbound))) AS ?jaarrekeningpost
+                    )
+
+                    FILTER(BOUND(?jaarrekeningpost))
+
+                } # End of subquery 1: Alle totalen voor de aanwezige jaarrekeningposten zijn bepaald (inclusief de overkoepelende jaarrekeningposten)  
+                UNION
+                { # Subquery 2: Initieer alle jaarrekeningposten met bedrag=0
+
+                    VALUES ?jaarrekeningpost {
+                        "B.I Voorraden"
+                        "B.II Vorderingen"
+                        "B.III Effecten"
+                        "B.IV Liquide middelen"
+                        "B Vlottende activa"
+
+                        "G Kortlopende schulden (ten hoogste 1 jaar)"
+                    }
+
+                    BIND(0 AS ?bedrag_rubriek)
+                    BIND(0 AS ?heeftData)  # Tijdens initieren is het nog onduidelijk of er data voor de rubriek aanwezig is
+                }
+
+            } GROUP BY ?jaarrekeningpost 
+            ORDER BY ?jaarrekeningpost
+        }
+    }
+
+    # DEEL 2: P totaal berekenen
+    {
+        SELECT 
+        	(SUM(?p_bedrag) AS ?p_totaal)
+        WHERE {
+            #BIND("2024-12-31"^^xsd:date AS ?peildatum)
+            BIND(
+                IF(
+                    MONTH(?peildatum) = 12 && DAY(?peildatum) = 31,
+                    xsd:date(CONCAT(STR(YEAR(?peildatum)), "-01-01")),
+                    xsd:date(CONCAT(STR(YEAR(?peildatum)-1), "-07-01"))
+                )
+                AS ?startperiode)
+            BIND(?peildatum AS ?eindperiode)
+
+            # Koppel grootboekposten aan rubrieken binnen meetperiode
+            ?grootboek_post 
+                a onz-fin:Grootboekpost ;
+                onz-g:partOf ?rubriek ;
+                onz-g:hasDate ?datum ;
+                onz-fin:heeftGeldBedrag ?geld_bedrag .
+
+            # Match directe ouder: Grootboekrekening (RGS) of Grootboekrubriek (Prismant)
+            {
+                { ?rubriek a onz-fin:Grootboekrekening }
+                UNION
+                { ?rubriek a onz-fin:Grootboekrubriek }
+            }
+            # Anti-dubbeltelling: houd alleen het bladniveau (geen transitive ancestors)
+            FILTER NOT EXISTS 
+            {
+                ?grootboek_post onz-g:partOf ?specifiekereRubriek .
+                ?specifiekereRubriek onz-g:partOf+ ?rubriek .
+            }
+            FILTER(STRSTARTS(STR(?rubriek), STR(onz-fin:)))
+            BIND(STRAFTER(STR(?rubriek), STR(onz-fin:)) AS ?rubriekCode)
+
+            FILTER (?datum >= ?startperiode && ?datum <= ?eindperiode)
+
+            # P-bedragen
+            BIND(
+                IF(
+                    STRSTARTS(?rubriekCode, "81") ||
+                    STRSTARTS(?rubriekCode, "82") ||
+                    STRSTARTS(?rubriekCode, "83") ||
+                    STRSTARTS(?rubriekCode, "89") ||
+                    STRSTARTS(?rubriekCode, "919") ||
+                    STRSTARTS(?rubriekCode, "920") ||
+                    STRSTARTS(?rubriekCode, "930") ||
+                    STRSTARTS(?rubriekCode, "WOmz") ||
+                    STRSTARTS(?rubriekCode, "WRev") ||
+                    STRSTARTS(?rubriekCode, "WRvi") ||
+                    STRSTARTS(?rubriekCode, "WRgr") ||
+                    STRSTARTS(?rubriekCode, "WWvv") ||
+                    STRSTARTS(?rubriekCode, "WNoa") ||
+                    STRSTARTS(?rubriekCode, "WLbe") ||
+                    STRSTARTS(?rubriekCode, "WBat") ||
+                    STRSTARTS(?rubriekCode, "WWiv") ||
+                    STRSTARTS(?rubriekCode, "WOvb"),
+                    ?geld_bedrag, 0) AS ?p_bedrag
+            )
+        }
+    }
+}
+ORDER BY ?Kental

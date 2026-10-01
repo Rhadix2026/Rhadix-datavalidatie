@@ -1,0 +1,230 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 14.2
+# Parameters: ?peildatum, ?zorgkantoor
+# Ontologie: versie 3.0 of nieuwer
+PREFIX onz-g:    <http://purl.org/ozo/onz-g#>
+PREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>
+PREFIX onz-org:  <http://purl.org/ozo/onz-org#>
+PREFIX rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:     <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:      <http://www.w3.org/2001/XMLSchema#>
+
+# Toelichting structuur: 
+# In de basisquery worden alle zorgprocessen geteld. 
+# In de optional blocks wordt een extra kolom namelijk deeltijd verblijf berekend voor de vestiging en organisatie rijen.
+# In de meest bovenste select wordt alles samengevoegd en wordt nog de verhouding vpt berekend
+SELECT
+  ?Indeling
+  ?Verblijf
+  ?VPT
+  ?MPT
+  ?PGB
+  (?Verblijf + ?VPT + ?MPT + ?PGB AS ?Totaal)
+  (IF(?Verblijf = 0,
+      "Ongedefinieerd",
+      STR(ROUND((xsd:decimal(?VPT) / xsd:decimal(?Verblijf)) * 1000) / 1000)
+   ) AS ?Verhouding_VPT_Verblijf)
+  (COALESCE(?DTV_vest, ?DTV_org, 0) AS ?DTV)
+
+WHERE {
+  # Basisquery : Aantallen Verblijf VPT  MPT  PGB bij vestiging en totaal organisatie. 
+  {
+    SELECT
+      ?Organisatieonderdeel
+      (SUM(?verblijf) AS ?Verblijf)
+      (SUM(?vpt)      AS ?VPT)
+      (SUM(?mpt)      AS ?MPT)
+      (SUM(?pgb)      AS ?PGB)
+    WHERE {
+      #BIND("2024-12-31"^^xsd:date AS ?peildatum)
+
+      ?zorgproces a onz-g:CureAndCareProcess ;
+        onz-g:definedBy ?indicatie ;
+        onz-g:startDatum ?start_zorgproces .
+      OPTIONAL { ?zorgproces onz-g:eindDatum ?eind_zorgproces }
+      FILTER(
+        ?start_zorgproces <= ?peildatum &&
+        ((?eind_zorgproces >= ?peildatum) || !BOUND(?eind_zorgproces))
+      )
+
+      ?indicatie a onz-zorg:WlzIndicatie ;
+        onz-g:hasPart/onz-g:isAbout ?sector ;
+        onz-g:hasPart ?lv ;            
+        onz-g:startDatum ?ind_start ;
+        onz-g:isAbout ?client .
+      OPTIONAL { ?indicatie onz-g:eindDatum ?ind_eind }
+      FILTER (?ind_start <= ?peildatum && ((?ind_eind >= ?peildatum) || (!BOUND(?ind_eind))))
+
+      ?sector a onz-zorg:LangdurigeZorgSector .
+      FILTER(?sector = onz-zorg:VV)
+
+      ?client a onz-g:Human .
+      ?lv a onz-zorg:Leveringsvorm .
+
+      {
+        # Per vestiging: Alle zorgprocessen met locatie
+        ?zorgproces onz-g:hasPerdurantLocation ?locatie .
+        ?locatie a onz-g:StationaryArtifact ;
+          onz-g:partOf* ?vestiging_uri .
+
+        ?vestiging_uri a onz-org:Vestiging ;
+          onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 ;
+          onz-g:identifiedBy ?vest_nr .
+
+        BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+
+        ?pc_gebied onz-g:identifiedBy ?postcode ;
+          onz-g:partOf+ ?zk_regio .
+        ?zk_regio a onz-org:ZorgkantoorRegio .
+        ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+
+        ?vest_nr a onz-org:Vestigingsnummer ;
+          onz-g:hasDataValue ?vestiging .
+
+        BIND(?vestiging AS ?Organisatieonderdeel)
+      }
+      UNION
+      {
+        # Totaal organisatie: Inclusief zorgprocessen zonder locatie
+        BIND("Organisatie (gecontracteerd + algemeen)" AS ?Organisatieonderdeel)
+      }
+
+      BIND(IF(?lv = onz-zorg:instelling, 1, 0) AS ?verblijf)
+      BIND(IF(?lv = onz-zorg:vpt,        1, 0) AS ?vpt)
+      BIND(IF(?lv = onz-zorg:mpt,        1, 0) AS ?mpt)
+      BIND(IF(?lv = onz-zorg:pgb,        1, 0) AS ?pgb)
+    }
+    GROUP BY ?Organisatieonderdeel
+  }
+
+  # Optional 1: DTV per vestiging. Dus hier wordt geteld per vestiging, welke unieke clienten Verblijf + iets anders hebben (VPT MPT PGB) 
+  # Er bestaan geen zorgprocessen in de testdata die lv anders dan Instelling hebben én aan een vestiging gekoppeld zijn. In de realistische data zal dit meestal ook niet het geval zijn maar het kan wel voorkomen. Vandaar deze code! Zie ook FO toelichting
+  OPTIONAL {
+    SELECT
+      ?Organisatieonderdeel                              
+      (COUNT(DISTINCT ?clientVestKey) AS ?DTV_vest)
+    WHERE {
+      {
+        SELECT
+          ?client
+          ?vestiging_uri
+          ?Organisatieonderdeel                          
+          (MAX(?isVerblijf) AS ?hasVerblijf)
+          (MAX(?isMPT)      AS ?hasMPT)
+          (MAX(?isPGB)      AS ?hasPGB)
+        WHERE {
+          #BIND("2024-12-31"^^xsd:date AS ?peildatum)
+
+          ?zorgproces a onz-g:CureAndCareProcess ;
+            onz-g:definedBy ?indicatie ;
+            onz-g:hasPerdurantLocation/onz-g:partOf* ?locatie ;
+            onz-g:startDatum ?start_zorgproces .
+          OPTIONAL { ?zorgproces onz-g:eindDatum ?eind_zorgproces }
+          FILTER(
+            ?start_zorgproces <= ?peildatum &&
+            ((?eind_zorgproces >= ?peildatum) || !BOUND(?eind_zorgproces))
+          )
+
+          ?locatie a onz-g:StationaryArtifact ;
+            onz-g:partOf* ?vestiging_uri .
+
+          ?vestiging_uri a onz-org:Vestiging ;
+            onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 ;
+            onz-org:vestigingVan ?organisatie_uri;
+            onz-g:identifiedBy ?vest_nr .
+                        
+          BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+
+          ?pc_gebied onz-g:identifiedBy ?postcode ;
+            onz-g:partOf+ ?zk_regio .
+          ?zk_regio a onz-org:ZorgkantoorRegio .
+          ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+
+          ?vest_nr a onz-org:Vestigingsnummer ;
+            onz-g:hasDataValue ?Organisatieonderdeel .   # ← was: ?VestigingLabel
+
+          ?indicatie a onz-zorg:WlzIndicatie ;
+            onz-g:hasPart/onz-g:isAbout ?sector ;
+            onz-g:hasPart ?lv ;            
+            onz-g:startDatum ?ind_start ;
+            onz-g:isAbout ?client .
+          OPTIONAL { ?indicatie onz-g:eindDatum ?ind_eind }
+          FILTER (?ind_start <= ?peildatum && ((?ind_eind >= ?peildatum) || (!BOUND(?ind_eind))))
+
+          ?sector a onz-zorg:LangdurigeZorgSector .
+          FILTER(?sector = onz-zorg:VV)
+
+          ?client a onz-g:Human .
+          ?lv a onz-zorg:Leveringsvorm .
+
+          BIND(IF(?lv = onz-zorg:instelling, 1, 0) AS ?isVerblijf)
+          BIND(IF(?lv = onz-zorg:mpt,        1, 0) AS ?isMPT)
+          BIND(IF(?lv = onz-zorg:pgb,        1, 0) AS ?isPGB)
+        }
+        GROUP BY ?client ?vestiging_uri ?Organisatieonderdeel  
+      }
+
+      FILTER(?hasVerblijf = 1 && (?hasMPT = 1 || ?hasPGB = 1))
+      # Unieke sleutel om clienten te kunnen bepalen per vestiging
+      BIND(IRI(CONCAT(STR(?client), "_", STR(?vestiging_uri))) AS ?clientVestKey)
+    }
+    GROUP BY ?Organisatieonderdeel                      
+  }
+
+  # Optional 2: DTV op organisatieniveau 
+  OPTIONAL {
+    SELECT
+      ("Totaal organisatie" AS ?Organisatieonderdeel)    
+      (COUNT(DISTINCT ?client) AS ?DTV_org)
+    WHERE {
+      {
+        SELECT
+          ?client
+          (MAX(?isVerblijf) AS ?hasVerblijf_org)
+          (MAX(?isMPT)      AS ?hasMPT_org)
+          (MAX(?isPGB)      AS ?hasPGB_org)
+        WHERE {
+          #BIND("2024-12-31"^^xsd:date AS ?peildatum)
+
+          ?zorgproces a onz-g:CureAndCareProcess ;
+            onz-g:definedBy ?indicatie ;
+            onz-g:startDatum ?start_zorgproces .
+          OPTIONAL { ?zorgproces onz-g:eindDatum ?eind_zorgproces }
+
+          FILTER(
+            ?start_zorgproces <= ?peildatum &&
+            ((?eind_zorgproces >= ?peildatum) || !BOUND(?eind_zorgproces))
+          )
+
+          ?indicatie a onz-zorg:WlzIndicatie ;
+                  onz-g:hasPart/onz-g:isAbout ?sector ;
+                  onz-g:hasPart ?lv ;            
+                  onz-g:startDatum ?ind_start ;
+                  onz-g:isAbout ?client .
+                OPTIONAL { ?indicatie onz-g:eindDatum ?ind_eind }
+                FILTER (?ind_start <= ?peildatum && ((?ind_eind >= ?peildatum) || (!BOUND(?ind_eind))))
+
+          ?sector a onz-zorg:LangdurigeZorgSector .
+          FILTER(?sector = onz-zorg:VV)
+
+          ?client a onz-g:Human .
+          ?lv a onz-zorg:Leveringsvorm .
+
+          BIND(IF(?lv = onz-zorg:instelling, 1, 0) AS ?isVerblijf)
+          BIND(IF(?lv = onz-zorg:mpt,        1, 0) AS ?isMPT)
+          BIND(IF(?lv = onz-zorg:pgb,        1, 0) AS ?isPGB)
+        }
+        GROUP BY ?client
+      }
+
+      FILTER(?hasVerblijf_org = 1 && (?hasMPT_org = 1 || ?hasPGB_org = 1))
+    }
+  }
+
+  BIND(?Organisatieonderdeel AS ?Indeling)
+}
+ORDER BY ?Indeling

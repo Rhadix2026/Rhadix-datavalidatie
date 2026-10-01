@@ -1,0 +1,99 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 12.2
+# Parameters: ?jaar, ?kwartaal, ?zorgkantoor
+# Ontologie: versie 3.0 of nieuwer
+
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX onz-pers: <http://purl.org/ozo/onz-pers#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>
+
+SELECT 
+    (?vestiging AS ?Indeling)
+    (COUNT(DISTINCT ?persoon) AS ?Aantal_personeelsleden_in_loondienst)
+    (SUM(?meldingen) AS ?Aantal_nieuwe_ziekmeldingen)
+    (ROUND( SUM(?meldingen) / COUNT(DISTINCT ?persoon) * 100 * 100 ) / 100 AS ?Verzuimfrequentie_incl_zwangerschap)
+WHERE {
+        SELECT 
+            ?persoon
+            ?vestiging
+            (COUNT(DISTINCT ?ziekteperiode) AS ?meldingen)
+        WHERE {
+            # BIND(2024 AS ?jaar)
+            # BIND("Q1" AS ?kwartaal)
+            # BIND(onz-org:ZorgkantoorMenzis AS ?zorgkantoor)
+
+            BIND(
+                IF(?kwartaal = 'Q1', xsd:date(CONCAT(STR(?jaar), '-01-01')),
+                IF(?kwartaal = 'Q2', xsd:date(CONCAT(STR(?jaar), '-04-01')),
+                IF(?kwartaal = 'Q3', xsd:date(CONCAT(STR(?jaar), '-07-01')),
+                IF(?kwartaal = 'Q4', xsd:date(CONCAT(STR(?jaar), '-10-01')),
+                '')))) AS ?start_periode)
+            BIND(?start_periode + "P3M"^^xsd:duration + "-P1D"^^xsd:duration AS ?eind_periode)
+
+            ?overeenkomst 
+                a onz-pers:ArbeidsOvereenkomst ; # personeel in loondienst
+                onz-pers:heeftOpdrachtnemer ?persoon ;
+                onz-g:hasPart ?overeenkomst_afspraak .
+
+            ?overeenkomst_afspraak
+                a onz-pers:WerkOvereenkomstAfspraak ;
+                onz-g:startDatum ?start_afspraak .
+            OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }
+            FILTER (?start_afspraak <= ?eind_periode && ((!BOUND(?eind_afspraak)) || (?eind_afspraak >= ?start_periode)))
+
+            {   
+            	# Onderdeel per vestiging, OA's met locatie
+            	?overeenkomst_afspraak onz-g:isAbout ?locatie .
+            	?locatie 
+                    a onz-g:StationaryArtifact ;
+                    onz-g:partOf* ?vestiging_uri .
+            
+                ?vestiging_uri 
+                	a onz-org:Vestiging ;
+                    onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 .
+                BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+            
+                ?pc_gebied 
+                    onz-g:identifiedBy ?postcode ;
+                    onz-g:partOf+ ?zk_regio .
+                ?zk_regio a onz-org:ZorgkantoorRegio .
+                ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+            
+                ?vestiging_uri onz-g:identifiedBy ?vest_nr .    	
+                ?vest_nr 
+                	a onz-org:Vestigingsnummer ;
+                    onz-g:hasDataValue ?vestiging .
+            } UNION {
+                # Onderdeel Totaal organisatie, inclusief OA's niet gebonden aan een vestiging
+                BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+            }
+            
+            # Onderdeel verzuim
+            VALUES ?type_verzuim {
+                onz-pers:ZiektePeriode
+                onz-pers:ZwangerschapsVerlof
+            }
+            OPTIONAL {
+                ?ziekteperiode a ?type_verzuim .
+
+                ?ziekteperiode 
+                    onz-g:definedBy ?overeenkomst ;
+                    onz-g:startDatum ?start_ziekte_periode .
+
+                # Alleen nieuwe ziekmeldingen binnen meetperiode, en binnen de looptijd van de afspraak
+                FILTER(?start_ziekte_periode >= ?start_periode && ?start_ziekte_periode <= ?eind_periode)
+                FILTER(?start_ziekte_periode >= ?start_afspraak && ( !BOUND(?eind_afspraak) || ?start_ziekte_periode <= ?eind_afspraak ))
+            }
+        }
+        GROUP BY ?persoon ?vestiging
+}
+GROUP BY ?vestiging
+ORDER BY ?vestiging

@@ -1,0 +1,143 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 24.5
+# Parameters: ?startperiode, ?eindperiode
+# Ontologie: versie 3.0.0 of nieuwer
+
+PREFIX onz-fin: <http://purl.org/ozo/onz-fin#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?Kental ?Waarde WHERE {
+  {
+    SELECT
+      ( 
+        IF(
+          BOUND(?p_totaal) && (?p_totaal != 0),
+          xsd:decimal(?q_bedragen) / xsd:decimal(?p_totaal),
+          "Ongedefinieerd"
+        ) AS ?aipnilpil         # rauwe ratio (zonder afronding)
+      )
+
+    WHERE {
+      {
+        # DEEL 1: Eindtotalen berekenen
+        SELECT (SUM(?p_bedrag) AS ?p_totaal) (SUM(?q_bedrag) AS ?q_bedragen)
+        WHERE {
+          #BIND("2024-01-01"^^xsd:date AS ?startperiode)                         
+          #BIND("2024-12-31"^^xsd:date AS ?eindperiode)               
+         
+        {
+          SELECT DISTINCT ?rubriek WHERE {
+              { ?rubriek a onz-fin:Grootboekrubriek }
+              UNION
+              { ?rubriek a onz-fin:Grootboekrekening }
+              FILTER(STRSTARTS(STR(?rubriek), STR(onz-fin:)))
+          }
+        }
+
+        # Koppel grootboekposten aan rubrieken binnen meetperiode
+        ?grootboek_post a onz-fin:Grootboekpost ;
+          onz-g:partOf ?rubriek ;
+          onz-g:hasDate ?datum ;
+          onz-fin:heeftGeldBedrag ?geld_bedrag .
+
+
+        # Anti-dubbeltelling: houd alleen het bladniveau (geen transitive ancestors)
+        FILTER NOT EXISTS {
+            ?grootboek_post onz-g:partOf ?child .
+            ?child onz-g:partOf ?rubriek .
+            FILTER(?child != ?rubriek)
+            { { ?child a onz-fin:Grootboekrekening } UNION { ?child a onz-fin:Grootboekrubriek } }
+        }
+
+
+      BIND(STRAFTER(STR(?rubriek), STR(onz-fin:)) AS ?rubriekCode)
+
+      FILTER (?datum >= ?startperiode && ?datum <= ?eindperiode)
+
+      # P-bedragen
+      # Prismant: P.I=81, P.IV=82/83/89/919/920/930
+      # RGS: P.I=WOmz/WRev/WRvi/WRgr/WWvv/WNoa/WLbe/WBat, P.II = WWiv minus WWivGvp, III=WWivGvp, P.IV=WOvb
+      # voor de som P volstaat het om WWiv hier te zetten want zo wordt WWivGvp ook maar 1x geteld.
+      # We hebben hier alleen p totaal nodig dus minus logica voor specifieke subposten niet nodig
+      BIND(
+        IF(
+          STRSTARTS(?rubriekCode, "81") ||
+          STRSTARTS(?rubriekCode, "82") ||
+          STRSTARTS(?rubriekCode, "83") ||
+          STRSTARTS(?rubriekCode, "89") ||
+          STRSTARTS(?rubriekCode, "919") ||
+          STRSTARTS(?rubriekCode, "920") ||
+          STRSTARTS(?rubriekCode, "930") ||
+          STRSTARTS(?rubriekCode, "WOmz") ||
+          STRSTARTS(?rubriekCode, "WRev") ||
+          STRSTARTS(?rubriekCode, "WRvi") ||
+          STRSTARTS(?rubriekCode, "WRgr") ||
+          STRSTARTS(?rubriekCode, "WWvv") ||
+          STRSTARTS(?rubriekCode, "WNoa") ||
+          STRSTARTS(?rubriekCode, "WLbe") ||
+          STRSTARTS(?rubriekCode, "WBat") ||
+          STRSTARTS(?rubriekCode, "WWiv") ||
+          STRSTARTS(?rubriekCode, "WOvb"),
+          ?geld_bedrag, 0) AS ?p_bedrag)
+
+      # --- Q: Diverse kostenrubrieken ---
+      # Q.I RGS: WKpr minus WKprKuw
+      # Q.II: 417/418 (Kosten uitbesteed werk en andere externe kosten), RGS: WKprKuw
+      # Q.III: 411-419 (Lonen en salarissen), RGS: WPer minus WPerSol minus WPerPen
+      # Q.IV: 420/4221/4223-4225/4229 (Sociale lasten), RGS: WPerSol
+      # Q.V: 4226 (Afschrijvingen), RGS: WPerPen
+      # Q.VI: 480-484 (Afschrijvingen op immateriële vaste activa en materiële vaste activa), RGS: WAfs
+      # Q.VII: RGS: WWvi
+      # Q.VIII: RGS: WBwv
+      # Q.IX: 423/43-47/486/489/905/911-915/921/931 (Overige bedrijfskosten), RGS: WBed/WOok/WKol/WVkf/WAkf
+      # ook hier volstaat het voor de som van Q om alleen WPer te noemen zodat WPerSol en WPerPen niet dubbel geteld worden
+      # in deze indicator alleen II tm V nodig ! 
+      BIND(
+        IF(
+          STRSTARTS(?rubriekCode, "417") ||
+          STRSTARTS(?rubriekCode, "418") ||
+          STRSTARTS(?rubriekCode, "411") ||
+          STRSTARTS(?rubriekCode, "412") ||
+          STRSTARTS(?rubriekCode, "413") ||
+          STRSTARTS(?rubriekCode, "414") ||
+          STRSTARTS(?rubriekCode, "415") ||
+          STRSTARTS(?rubriekCode, "416") ||
+          STRSTARTS(?rubriekCode, "419") ||
+          STRSTARTS(?rubriekCode, "420") ||
+          STRSTARTS(?rubriekCode, "4221") ||
+          STRSTARTS(?rubriekCode, "4223") ||
+          STRSTARTS(?rubriekCode, "4224") ||
+          STRSTARTS(?rubriekCode, "4225") ||
+          STRSTARTS(?rubriekCode, "4229") ||
+          STRSTARTS(?rubriekCode, "4226") ||
+          STRSTARTS(?rubriekCode, "WKprKuw") ||
+          STRSTARTS(?rubriekCode, "WPer") ,
+          ?geld_bedrag, 0) AS ?q_bedrag)
+        }
+      }
+    }
+  }
+  VALUES ?Kental {
+    "Arbeidsintensiteit PIL & PNIL"
+    "Arbeidsintensiteit PIL & PNIL%"
+  }
+
+  # ratio met 2 decimalen en percentage met 1 decimaal
+  BIND(
+    IF(DATATYPE(?aipnilpil) = xsd:string,
+        "Ongedefinieerd"^^xsd:string,
+        IF(?Kental = "Arbeidsintensiteit PIL & PNIL",
+            # Decimale weergave: afronden op 2 decimalen
+            ROUND(xsd:decimal(?aipnilpil) * 100) / 100,
+            # Procentuele weergave:
+            # Volgorde van executie: (1) x1000 schalen  (2) ROUND afronden  (3) /10 terugschalen -> percentage met 1 decimaal
+            ROUND(xsd:decimal(?aipnilpil) * 1000) / 10
+        )
+        ) AS ?Waarde )
+
+}

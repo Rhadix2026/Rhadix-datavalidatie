@@ -1,0 +1,201 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 20.1
+# Parameters: ?peildatum
+# Ontologie: versie 3.0.0 of nieuwer
+
+PREFIX onz-fin: <http://purl.org/ozo/onz-fin#>
+PREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?Kental ?Waarde
+WHERE {
+  {
+    SELECT
+      (IF(SUM(IF(?jaarrekeningpost = "H Totaal Passiva", ?bedrag, 0)) = 0,
+          "Ongedefinieerd"^^xsd:string,
+          ROUND(
+            SUM(IF(?jaarrekeningpost = "D Eigen Vermogen", ?bedrag, 0)) /
+            SUM(IF(?jaarrekeningpost = "H Totaal Passiva", ?bedrag, 0)) * 10000
+          ) / 10000) AS ?solvabiliteitsratio)
+    WHERE {
+      {
+        SELECT ?jaarrekeningpost (SUM(?bedrag_rubriek) AS ?bedrag)
+        WHERE {
+          #BIND("2024-12-31"^^xsd:date AS ?peildatum)
+          BIND(?peildatum AS ?peildatum_argument)
+          {
+            SELECT
+              (SUM(?geld_bedrag_post) + SUM(?saldo_waarde)/count(?saldo_waarde) AS ?bedrag_rubriek)
+              ?rubriek ?jaarrekeningpost_child
+            WHERE {
+              {
+                SELECT
+                  ?rubriek ?jaarrekeningpost_child
+                  (IF(BOUND(?saldo_bedrag), ?saldo_bedrag, 0) AS ?saldo_waarde)
+                  ?peildatum_argument
+                  (IF(BOUND(?saldo_datum), ?saldo_datum, ?unbound) AS ?begin_datum)
+                  ?saldo_datum ?saldo ?heeftBeginsaldo
+                WHERE {
+                  #BIND("2024-12-31"^^xsd:date AS ?peildatum)
+                  BIND(?peildatum AS ?peildatum_argument)
+
+                  {
+                    # Prismant: prefix-mapping, want Prismant consolideert niet dus we willen onderliggende rubrieken
+                    {
+                      ?rubriek a onz-fin:Grootboekrubriek .
+                    }
+                    UNION
+                    {
+                      ?rubriek a onz-fin:Grootboekrekening .
+                      # in de testdata is deze branch overbodig, voor de zekerheid laten staan omdat in werkelijkheid
+                      # de codes waarschijnlijk grootboekrekeningen zijn
+                    }
+                    BIND(STRAFTER(STR(?rubriek), STR(onz-fin:)) AS ?rubriekCode)
+
+                    VALUES (?prismantPrefix ?jaarrekeningpost_child) {
+                      ("0511"  "D.I")
+                      ("05413" "D.IV")
+                      ("05311" "D.V")
+                      ("05342" "D.V")
+                      ("05423" "D.V")
+                      ("05323" "D.VI")
+                      ("0539"  "D.VII")
+                      ("05493" "D.VII")
+                      ("05915" "D.VII")
+                      ("091"   "D.VIII")
+                      ("06"    "E")
+                      ("07"    "F")
+                      ("14"    "G")
+                      ("15"    "G")
+                    }
+                    FILTER(STRSTARTS(?rubriekCode, ?prismantPrefix))
+                  }
+                  UNION
+                  {
+                    # RGS: exacte mapping, want RGS consolideert zelf onderliggende rubrieken
+                    VALUES (?rubriekCode ?jaarrekeningpost_child) {
+                      ("BEivGok" "D.I")
+                      ("BEivAgi" "D.II")
+                      ("BEivHer" "D.III")
+                      ("BEivWer" "D.IV")
+                      ("BEivStr" "D.IV")
+                      ("BEivBer" "D.V")
+                      ("BEivBef" "D.VI")
+                      ("BEivOvr" "D.VII")
+                      ("BEivOre" "D.VIII")
+                      ("BVrz"    "E")
+                      ("BEga"    "E")
+                      ("BLas"    "F")
+                      ("BSch"    "G")
+                    }
+
+                    BIND(IRI(CONCAT(STR(onz-fin:), ?rubriekCode)) AS ?rubriek)
+                    {
+                      ?rubriek a onz-fin:Grootboekrubriek .
+                    }
+                    UNION
+                    {
+                      ?rubriek a onz-fin:Grootboekrekening .
+                    }
+                  }
+
+                  OPTIONAL {
+                    ?rubriek onz-g:isAbout ?saldo .
+                    ?saldo
+                      a onz-fin:EindSaldo ;
+                      onz-fin:heeftGeldBedrag ?saldo_bedrag ;
+                      onz-g:hasDate ?saldo_datum .
+
+                    FILTER (?saldo_datum <= ?peildatum_argument)
+
+                    FILTER NOT EXISTS {
+                      ?rubriek onz-g:isAbout ?saldo2 .
+                      ?saldo2
+                        a onz-fin:EindSaldo ;
+                        onz-g:hasDate ?saldo_datum2 .
+
+                      FILTER(?saldo2 != ?saldo)
+                      FILTER (?saldo_datum2 <= ?peildatum_argument)
+                      FILTER (
+                        ?saldo_datum2 > ?saldo_datum
+                        || (
+                          ?saldo_datum2 = ?saldo_datum
+                          && STR(?saldo2) > STR(?saldo)
+                        )
+                      )
+                    }
+                  }
+                  # Bind alleen als er een saldo in de data aanwezig was
+                  BIND(IF(BOUND(?saldo_bedrag), 1, ?unbound) AS ?heeftBeginsaldo)
+
+                }
+              }
+
+              # Selecteer de bijbehorende grootboekpost bij de rubriek
+              OPTIONAL {
+                ?grootboek_post
+                  a onz-fin:Grootboekpost ;
+                  onz-g:partOf ?rubriek ;
+                  onz-g:hasDate ?datum ;
+                  onz-fin:heeftGeldBedrag ?geld_bedrag_temp .
+                # Behoud de grootboek post alleen voor de meest specifieke rubriek,
+                # om dubbeltelling bij meerdere rubrieken te voorkomen
+                FILTER NOT EXISTS {
+                  ?grootboek_post onz-g:partOf ?specifiekereRubriek .
+                  ?specifiekereRubriek onz-g:partOf+ ?rubriek .
+                }
+                FILTER (?datum <= ?peildatum_argument && (?datum > ?begin_datum || !BOUND(?begin_datum)))
+                BIND (1 AS ?heeftGrootboekPost)
+              }
+              BIND(IF(BOUND(?geld_bedrag_temp), ?geld_bedrag_temp, 0) AS ?geld_bedrag_post)
+
+            } GROUP BY ?rubriek ?jaarrekeningpost_child
+          }
+
+          VALUES (?jaarrekeningpost_child ?jaarrekeningpost) {
+            ("D.I"    "D Eigen Vermogen")
+            ("D.II"    "D Eigen Vermogen")
+            ("D.III"   "D Eigen Vermogen")
+            ("D.IV"   "D Eigen Vermogen")
+            ("D.V"    "D Eigen Vermogen")
+            ("D.VI"   "D Eigen Vermogen")
+            ("D.VII"  "D Eigen Vermogen")
+            ("D.VIII" "D Eigen Vermogen")
+            ("D.I"    "H Totaal Passiva")
+            ("D.II"    "H Totaal Passiva")
+            ("D.III"    "H Totaal Passiva")
+            ("D.IV"   "H Totaal Passiva")
+            ("D.V"    "H Totaal Passiva")
+            ("D.VI"   "H Totaal Passiva")
+            ("D.VII"  "H Totaal Passiva")
+            ("D.VIII" "H Totaal Passiva")
+            ("E"      "H Totaal Passiva")
+            ("F"      "H Totaal Passiva")
+            ("G"      "H Totaal Passiva")
+          }
+
+        } GROUP BY ?jaarrekeningpost
+      }
+    }
+  }
+  VALUES ?Kental {
+    "Solvabiliteitsratio"
+    "Solvabiliteitsratio (%)"
+  }
+
+  BIND(
+    IF(DATATYPE(?solvabiliteitsratio) = xsd:string,
+      "Ongedefinieerd"^^xsd:string,
+      IF(?Kental = "Solvabiliteitsratio",
+        ROUND(xsd:decimal(?solvabiliteitsratio) * 100) / 100,        # Ratio: 2 dec
+        ROUND(xsd:decimal(?solvabiliteitsratio) * 1000) / 10         # Percentage: 1 dec
+      )
+    ) AS ?Waarde
+  )
+}
+ORDER BY ?Kental

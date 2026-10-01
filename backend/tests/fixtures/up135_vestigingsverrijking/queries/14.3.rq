@@ -1,0 +1,96 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 14.3
+# Parameters: ?peildatum, ?zorgkantoor
+# Ontologie: versie 3.0 of nieuwer
+
+PREFIX onz-g:   <http://purl.org/ozo/onz-g#>
+PREFIX onz-zorg:<http://purl.org/ozo/onz-zorg#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs:    <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:     <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+  (?vestiging as ?Indeling)
+  (?zorgprofiel AS ?Zorgprofiel)
+  (SUM(?max_vmb) AS ?Verblijf_met_behandeling)
+  (SUM(?max_vzb) AS ?Verblijf_zonder_behandeling)
+  (SUM(?max_vpt) AS ?VPT)
+  (SUM(?max_mpt) AS ?MPT)
+  (SUM(?max_pgb) AS ?PGB)
+  (SUM(IF((?max_vmb + ?max_vzb + ?max_vpt + ?max_mpt + ?max_pgb) > 0, 1, 0)) AS ?Totaal)
+WHERE {
+    SELECT
+      ?vestiging
+      ?client
+      ?zorgprofiel
+      (MAX(?vmb) AS ?max_vmb)
+      (MAX(?vzb) AS ?max_vzb)
+      (MAX(?vpt) AS ?max_vpt) 
+      (MAX(?mpt) AS ?max_mpt)
+      (MAX(?pgb) AS ?max_pgb)
+    WHERE {
+      # BIND ("2023-01-01"^^xsd:date AS ?peildatum)
+      VALUES ?zorgprofiel { onz-zorg:4VV onz-zorg:5VV onz-zorg:6VV onz-zorg:7VV onz-zorg:8VV onz-zorg:9BVV onz-zorg:10VV }
+
+      # Zorgprocessen binnen peildatum
+      ?zorgproces a onz-zorg:NursingProcess ;
+          onz-g:definedBy ?indicatie ;
+          onz-g:startDatum ?start_zorgproces .
+      OPTIONAL { ?zorgproces onz-g:eindDatum ?eind_zorgproces }
+      FILTER (?start_zorgproces <= ?peildatum && ((?eind_zorgproces >= ?peildatum) || !BOUND(?eind_zorgproces)))
+
+      # Indicatie + cliënt
+      ?indicatie a onz-zorg:WlzIndicatie ;  
+          onz-g:hasPart ?zorgprofiel ;
+          onz-g:hasPart ?lv ;
+          onz-g:isAbout ?client ;
+          onz-g:startDatum ?ind_start .
+
+      # Indicatie filter peildatum 
+      OPTIONAL { ?indicatie onz-g:eindDatum ?ind_eind }
+      FILTER (?ind_start <= ?peildatum && ((?ind_eind >= ?peildatum) || (!BOUND(?ind_eind))))
+	    ?client a onz-g:Human .
+            
+	    {
+        # Per vestiging
+        ?zorgproces onz-g:hasPerdurantLocation ?locatie .
+        ?locatie onz-g:partOf* ?vestiging_uri .
+        ?vestiging_uri a onz-org:Vestiging ;
+            onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6;
+            onz-g:identifiedBy ?vest_nr . 
+        BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+        ?pc_gebied 
+            onz-g:identifiedBy ?postcode ;
+            onz-g:partOf+ ?zk_regio .
+        ?zk_regio a onz-org:ZorgkantoorRegio .
+        ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+        ?vest_nr a onz-org:Vestigingsnummer ;
+            onz-g:hasDataValue ?vestiging .
+    }
+    UNION
+    {
+        # Totaal organisatie (inclusief zorgprocessen zonder locatie)
+        BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+    }
+
+      # Van de indicatiebesluiten3 met leveringsvorm5 verblijf8 bepaal of het met of zonder behandeling7 is.
+      OPTIONAL { ?indicatie onz-zorg:heeftIndicatieBehandeling ?behandeling }
+      BIND(IF(BOUND(?behandeling), ?behandeling, "false"^^xsd:boolean) AS ?incl_behandeling)
+
+      ?lv a onz-zorg:Leveringsvorm .
+
+      # Vlaggen per indicatie
+      BIND(IF(?lv = onz-zorg:instelling && ?incl_behandeling,      1, 0) AS ?vmb)
+      BIND(IF(?lv = onz-zorg:instelling && !?incl_behandeling,     1, 0) AS ?vzb)
+      BIND(IF(?lv = onz-zorg:vpt,                                  1, 0) AS ?vpt)
+      BIND(IF(?lv = onz-zorg:mpt,                                  1, 0) AS ?mpt)
+      BIND(IF(?lv = onz-zorg:pgb,                                  1, 0) AS ?pgb)
+    }
+    GROUP BY ?vestiging ?client ?zorgprofiel
+}
+GROUP BY ?vestiging ?zorgprofiel

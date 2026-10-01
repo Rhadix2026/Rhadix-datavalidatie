@@ -1,0 +1,141 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 8.2
+# Parameters: ?jaar, ?kwartaal, ?zorgkantoor
+# Ontologie: versie 3.0 of nieuwer
+
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-fin: <http://purl.org/ozo/onz-fin#>
+PREFIX onz-pers: <http://purl.org/ozo/onz-pers#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT 
+    ?Indeling
+    (SUM(?bedrag_pnil) AS ?Kosten_PNIL_Euro) 
+    (SUM(?bedrag_pil) AS ?Kosten_PIL_Euro) 
+    (IF((SUM(?bedrag_pil)+SUM(?bedrag_pnil)) = 0, 
+        "Ongedefinieerd", 
+        xsd:decimal(ROUND((SUM(?bedrag_pnil) / (SUM(?bedrag_pil)+SUM(?bedrag_pnil))) * 10000)) / 100
+    ) AS ?Procent_PNIL_tov_PIL_plus_PNIL)
+WHERE {
+    # Subquery: bepaal per grootboekpost de PIL/PNIL bedragen en optionele vestiging
+    {
+        SELECT DISTINCT ?grootboek_post ?bedrag_pil ?bedrag_pnil ?vestiging_label ?in_regio
+        WHERE {
+#             BIND(2024 AS ?jaar)
+#             BIND("Q3" AS ?kwartaal)
+#             BIND(onz-org:ZorgkantoorMenzis AS ?zorgkantoor)
+
+            BIND(IF(?kwartaal = 'Q1', xsd:date(CONCAT(STR(?jaar), '-01-01')),
+                    IF(?kwartaal = 'Q2', xsd:date(CONCAT(STR(?jaar), '-04-01')),
+                        IF(?kwartaal = 'Q3', xsd:date(CONCAT(STR(?jaar), '-07-01')),
+                            IF(?kwartaal = 'Q4', xsd:date(CONCAT(STR(?jaar), '-10-01')),
+                                '')))) AS ?start_periode)
+            BIND(?start_periode + "P3M"^^xsd:duration + "-P1D"^^xsd:duration AS ?eind_periode)
+
+            # Selecteer PNIL- of PIL-grootboekposten
+            {
+                # PNIL rubrieken (RGS + Prismant 418)
+                VALUES ?rubriek_pnil { 
+                    onz-fin:WBedOvpUik 
+                    onz-fin:WBedOvpUit 
+                    onz-fin:WBedOvpMaf 
+                    onz-fin:WBedOvpZzp
+                    onz-fin:WBedOvpPay 
+                    onz-fin:WBedOvpOip 
+                    onz-fin:418
+                }
+                ?grootboek_post a onz-fin:Grootboekpost ;
+                                onz-g:partOf ?pnil_desc ;
+                                onz-g:hasDate ?datum ;
+                                onz-fin:heeftGeldBedrag ?bedrag_pnil .
+                ?pnil_desc onz-g:partOf* ?rubriek_pnil .
+
+                # Exclusief: uitbesteed werk (WKrpKuw) mag niet meetellen bij PNIL
+                MINUS { ?pnil_desc onz-g:partOf* onz-fin:WKrpKuw . }
+
+                BIND(0 AS ?bedrag_pil)
+            } UNION {
+                # PIL rubrieken (RGS + Prismant)
+                VALUES ?rubriek_pil { 
+                    onz-fin:WPerLes 
+                    onz-fin:WPerSol 
+                    onz-fin:411 
+                    onz-fin:412 
+                    onz-fin:413
+                    onz-fin:414 
+                    onz-fin:415 
+                    onz-fin:416 
+                    onz-fin:419 
+                    onz-fin:420000 
+                    onz-fin:420100 
+                    onz-fin:422100 
+                    onz-fin:422300 
+                    onz-fin:422400
+                    onz-fin:422410 
+                    onz-fin:422500 
+                    onz-fin:422600 
+                    onz-fin:422900
+                }
+                ?grootboek_post a onz-fin:Grootboekpost ;
+                                onz-g:partOf ?pil_desc ;
+                                onz-g:hasDate ?datum ;
+                                onz-fin:heeftGeldBedrag ?bedrag_pil .
+                ?pil_desc onz-g:partOf* ?rubriek_pil .
+
+                # Exclusief: stagevergoedingen (WPerLesOlrSvg)
+                MINUS { ?pil_desc onz-g:partOf* onz-fin:WPerLesOlrSvg . }
+
+                BIND(0 AS ?bedrag_pnil)
+            }
+
+            FILTER (?datum >= ?start_periode && ?datum <= ?eind_periode)
+
+            # Koppeling grootboekpost → kostenplaats → vestiging is OPTIONEEL:
+            # posten op hoofdkantoor-niveau (bv. Specialist Ouderengeneeskunde, kwaliteitsadviseur) 
+            # zijn niet aan een vestiging gekoppeld en moeten alleen onder "Organisatie" vallen.
+            OPTIONAL {
+                ?grootboek_post onz-g:isAbout ?kosten_plaats .
+                ?kosten_plaats a onz-fin:Kostenplaats ;
+                               onz-g:isAbout ?vestiging_uri .
+                ?vestiging_uri a onz-org:Vestiging ;
+                               onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 .
+
+                # Leid 4-cijferige postcode af uit de 6-cijferige (laatste 2 karakters strippen)
+                BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+
+                ?pc_gebied onz-g:identifiedBy ?postcode ;
+                           onz-g:partOf+ ?zk_regio .
+                ?zk_regio a onz-org:ZorgkantoorRegio .
+                ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+
+                # Vestigingsnummer conform Pattern 3
+                ?vestiging_uri onz-g:identifiedBy ?vest_nr .
+                ?vest_nr a onz-org:Vestigingsnummer ;
+                         onz-g:hasDataValue ?vestiging_label .
+
+                BIND(true AS ?in_regio)
+            }
+        }
+    }
+
+    # gebruik VALUES + BIND(IF(...)) + FILTER,   
+    # voor vestiging resultaten in Fuseki
+    VALUES ?_rij { "vestiging" "organisatie" }
+    BIND(
+        IF(?_rij = "vestiging",
+            IF(BOUND(?vestiging_label) && BOUND(?in_regio),
+                ?vestiging_label,
+                "__SKIP__"),
+            "Organisatie (gecontracteerd + algemeen)")
+        AS ?Indeling
+    )
+    FILTER(?Indeling != "__SKIP__")
+}
+GROUP BY ?Indeling
+ORDER BY ?Indeling

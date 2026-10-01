@@ -1,0 +1,92 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 2.1
+# Parameters: ?jaar, ?kwartaal, ?zorgkantoor
+# Ontologie: versie 3.0 of nieuwer
+ 
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX onz-pers: <http://purl.org/ozo/onz-pers#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+ 
+SELECT
+	(?vestiging AS ?Indeling)
+	(SUM(?gewerkte_uren) AS ?Ingezette_uren)
+{
+    # BIND(2024 AS ?jaar)
+    # BIND("Q1" AS ?kwartaal)
+    # BIND(onz-org:ZorgkantoorMenzis AS ?zorgkantoor)
+
+	BIND(IF(?kwartaal = 'Q1', xsd:date(CONCAT(STR(?jaar), '-01-01')),
+        IF(?kwartaal = 'Q2', xsd:date(CONCAT(STR(?jaar), '-04-01')),
+        IF(?kwartaal = 'Q3', xsd:date(CONCAT(STR(?jaar), '-07-01')),
+        IF(?kwartaal = 'Q4', xsd:date(CONCAT(STR(?jaar), '-10-01')),
+        '')))) AS ?start_periode)
+    BIND(?start_periode + "P3M"^^xsd:duration + "-P1D"^^xsd:duration AS ?eind_periode)
+
+    # Bepaal filter voor definitie van overeenkomsten die geldig zijn voor personeelsleden
+    VALUES ?personeels_overeenkomst 
+    { 
+        onz-pers:ArbeidsOvereenkomst
+        onz-pers:UitzendOvereenkomst
+        onz-pers:InhuurOvereenkomst
+    }
+
+    ?overeenkomst 
+      	a ?personeels_overeenkomst;
+              onz-pers:heeftOpdrachtnemer ?persoon ;
+              onz-g:hasPart ?overeenkomst_afspraak .
+    ?overeenkomst_afspraak
+      	a onz-pers:WerkOvereenkomstAfspraak ;
+        onz-g:startDatum ?start_afspraak .
+    OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }
+    FILTER(?start_afspraak <= ?eind_periode && ((?eind_afspraak >= ?start_periode) || (!BOUND(?eind_afspraak))))
+ 
+    ?overeenkomst_afspraak onz-g:isAbout ?functie .                
+    ?functie a onz-pers:ZorgverlenerFunctie .
+    OPTIONAL {
+      ?overeenkomst_afspraak onz-g:isAbout ?locatie_afspraak .
+      ?locatie_afspraak a onz-g:StationaryArtifact .
+    }
+ 
+    ?inzet
+        a onz-pers:GewerktePeriode ;
+        onz-g:definedBy ?overeenkomst ;
+        onz-g:hasBeginTimeStamp ?start_inzet_datetime ;
+        onz-g:hasQuality/onz-g:hasQualityValue/onz-g:hasDataValue ?gewerkte_uren .
+    OPTIONAL{ ?inzet onz-g:hasPerdurantLocation ?locatie_werk }
+    BIND(STRDT(SUBSTR(STR(?start_inzet_datetime), 1, 10), xsd:date) AS ?start_inzet)
+    FILTER(?start_inzet >= ?start_periode && ?start_inzet <= ?eind_periode)
+    FILTER(?start_inzet >= ?start_afspraak && (?start_inzet <= ?eind_afspraak || !BOUND(?eind_afspraak)))
+ 
+    BIND(IF(!BOUND(?locatie_werk), ?locatie_afspraak, ?locatie_werk) AS ?locatie)
+
+    {   
+        # Onderdeel per vestiging, inclusief BIND & COALESCE fix voor Fuseki zodat er geen verschillen
+        # zijn in filtercontext per SPARQL engine
+        BIND(COALESCE(?locatie, <urn:sparql:guard:no-locatie>) AS ?locatie_safe)
+
+        ?locatie_safe onz-g:partOf* ?vestiging_uri .
+        ?vestiging_uri a onz-org:Vestiging ;
+            onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 ;
+            onz-g:identifiedBy ?vest_nr .    
+        ?vest_nr a onz-org:Vestigingsnummer ;
+            onz-g:hasDataValue ?vestiging .
+        BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+        
+        ?pc_gebied 
+            onz-g:identifiedBy ?postcode ;
+            onz-g:partOf+ ?zk_regio .
+        ?zk_regio a onz-org:ZorgkantoorRegio .
+        ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+    } UNION {
+        # Onderdeel totaal organisatie, inclusief gevallen zonder vestiging
+        BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+    }
+ 
+}
+GROUP BY ?vestiging
+ORDER BY ?vestiging

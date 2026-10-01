@@ -1,0 +1,151 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 7.1
+# Parameters: ?jaar, ?kwartaal, ?zorgkantoor
+# Ontologie: versie 3.0 of nieuwer
+
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX onz-pers: <http://purl.org/ozo/onz-pers#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>
+
+SELECT 
+    (?vestiging AS ?Indeling)
+    (?ingezette_uren AS ?Aantal_ingezette_uren)
+    (?aantal_clienten AS ?Aantal_cliënten)
+    (IF(?aantal_clienten = 0, "Ongedefineerd", ROUND(?ingezette_uren/?aantal_clienten*100)/100) AS ?Ingezette_uren_per_cliënt)
+WHERE 
+{
+    {
+        SELECT 
+            ?vestiging
+            (SUM(?gewerkte_uren) AS ?ingezette_uren)
+        WHERE
+        {
+            #   BIND(2023 AS ?jaar)
+            #   BIND("Q3" AS ?kwartaal)
+            #   BIND(onz-org:ZorgkantoorMenzis AS ?zorgkantoor)
+            BIND(IF(?kwartaal = 'Q1', xsd:date(CONCAT(STR(?jaar), '-01-01')),
+                IF(?kwartaal = 'Q2', xsd:date(CONCAT(STR(?jaar), '-04-01')),
+                IF(?kwartaal = 'Q3', xsd:date(CONCAT(STR(?jaar), '-07-01')),
+                IF(?kwartaal = 'Q4', xsd:date(CONCAT(STR(?jaar), '-10-01')),
+                '')))) AS ?start_periode)
+            BIND(?start_periode + "P3M"^^xsd:duration + "-P1D"^^xsd:duration AS ?eind_periode)
+            
+            ?overeenkomst 
+                a onz-pers:ArbeidsOvereenkomst ;
+                onz-pers:heeftOpdrachtnemer ?persoon ;
+                onz-g:hasPart ?overeenkomst_afspraak .
+            ?overeenkomst_afspraak
+                a onz-pers:WerkOvereenkomstAfspraak ;
+                onz-g:startDatum ?start_afspraak .
+            OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }
+            FILTER(?start_afspraak <= ?eind_periode && ((?eind_afspraak >= ?start_periode) || (!BOUND(?eind_afspraak))))
+
+            ?overeenkomst_afspraak onz-g:isAbout ?functie .                
+            ?functie a onz-pers:ZorgverlenerFunctie .
+            OPTIONAL {
+                ?overeenkomst_afspraak onz-g:isAbout ?locatie_afspraak .
+                ?locatie_afspraak a onz-g:StationaryArtifact .
+            }
+
+            ?inzet
+                a onz-pers:GewerktePeriode ;
+                onz-g:definedBy ?overeenkomst ;
+                onz-g:hasBeginTimeStamp ?start_inzet_datetime ;
+                onz-g:hasQuality/onz-g:hasQualityValue/onz-g:hasDataValue ?gewerkte_uren .
+            OPTIONAL{ ?inzet onz-g:hasPerdurantLocation ?locatie_werk }
+            BIND(STRDT(SUBSTR(STR(?start_inzet_datetime), 1, 10), xsd:date) AS ?start_inzet)
+            FILTER(?start_inzet >= ?start_periode && ?start_inzet <= ?eind_periode)
+            FILTER(?start_inzet >= ?start_afspraak && (?start_inzet <= ?eind_afspraak || !BOUND(?eind_afspraak)))
+
+            BIND(IF(!BOUND(?locatie_werk), ?locatie_afspraak, ?locatie_werk) AS ?locatie)
+            
+            {     
+                # COALESCE i.p.v. FILTER(BOUND): voorkomt dat Fuseki partOf* evalueert met ongebonden ?locatie
+                BIND(COALESCE(?locatie, <urn:sparql:guard:no-locatie>) AS ?locatie_safe)
+                ?locatie_safe onz-g:partOf* ?vestiging_uri .
+                ?vestiging_uri a onz-org:Vestiging ;
+                    onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 .
+                BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+                ?pc_gebied 
+                    onz-g:identifiedBy ?postcode ;
+                    onz-g:partOf+ ?zk_regio .
+                ?zk_regio a onz-org:ZorgkantoorRegio .
+                ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+                ?vestiging_uri onz-g:identifiedBy ?vest_nr .    	
+                ?vest_nr a onz-org:Vestigingsnummer ;
+                    onz-g:hasDataValue ?vestiging .
+            } UNION {
+                # Includeer ook de organisatie als geheel en label deze als vestiging
+                BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+            }
+
+        }
+        GROUP BY ?vestiging 
+    }
+    {
+        SELECT 
+            ?vestiging
+            (COUNT(DISTINCT(?client)) AS ?aantal_clienten)
+        WHERE
+        {
+            # definieer kwartaal waarin clienten verzorgd werden
+            #   BIND(2023 AS ?jaar)
+            #   BIND("Q3" AS ?kwartaal)
+            #   BIND(onz-org:ZorgkantoorMenzis AS ?zorgkantoor)
+            BIND(IF(?kwartaal = 'Q1', xsd:date(CONCAT(STR(?jaar), '-01-01')),
+                IF(?kwartaal = 'Q2', xsd:date(CONCAT(STR(?jaar), '-04-01')),
+                IF(?kwartaal = 'Q3', xsd:date(CONCAT(STR(?jaar), '-07-01')),
+                IF(?kwartaal = 'Q4', xsd:date(CONCAT(STR(?jaar), '-10-01')),
+                '')))) AS ?start_periode)
+            BIND(?start_periode + "P3M"^^xsd:duration + "-P1D"^^xsd:duration AS ?eind_periode)
+            
+            VALUES ?zorgprofiel { onz-zorg:4VV onz-zorg:5VV onz-zorg:6VV onz-zorg:7VV onz-zorg:8VV onz-zorg:9BVV onz-zorg:10VV }
+            
+            # selecteer zorgproces binnen periode
+            ?zorgproces
+                a onz-zorg:NursingProcess ;
+                onz-g:definedBy ?indicatie ;
+                onz-g:startDatum ?start_proces .
+            OPTIONAL {?zorgproces onz-g:eindDatum ?eind_proces}
+            FILTER (?start_proces <= ?eind_periode && (!BOUND(?eind_proces) || ?eind_proces >= ?start_periode))
+
+            
+            {     
+                ?zorgproces onz-g:hasPerdurantLocation ?locatie .
+                ?locatie onz-g:partOf* ?vestiging_uri .
+                ?vestiging_uri a onz-org:Vestiging ;
+                    onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 .
+                BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+                ?pc_gebied 
+                    onz-g:identifiedBy ?postcode ;
+                    onz-g:partOf+ ?zk_regio .
+                ?zk_regio a onz-org:ZorgkantoorRegio .
+                ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+                ?vestiging_uri onz-g:identifiedBy ?vest_nr .    	
+                ?vest_nr a onz-org:Vestigingsnummer ;
+                    onz-g:hasDataValue ?vestiging .
+            } UNION {
+                # Includeer ook de organisatie als geheel en label deze als vestiging
+                BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+            }
+
+            # selecteer de bijbehordene indicatie, om unieke clienten te kunnen bepalen
+            ?indicatie 
+                onz-g:hasPart ?zorgprofiel ;
+                onz-g:isAbout ?client ;
+                onz-g:startDatum ?start_indicatie .
+            OPTIONAL { ?indicatie onz-g:eindDatum ?eind_indicatie }
+            FILTER (?start_indicatie <= ?eind_periode && (!BOUND(?eind_indicatie) || ?eind_indicatie >= ?start_periode))
+            ?client a onz-g:Human .
+        }
+    GROUP BY ?vestiging 
+    }
+}
+ORDER BY ?vestiging

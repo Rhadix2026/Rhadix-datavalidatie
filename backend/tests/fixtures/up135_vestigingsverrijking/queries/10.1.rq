@@ -1,0 +1,80 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 10.1
+# Parameters: ?kwartaal, ?jaar, ?zorgkantoor
+# Ontologie: versie 3.0 of nieuwer
+
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-pers: <http://purl.org/ozo/onz-pers#>
+PREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX time: <http://www.w3.org/2006/time#>
+
+SELECT 
+    (?vestiging AS ?Indeling)
+    (COUNT(DISTINCT ?persoon) AS ?Aantal_BBL_leerlingen)
+WHERE {
+	# BIND(2023 AS ?jaar)
+    # BIND("Q1" AS ?kwartaal)
+    VALUES ?personeels_overeenkomst { 
+        onz-pers:ArbeidsOvereenkomstBBL
+        # onz-pers:ArbeidsOvereenkomst
+    }
+    BIND(IF(?kwartaal = 'Q1', xsd:date(CONCAT(STR(?jaar), '-01-01')),
+            IF(?kwartaal = 'Q2', xsd:date(CONCAT(STR(?jaar), '-04-01')),
+            IF(?kwartaal = 'Q3', xsd:date(CONCAT(STR(?jaar), '-07-01')),
+            IF(?kwartaal = 'Q4', xsd:date(CONCAT(STR(?jaar), '-10-01')),
+            '')))) AS ?start_periode)
+    BIND(?start_periode + "P3M"^^xsd:duration + "-P1D"^^xsd:duration AS ?eind_periode)
+
+    # Selecteer alle personeelsleden met een BBL-overeenkomst binnen de meetperiode
+    ?overeenkomst 
+        a ?personeels_overeenkomst ;
+        onz-pers:heeftOpdrachtnemer ?persoon ;
+        onz-g:hasPart ?overeenkomst_afspraak .
+
+    ?overeenkomst_afspraak
+        a onz-pers:WerkOvereenkomstAfspraak ;
+        onz-g:startDatum ?start_afspraak .
+
+    OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak . }
+
+    FILTER (?start_afspraak <= ?eind_periode && (?eind_afspraak >= ?start_periode || !BOUND(?eind_afspraak)))
+
+    {
+        # Per vestiging
+        ?overeenkomst_afspraak onz-g:isAbout ?locatie .
+        ?locatie 
+            a onz-g:StationaryArtifact ;
+            onz-g:partOf* ?vestiging_uri .
+
+        ?vestiging_uri a onz-org:Vestiging ;
+            onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 ;
+            onz-g:identifiedBy ?vest_nr .
+
+        BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+
+        ?pc_gebied 
+            onz-g:identifiedBy ?postcode ;
+            onz-g:partOf+ ?zk_regio .
+
+        ?zk_regio a onz-org:ZorgkantoorRegio .
+        ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+
+        ?vest_nr a onz-org:Vestigingsnummer ;
+            onz-g:hasDataValue ?vestiging .
+    }
+    UNION
+    {
+        # Totaal organisatie (inclusief overeenkomsten zonder vestiging)
+        BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+    }
+}
+GROUP BY ?vestiging
+ORDER BY ?vestiging

@@ -1,0 +1,72 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 13.1
+# Parameters: ?peildatum
+# Ontologie: versie 3.0 of nieuwer
+
+PREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-pers: <http://purl.org/ozo/onz-pers#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+    ("Organisatie (gecontracteerd + algemeen)" AS ?Indeling)
+    (SUM(?noemer_waarde) AS ?Aantal_PIL_met_zorgfunctie)
+    (SUM(?teller_waarde) AS ?Aantal_ingestroomde_PIL_met_zorgfunctie)
+    (IF(
+        SUM(?noemer_waarde) = 0,
+        "Ongedefinieerd",
+        ROUND( (100.0 * SUM(?teller_waarde) / SUM(?noemer_waarde)) * 100 ) / 100
+    ) AS ?Procent_zorggerelateerde_instroom_tov_totaal_zorggerelateerd)
+WHERE {
+    SELECT
+        ?werknemer
+        (IF(MAX(?op_peildatum) = 1, 1, 0) AS ?noemer_waarde)
+        (IF(MAX(?op_peildatum) = 1 && MAX(?op_peildatum_eerder) = 0, 1, 0) AS ?teller_waarde)
+    WHERE {
+        # BIND(xsd:date("2024-08-01") AS ?peildatum)
+
+        BIND((?peildatum - "P1Y"^^xsd:duration) AS ?peildatum_eerder)
+
+        # Bepaal filter voor definitie van overeenkomsten die geldig zijn voor personeelsleden
+        ?overeenkomst
+            a onz-pers:ArbeidsOvereenkomst ;
+            onz-pers:heeftOpdrachtnemer ?werknemer ;
+            onz-g:hasPart ?overeenkomst_afspraak .
+
+        ?overeenkomst_afspraak
+            a onz-pers:WerkOvereenkomstAfspraak ;
+            onz-g:isAbout ?functie ;
+            onz-g:startDatum ?start_afspraak .
+
+        ?functie
+            a onz-pers:ZorgverlenerFunctie .
+
+        OPTIONAL {
+            ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak .
+        }
+
+        FILTER(
+            ?start_afspraak <= ?peildatum &&
+            (!BOUND(?eind_afspraak) ||?eind_afspraak >= ?peildatum_eerder)
+        )
+
+        BIND(
+            IF(?start_afspraak <= ?peildatum && (?eind_afspraak >= ?peildatum || !BOUND(?eind_afspraak)),
+            1,
+            0
+        ) AS ?op_peildatum)
+
+        BIND(
+            IF(?start_afspraak <= ?peildatum_eerder && (?eind_afspraak >= ?peildatum_eerder || !BOUND(?eind_afspraak)),
+            1,
+            0
+        ) AS ?op_peildatum_eerder)
+    }
+
+    GROUP BY ?werknemer
+}

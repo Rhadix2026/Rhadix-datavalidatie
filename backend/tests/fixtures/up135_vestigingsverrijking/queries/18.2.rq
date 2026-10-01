@@ -1,0 +1,717 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 18.2.0 - Complete versie met R en S totalen 
+# Parameters: ?startperiode, ?eindperiode
+# Ontologie: versie 3.0.0 of nieuwer
+# 
+# Deze query berekent de winst- en verliesrekening obv Prismant of RGS grootboekrubrieken.
+# Structuur: 3 delen via UNION die alle jaarrekeningposten + subtotalen genereren
+
+PREFIX onz-fin: <http://purl.org/ozo/onz-fin#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT
+    ?jaarrekeningpost
+    (IF(SUM(?heeftData)>0, SUM(?bedrag_rubriek), "Niet beschikbaar") AS ?bedrag)
+WHERE
+{
+    {
+        # ================================================================
+        # DEEL 1: Berekening eindtotalen P, Q, R, S uit ruwe grootboekdata
+        ## deze berekening lijkt misschien overbodig omdat je ook de subposten uit deel 2 zou kunnen optellen, 
+        ## alleen die kunnen theoretisch leeg zijn wat tot reken problemen leidt. Vandaar deze pragmatische keuze
+        # ================================================================
+        {
+            # Bereken alle componentbedragen in één database scan voor performance
+            SELECT 
+                (SUM(?p_bedrag) AS ?p_totaal)      # P Som der bedrijfsopbrengsten
+                (SUM(?q_bedrag) AS ?q_totaal)      # Q Som der bedrijfslasten
+                (SUM(?r_bedrag) AS ?r_totaal)  # R.I Opbrengst van vorderingen die tot de vaste activa behoren en van effecten
+                (SUM(?s_bedrag) AS ?s_totaal)  # S.I Belastingen
+            
+                (SUM(?p_flag) AS ?p_has_data)
+                (SUM(?q_flag) AS ?q_has_data)
+                (SUM(?r_flag) AS ?r_has_data)
+                (SUM(?s_flag) AS ?s_has_data)
+            WHERE {
+                   #BIND("2024-01-01"^^xsd:date AS ?startperiode)
+                   #BIND("2024-12-31"^^xsd:date AS ?eindperiode)
+               
+                # Koppel grootboekposten aan rubrieken binnen meetperiode
+                ?grootboek_post a onz-fin:Grootboekpost ;
+                    onz-g:partOf ?rubriek ;
+                    onz-g:hasDate ?datum ;
+                    onz-fin:heeftGeldBedrag ?geld_bedrag .
+
+                # Match directe ouder: Grootboekrekening (RGS) of Grootboekrubriek (Prismant)
+                {
+                    { ?rubriek a onz-fin:Grootboekrekening }
+                    UNION
+                    { ?rubriek a onz-fin:Grootboekrubriek }
+                }
+                # Anti-dubbeltelling: houd alleen het bladniveau (geen transitive ancestors)
+                FILTER NOT EXISTS {
+                    ?grootboek_post onz-g:partOf ?child .
+                    ?child onz-g:partOf ?rubriek .
+                    FILTER(?child != ?rubriek)
+                    { { ?child a onz-fin:Grootboekrekening } UNION { ?child a onz-fin:Grootboekrubriek } }
+                }
+                FILTER(STRSTARTS(STR(?rubriek), STR(onz-fin:)))
+                BIND(STRAFTER(STR(?rubriek), STR(onz-fin:)) AS ?rubriekCode)
+
+                FILTER (?datum >= ?startperiode && ?datum <= ?eindperiode)
+
+                # In deel 2 worden de subposten pas berekend, hier alleen nog op letter niveau
+
+                # --- P: Bedragen voor eindtotaalberekening ---
+                # Prismant: P.I=81, P.IV=82/83/89/919/920/930
+                # RGS: P.I=WOmz/WRev/WRvi/WRgr/WWvv/WNoa/WLbe/WBat, P.II = WWiv minus WWivGvp, III=WWivGvp, P.IV=WOvb
+                # voor de som P volstaat het om WWiv hier te zetten want zo wordt WWivGvp ook maar 1x geteld.
+                BIND(
+                    IF(
+                        STRSTARTS(?rubriekCode, "81") ||
+                        STRSTARTS(?rubriekCode, "82") ||
+                        STRSTARTS(?rubriekCode, "83") ||
+                        STRSTARTS(?rubriekCode, "89") ||
+                        STRSTARTS(?rubriekCode, "919") ||
+                        STRSTARTS(?rubriekCode, "920") ||
+                        STRSTARTS(?rubriekCode, "930") ||
+                        STRSTARTS(?rubriekCode, "WOmz") ||
+                        STRSTARTS(?rubriekCode, "WRev") ||
+                        STRSTARTS(?rubriekCode, "WRvi") ||
+                        STRSTARTS(?rubriekCode, "WRgr") ||
+                        STRSTARTS(?rubriekCode, "WWvv") ||
+                        STRSTARTS(?rubriekCode, "WNoa") ||
+                        STRSTARTS(?rubriekCode, "WLbe") ||
+                        STRSTARTS(?rubriekCode, "WBat") ||
+                        STRSTARTS(?rubriekCode, "WWiv") ||
+                        STRSTARTS(?rubriekCode, "WOvb"),
+                        ?geld_bedrag, 0) AS ?p_bedrag
+                )
+
+                # --- Q: Diverse kostenrubrieken ---
+                # Q.I RGS: WKpr minus WKprKuw
+                # Q.II: 417/418 (Kosten uitbesteed werk en andere externe kosten), RGS: WKprKuw
+                # Q.III: 411-419 (Lonen en salarissen), RGS: WPer minus WPerSol minus WPerPen
+                # Q.IV: 420/4221/4223-4225/4229 (Sociale lasten), RGS: WPerSol
+                # Q.V: 4226 (Afschrijvingen), RGS: WPerPen
+                # Q.VI: 480-484 (Afschrijvingen op immateriële vaste activa en materiële vaste activa), RGS: WAfs
+                # Q.VII: RGS: WWvi
+                # Q.VIII: RGS: WBwv
+                # Q.IX: 423/43-47/486/489/905/911-915/921/931 (Overige bedrijfskosten), RGS: WBed/WOok/WKol/WVkf/WAkf
+                # ook hier volstaat het voor de som van Q om alleen WPer te noemen zodat WPerSol en WPerPen niet dubbel geteld worden
+                BIND(
+                    IF(
+                        STRSTARTS(?rubriekCode, "417") ||
+                        STRSTARTS(?rubriekCode, "418") ||
+                        STRSTARTS(?rubriekCode, "411") ||
+                        STRSTARTS(?rubriekCode, "412") ||
+                        STRSTARTS(?rubriekCode, "413") ||
+                        STRSTARTS(?rubriekCode, "414") ||
+                        STRSTARTS(?rubriekCode, "415") ||
+                        STRSTARTS(?rubriekCode, "416") ||
+                        STRSTARTS(?rubriekCode, "419") ||
+                        STRSTARTS(?rubriekCode, "420") ||
+                        STRSTARTS(?rubriekCode, "4221") ||
+                        STRSTARTS(?rubriekCode, "4223") ||
+                        STRSTARTS(?rubriekCode, "4224") ||
+                        STRSTARTS(?rubriekCode, "4225") ||
+                        STRSTARTS(?rubriekCode, "4229") ||
+                        STRSTARTS(?rubriekCode, "4226") ||
+                        STRSTARTS(?rubriekCode, "480") ||
+                        STRSTARTS(?rubriekCode, "481") ||
+                        STRSTARTS(?rubriekCode, "482") ||
+                        STRSTARTS(?rubriekCode, "483") ||
+                        STRSTARTS(?rubriekCode, "484") ||
+                        STRSTARTS(?rubriekCode, "423") ||
+                        STRSTARTS(?rubriekCode, "43") ||
+                        STRSTARTS(?rubriekCode, "44") ||
+                        STRSTARTS(?rubriekCode, "45") ||
+                        STRSTARTS(?rubriekCode, "46") ||
+                        STRSTARTS(?rubriekCode, "47") ||
+                        STRSTARTS(?rubriekCode, "486") ||
+                        STRSTARTS(?rubriekCode, "489") ||
+                        STRSTARTS(?rubriekCode, "905") ||
+                        STRSTARTS(?rubriekCode, "911") ||
+                        STRSTARTS(?rubriekCode, "912") ||
+                        STRSTARTS(?rubriekCode, "913") ||
+                        STRSTARTS(?rubriekCode, "914") ||
+                        STRSTARTS(?rubriekCode, "915") ||
+                        STRSTARTS(?rubriekCode, "921") ||
+                        STRSTARTS(?rubriekCode, "931") ||
+                        STRSTARTS(?rubriekCode, "WKpr") ||
+                        STRSTARTS(?rubriekCode, "WPer") ||
+                        STRSTARTS(?rubriekCode, "WAfs") ||
+                        STRSTARTS(?rubriekCode, "WWvi") ||
+                        STRSTARTS(?rubriekCode, "WBwv") ||
+                        STRSTARTS(?rubriekCode, "WBed") ||
+                        STRSTARTS(?rubriekCode, "WOok") ||
+                        STRSTARTS(?rubriekCode, "WKol") ||
+                        STRSTARTS(?rubriekCode, "WVkf") ||
+                        STRSTARTS(?rubriekCode, "WAkf"),
+                        ?geld_bedrag, 0) AS ?q_bedrag
+                )
+                
+                # --- R: Resultaat voor belastingen ---
+                # Prismant: R.I=904, R.II=900, R.III=903, R.IV=485/901
+                # RGS: R.I=WOvt, R.II=WFbeRlm, R.III=WWfa/WVhe, R.IV=WFbe minus WFbeRlm
+                # voor de som R volstaat het om WFbe hier te zetten want zo wordt WFbeRlm ook maar 1x geteld.
+                BIND(
+                    IF(
+                        STRSTARTS(?rubriekCode, "904") ||
+                        STRSTARTS(?rubriekCode, "900") ||
+                        STRSTARTS(?rubriekCode, "903") ||
+                        STRSTARTS(?rubriekCode, "485") ||
+                        STRSTARTS(?rubriekCode, "901") ||
+                        STRSTARTS(?rubriekCode, "WOvt") ||
+                        STRSTARTS(?rubriekCode, "WWfa") ||
+                        STRSTARTS(?rubriekCode, "WVhe") ||
+                        STRSTARTS(?rubriekCode, "WFbe"),
+                        ?geld_bedrag, 0) AS ?r_bedrag
+                )
+                
+                # --- S: Belastingen ---
+                # Prismant: S.II=902
+                # RGS: S.I=WBel, S.II=WRed/WAad
+                BIND(
+                    IF(
+                        STRSTARTS(?rubriekCode, "902") ||
+                        STRSTARTS(?rubriekCode, "WBel") ||
+                        STRSTARTS(?rubriekCode, "WRed") ||
+                        STRSTARTS(?rubriekCode, "WAad"),
+                        ?geld_bedrag, 0) AS ?s_bedrag
+                )
+
+                
+                # --- Data detection flags: 1 als de grootboekpost bij het component hoort ---
+                BIND(IF(
+                    STRSTARTS(?rubriekCode, "81") || STRSTARTS(?rubriekCode, "82") || STRSTARTS(?rubriekCode, "83") ||
+                    STRSTARTS(?rubriekCode, "89") || STRSTARTS(?rubriekCode, "919") || STRSTARTS(?rubriekCode, "920") ||
+                    STRSTARTS(?rubriekCode, "930") || STRSTARTS(?rubriekCode, "WOmz") || STRSTARTS(?rubriekCode, "WRev") ||
+                    STRSTARTS(?rubriekCode, "WRvi") || STRSTARTS(?rubriekCode, "WRgr") || STRSTARTS(?rubriekCode, "WWvv") ||
+                    STRSTARTS(?rubriekCode, "WNoa") || STRSTARTS(?rubriekCode, "WLbe") || STRSTARTS(?rubriekCode, "WBat") ||
+                    STRSTARTS(?rubriekCode, "WWiv") || STRSTARTS(?rubriekCode, "WOvb"),
+                    1, 0) AS ?p_flag)
+                BIND(IF(
+                    STRSTARTS(?rubriekCode, "417") || STRSTARTS(?rubriekCode, "418") ||
+                    STRSTARTS(?rubriekCode, "411") || STRSTARTS(?rubriekCode, "412") || STRSTARTS(?rubriekCode, "413") ||
+                    STRSTARTS(?rubriekCode, "414") || STRSTARTS(?rubriekCode, "415") || STRSTARTS(?rubriekCode, "416") ||
+                    STRSTARTS(?rubriekCode, "419") || STRSTARTS(?rubriekCode, "420") || STRSTARTS(?rubriekCode, "4221") ||
+                    STRSTARTS(?rubriekCode, "4223") || STRSTARTS(?rubriekCode, "4224") || STRSTARTS(?rubriekCode, "4225") ||
+                    STRSTARTS(?rubriekCode, "4229") || STRSTARTS(?rubriekCode, "4226") ||
+                    STRSTARTS(?rubriekCode, "480") || STRSTARTS(?rubriekCode, "481") || STRSTARTS(?rubriekCode, "482") ||
+                    STRSTARTS(?rubriekCode, "483") || STRSTARTS(?rubriekCode, "484") ||
+                    STRSTARTS(?rubriekCode, "423") || STRSTARTS(?rubriekCode, "43") || STRSTARTS(?rubriekCode, "44") ||
+                    STRSTARTS(?rubriekCode, "45") || STRSTARTS(?rubriekCode, "46") || STRSTARTS(?rubriekCode, "47") ||
+                    STRSTARTS(?rubriekCode, "486") || STRSTARTS(?rubriekCode, "489") || STRSTARTS(?rubriekCode, "905") ||
+                    STRSTARTS(?rubriekCode, "911") || STRSTARTS(?rubriekCode, "912") || STRSTARTS(?rubriekCode, "913") ||
+                    STRSTARTS(?rubriekCode, "914") || STRSTARTS(?rubriekCode, "915") || STRSTARTS(?rubriekCode, "921") ||
+                    STRSTARTS(?rubriekCode, "931") || STRSTARTS(?rubriekCode, "WKpr") || STRSTARTS(?rubriekCode, "WPer") ||
+                    STRSTARTS(?rubriekCode, "WAfs") || STRSTARTS(?rubriekCode, "WWvi") || STRSTARTS(?rubriekCode, "WBwv") ||
+                    STRSTARTS(?rubriekCode, "WBed") || STRSTARTS(?rubriekCode, "WOok") || STRSTARTS(?rubriekCode, "WKol") ||
+                    STRSTARTS(?rubriekCode, "WVkf") || STRSTARTS(?rubriekCode, "WAkf"),
+                    1, 0) AS ?q_flag)
+                BIND(IF(
+                        STRSTARTS(?rubriekCode, "904") ||
+                        STRSTARTS(?rubriekCode, "900") ||
+                        STRSTARTS(?rubriekCode, "903") ||
+                        STRSTARTS(?rubriekCode, "485") ||
+                        STRSTARTS(?rubriekCode, "901") ||
+                        STRSTARTS(?rubriekCode, "WOvt") ||
+                        STRSTARTS(?rubriekCode, "WWfa") ||
+                        STRSTARTS(?rubriekCode, "WVhe") ||
+                        STRSTARTS(?rubriekCode, "WFbe"),
+                        1, 0) AS ?r_flag)
+                BIND(IF(
+                        STRSTARTS(?rubriekCode, "WBel") ||
+                        STRSTARTS(?rubriekCode, "902") ||
+                        STRSTARTS(?rubriekCode, "WRed") ||
+                        STRSTARTS(?rubriekCode, "WAad"),
+                        1, 0) AS ?s_flag)
+                
+            }
+        }
+
+        # Genereer eindtotalen met berekende formules
+        VALUES (?eindtotaal_type ?jaarrekeningpost) {
+            (1 "P Som der bedrijfsopbrengsten")  # P totaal
+            (2 "Q Som der bedrijfslasten")       # Q totaal
+            (3 "R Resultaat voor belastingen")  # P + Q + R
+            (4 "S Resultaat na belastingen")    # R + S
+        }
+		
+        # Tel de bedragen op, als er geen data is gebruik dan nul 
+        BIND(
+          IF(?eindtotaal_type = 1, COALESCE(?p_totaal, 0), 
+          IF(?eindtotaal_type = 2, COALESCE(?q_totaal, 0), 
+          IF(?eindtotaal_type = 3, COALESCE(?p_totaal, 0) + COALESCE(?q_totaal, 0) + COALESCE(?r_totaal, 0), 
+          IF(?eindtotaal_type = 4, COALESCE(?p_totaal, 0) + COALESCE(?q_totaal, 0) + COALESCE(?r_totaal, 0) + 				COALESCE(?s_totaal, 0), 
+          0)))) AS ?bedrag_rubriek
+        )
+        
+        BIND(
+          IF(?eindtotaal_type = 1, ?p_has_data,
+          IF(?eindtotaal_type = 2, ?q_has_data,
+          IF(?eindtotaal_type = 3, ?p_has_data + ?q_has_data + ?r_has_data,
+          IF(?eindtotaal_type = 4, ?p_has_data + ?q_has_data + ?r_has_data + ?s_has_data,
+          0)))) AS ?heeftData
+        )
+        
+    }
+    UNION
+{
+    # ========================================================================
+    # DEEL 2: Individuele jaarrekeningposten uit grootboekdata
+    ## Inclusief een oplossing om lege posten als niet bestaand weer te geven.
+    ## In dit geval via heeftData = 0 en dan in de buitenste select dit weer te geven met een string
+    # Werkt voor Prismant én RGS
+    # ========================================================================
+    {
+        SELECT
+            ?jaarrekeningpost
+            ?bedrag_rubriek
+            ?heeftData
+        WHERE {
+            {
+                SELECT
+                    (SUM(?p_i_bedrag) AS ?p_i_totaal)
+                    (SUM(?p_ii_plus_bedrag) AS ?p_ii_plus_totaal)
+                    (SUM(?p_ii_min_bedrag) AS ?p_ii_min_totaal)
+                    (SUM(?p_iii_bedrag) AS ?p_iii_totaal)
+                    (SUM(?p_iv_bedrag) AS ?p_iv_totaal)
+
+                    (SUM(?q_i_plus_bedrag) AS ?q_i_plus_totaal)
+                    (SUM(?q_i_min_bedrag) AS ?q_i_min_totaal)
+                    (SUM(?q_ii_bedrag) AS ?q_ii_totaal)
+                    (SUM(?q_iii_bedrag) AS ?q_iii_totaal)
+                    (SUM(?q_iii_min_bedrag) AS ?q_iii_min_totaal)
+                    (SUM(?q_iv_bedrag) AS ?q_iv_totaal)
+                    (SUM(?q_v_bedrag) AS ?q_v_totaal)
+                    (SUM(?q_vi_bedrag) AS ?q_vi_totaal)
+                    (SUM(?q_vii_bedrag) AS ?q_vii_totaal)
+                    (SUM(?q_viii_bedrag) AS ?q_viii_totaal)
+                    (SUM(?q_ix_bedrag) AS ?q_ix_totaal)
+
+                    (SUM(?r_i_bedrag) AS ?r_i_totaal)
+                    (SUM(?r_ii_bedrag) AS ?r_ii_totaal)
+                    (SUM(?r_iii_bedrag) AS ?r_iii_totaal)
+                    (SUM(?r_iv_plus_bedrag) AS ?r_iv_plus_totaal)
+                    (SUM(?r_iv_min_bedrag) AS ?r_iv_min_totaal)
+
+                    (SUM(?s_i_bedrag) AS ?s_i_totaal)
+                    (SUM(?s_ii_bedrag) AS ?s_ii_totaal)
+
+                    (SUM(?p_i_flag) AS ?p_i_has_data)
+                    (SUM(?p_ii_flag) AS ?p_ii_has_data)
+                    (SUM(?p_iii_flag) AS ?p_iii_has_data)
+                    (SUM(?p_iv_flag) AS ?p_iv_has_data)
+                    (SUM(?q_i_flag) AS ?q_i_has_data)
+                    (SUM(?q_ii_flag) AS ?q_ii_has_data)
+                    (SUM(?q_iii_flag) AS ?q_iii_has_data)
+                    (SUM(?q_iv_flag) AS ?q_iv_has_data)
+                    (SUM(?q_v_flag) AS ?q_v_has_data)
+                    (SUM(?q_vi_flag) AS ?q_vi_has_data)
+                    (SUM(?q_vii_flag) AS ?q_vii_has_data)
+                    (SUM(?q_viii_flag) AS ?q_viii_has_data)
+                    (SUM(?q_ix_flag) AS ?q_ix_has_data)
+                    (SUM(?r_i_flag) AS ?r_i_has_data)
+                    (SUM(?r_ii_flag) AS ?r_ii_has_data)
+                    (SUM(?r_iii_flag) AS ?r_iii_has_data)
+                    (SUM(?r_iv_flag) AS ?r_iv_has_data)
+                    (SUM(?s_i_flag) AS ?s_i_has_data)
+                    (SUM(?s_ii_flag) AS ?s_ii_has_data)
+                WHERE {
+                      #BIND("2024-01-01"^^xsd:date AS ?startperiode)
+                   	  #BIND("2024-12-31"^^xsd:date AS ?eindperiode)
+
+                    ?grootboek_post a onz-fin:Grootboekpost ;
+                        onz-g:partOf ?rubriek ;
+                        onz-g:hasDate ?datum ;
+                        onz-fin:heeftGeldBedrag ?geld_bedrag .
+
+                    # Match directe ouder: Grootboekrekening (RGS) of Grootboekrubriek (Prismant)
+                    {
+                        { ?rubriek a onz-fin:Grootboekrekening }
+                        UNION
+                        { ?rubriek a onz-fin:Grootboekrubriek }
+                    }
+                    # Anti-dubbeltelling: houd alleen het bladniveau (geen transitive ancestors)
+                    FILTER NOT EXISTS {
+                        ?grootboek_post onz-g:partOf ?child .
+                        ?child onz-g:partOf ?rubriek .
+                        FILTER(?child != ?rubriek)
+                        { { ?child a onz-fin:Grootboekrekening } UNION { ?child a onz-fin:Grootboekrubriek } }
+                    }
+                    FILTER(STRSTARTS(STR(?rubriek), STR(onz-fin:)))
+                    BIND(STRAFTER(STR(?rubriek), STR(onz-fin:)) AS ?rubriekCode)
+
+                    FILTER (?datum >= ?startperiode && ?datum <= ?eindperiode)
+
+                    # -----------------------------
+                    # P
+                    # -----------------------------
+                    BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "81") ||
+                            STRSTARTS(?rubriekCode, "WOmz") ||
+                            STRSTARTS(?rubriekCode, "WRev") ||
+                            STRSTARTS(?rubriekCode, "WRvi") ||
+                            STRSTARTS(?rubriekCode, "WRgr") ||
+                            STRSTARTS(?rubriekCode, "WWvv") ||
+                            STRSTARTS(?rubriekCode, "WNoa") ||
+                            STRSTARTS(?rubriekCode, "WLbe") ||
+                            STRSTARTS(?rubriekCode, "WBat"),
+                            ?geld_bedrag, 0
+                        ) AS ?p_i_bedrag
+                    )
+
+                    BIND(IF(STRSTARTS(?rubriekCode, "WWiv"), ?geld_bedrag, 0) AS ?p_ii_plus_bedrag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "WWivGpv"), ?geld_bedrag, 0) AS ?p_ii_min_bedrag)
+                    
+                        BIND(IF(STRSTARTS(?rubriekCode, "WWivGpv"), ?geld_bedrag, 0) AS ?p_iii_bedrag)
+
+                    BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "82") ||
+                            STRSTARTS(?rubriekCode, "83") ||
+                            STRSTARTS(?rubriekCode, "89") ||
+                            STRSTARTS(?rubriekCode, "919") ||
+                            STRSTARTS(?rubriekCode, "920") ||
+                            STRSTARTS(?rubriekCode, "930") ||
+                            STRSTARTS(?rubriekCode, "WOvb"),
+                            ?geld_bedrag, 0
+                        ) AS ?p_iv_bedrag
+                    )
+
+                    # -----------------------------
+                    # Q
+                    # -----------------------------
+                    BIND(IF(STRSTARTS(?rubriekCode, "WKpr"), ?geld_bedrag, 0) AS ?q_i_plus_bedrag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "WKprKuw"), ?geld_bedrag, 0) AS ?q_i_min_bedrag)
+
+                    BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "417") ||
+                            STRSTARTS(?rubriekCode, "418") ||
+                            STRSTARTS(?rubriekCode, "WKprKuw"),
+                            ?geld_bedrag, 0
+                        ) AS ?q_ii_bedrag
+                    )
+
+                    BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "411") ||
+                            STRSTARTS(?rubriekCode, "412") ||
+                            STRSTARTS(?rubriekCode, "413") ||
+                            STRSTARTS(?rubriekCode, "414") ||
+                            STRSTARTS(?rubriekCode, "415") ||
+                            STRSTARTS(?rubriekCode, "416") ||
+                            STRSTARTS(?rubriekCode, "419") ||
+                            STRSTARTS(?rubriekCode, "WPer"),
+                            ?geld_bedrag, 0
+                        ) AS ?q_iii_bedrag   
+                    )
+                    
+                   BIND(
+                        IF(STRSTARTS(?rubriekCode, "WPerSol")  ||
+                           STRSTARTS(?rubriekCode, "WPerPen") , ?geld_bedrag, 0)
+                        AS ?q_iii_min_bedrag
+                    )
+
+
+                    BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "420") ||
+                            STRSTARTS(?rubriekCode, "4221") ||
+                            STRSTARTS(?rubriekCode, "4223") ||
+                            STRSTARTS(?rubriekCode, "4224") ||
+                            STRSTARTS(?rubriekCode, "4225") ||
+                            STRSTARTS(?rubriekCode, "4229") ||
+                            STRSTARTS(?rubriekCode, "WPerSol"),
+                            ?geld_bedrag, 0
+                        ) AS ?q_iv_bedrag
+                    )
+                   
+                        
+                	BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "4226") ||
+                            STRSTARTS(?rubriekCode, "WPerPen"),
+                            ?geld_bedrag, 0
+                        ) AS ?q_v_bedrag
+                    )
+                        
+
+                    BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "480") ||
+                            STRSTARTS(?rubriekCode, "481") ||
+                            STRSTARTS(?rubriekCode, "482") ||
+                            STRSTARTS(?rubriekCode, "483") ||
+                            STRSTARTS(?rubriekCode, "484") ||
+                            STRSTARTS(?rubriekCode, "WAfs"),
+                            ?geld_bedrag, 0
+                        ) AS ?q_vi_bedrag
+                    )
+
+                    BIND(IF(STRSTARTS(?rubriekCode, "WWvi"), ?geld_bedrag, 0) AS ?q_vii_bedrag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "WBwv"), ?geld_bedrag, 0) AS ?q_viii_bedrag)
+
+                    BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "423") ||
+                            STRSTARTS(?rubriekCode, "43") ||
+                            STRSTARTS(?rubriekCode, "44") ||
+                            STRSTARTS(?rubriekCode, "45") ||
+                            STRSTARTS(?rubriekCode, "46") ||
+                            STRSTARTS(?rubriekCode, "47") ||
+                            STRSTARTS(?rubriekCode, "486") ||
+                            STRSTARTS(?rubriekCode, "489") ||
+                            STRSTARTS(?rubriekCode, "905") ||
+                            STRSTARTS(?rubriekCode, "911") ||
+                            STRSTARTS(?rubriekCode, "912") ||
+                            STRSTARTS(?rubriekCode, "913") ||
+                            STRSTARTS(?rubriekCode, "914") ||
+                            STRSTARTS(?rubriekCode, "915") ||
+                            STRSTARTS(?rubriekCode, "921") ||
+                            STRSTARTS(?rubriekCode, "931") ||
+                            STRSTARTS(?rubriekCode, "WBed") ||
+                            STRSTARTS(?rubriekCode, "WOok") ||
+                            STRSTARTS(?rubriekCode, "WKol") ||
+                            STRSTARTS(?rubriekCode, "WVkf") ||
+                            STRSTARTS(?rubriekCode, "WAkf"),
+                            ?geld_bedrag, 0
+                        ) AS ?q_ix_bedrag
+                    )
+
+                    # -----------------------------
+                    # R
+                    # -----------------------------
+                    BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "904") ||
+                            STRSTARTS(?rubriekCode, "WOvt"),
+                            ?geld_bedrag, 0
+                        ) AS ?r_i_bedrag
+                    )
+
+                    BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "900") ||
+                            STRSTARTS(?rubriekCode, "WFbeRlm"),
+                            ?geld_bedrag, 0
+                        ) AS ?r_ii_bedrag
+                    )
+
+                    BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "903") ||
+                            STRSTARTS(?rubriekCode, "WWfa") ||
+                            STRSTARTS(?rubriekCode, "WVhe"),
+                            ?geld_bedrag, 0
+                        ) AS ?r_iii_bedrag
+                    )
+
+                    BIND(IF(STRSTARTS(?rubriekCode, "485") || STRSTARTS(?rubriekCode, "901") || STRSTARTS(?rubriekCode, "WFbe"), ?geld_bedrag, 0) AS ?r_iv_plus_bedrag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "WFbeRlm"), ?geld_bedrag, 0) AS ?r_iv_min_bedrag)
+
+                    # -----------------------------
+                    # S
+                    # -----------------------------
+                    BIND(IF(STRSTARTS(?rubriekCode, "WBel"), ?geld_bedrag, 0) AS ?s_i_bedrag)
+
+                    BIND(
+                        IF(
+                            STRSTARTS(?rubriekCode, "902") ||
+                            STRSTARTS(?rubriekCode, "WRed") ||
+                            STRSTARTS(?rubriekCode, "WAad"),
+                            ?geld_bedrag, 0
+                        ) AS ?s_ii_bedrag
+                    )
+
+                    # --- Data detection flags: 1 als de grootboekpost bij het component hoort ---
+                    BIND(IF(
+                        STRSTARTS(?rubriekCode, "81") || STRSTARTS(?rubriekCode, "WOmz") ||
+                        STRSTARTS(?rubriekCode, "WRev") || STRSTARTS(?rubriekCode, "WRvi") ||
+                        STRSTARTS(?rubriekCode, "WRgr") || STRSTARTS(?rubriekCode, "WWvv") ||
+                        STRSTARTS(?rubriekCode, "WNoa") || STRSTARTS(?rubriekCode, "WLbe") ||
+                        STRSTARTS(?rubriekCode, "WBat"),
+                        1, 0) AS ?p_i_flag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "WWiv"), 1, 0) AS ?p_ii_flag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "WWivGpv"), 1, 0) AS ?p_iii_flag)
+                    BIND(IF(
+                        STRSTARTS(?rubriekCode, "82") || STRSTARTS(?rubriekCode, "83") ||
+                        STRSTARTS(?rubriekCode, "89") || STRSTARTS(?rubriekCode, "919") ||
+                        STRSTARTS(?rubriekCode, "920") || STRSTARTS(?rubriekCode, "930") ||
+                        STRSTARTS(?rubriekCode, "WOvb"),
+                        1, 0) AS ?p_iv_flag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "WKpr"), 1, 0) AS ?q_i_flag)
+                    BIND(IF(
+                        STRSTARTS(?rubriekCode, "417") || STRSTARTS(?rubriekCode, "418") ||
+                        STRSTARTS(?rubriekCode, "WKprKuw"),
+                        1, 0) AS ?q_ii_flag)
+                    BIND(IF(
+                        STRSTARTS(?rubriekCode, "411") || STRSTARTS(?rubriekCode, "412") ||
+                        STRSTARTS(?rubriekCode, "413") || STRSTARTS(?rubriekCode, "414") ||
+                        STRSTARTS(?rubriekCode, "415") || STRSTARTS(?rubriekCode, "416") ||
+                        STRSTARTS(?rubriekCode, "419") || STRSTARTS(?rubriekCode, "WPer"),
+                        1, 0) AS ?q_iii_flag)
+                    BIND(IF(
+                        STRSTARTS(?rubriekCode, "420") || STRSTARTS(?rubriekCode, "4221") ||
+                        STRSTARTS(?rubriekCode, "4223") || STRSTARTS(?rubriekCode, "4224") ||
+                        STRSTARTS(?rubriekCode, "4225") || STRSTARTS(?rubriekCode, "4229") ||
+                        STRSTARTS(?rubriekCode, "WPerSol"),
+                        1, 0) AS ?q_iv_flag)
+                    BIND(IF(
+                        STRSTARTS(?rubriekCode, "4226") || STRSTARTS(?rubriekCode, "WPerPen"),
+                        1, 0) AS ?q_v_flag)
+                    BIND(IF(
+                        STRSTARTS(?rubriekCode, "480") || STRSTARTS(?rubriekCode, "481") ||
+                        STRSTARTS(?rubriekCode, "482") || STRSTARTS(?rubriekCode, "483") ||
+                        STRSTARTS(?rubriekCode, "484") || STRSTARTS(?rubriekCode, "WAfs"),
+                        1, 0) AS ?q_vi_flag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "WWvi"), 1, 0) AS ?q_vii_flag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "WBwv"), 1, 0) AS ?q_viii_flag)
+                    BIND(IF(
+                        STRSTARTS(?rubriekCode, "423") || STRSTARTS(?rubriekCode, "43") ||
+                        STRSTARTS(?rubriekCode, "44") || STRSTARTS(?rubriekCode, "45") ||
+                        STRSTARTS(?rubriekCode, "46") || STRSTARTS(?rubriekCode, "47") ||
+                        STRSTARTS(?rubriekCode, "486") || STRSTARTS(?rubriekCode, "489") ||
+                        STRSTARTS(?rubriekCode, "905") || STRSTARTS(?rubriekCode, "911") ||
+                        STRSTARTS(?rubriekCode, "912") || STRSTARTS(?rubriekCode, "913") ||
+                        STRSTARTS(?rubriekCode, "914") || STRSTARTS(?rubriekCode, "915") ||
+                        STRSTARTS(?rubriekCode, "921") || STRSTARTS(?rubriekCode, "931") ||
+                        STRSTARTS(?rubriekCode, "WBed") || STRSTARTS(?rubriekCode, "WOok") ||
+                        STRSTARTS(?rubriekCode, "WKol") || STRSTARTS(?rubriekCode, "WVkf") ||
+                        STRSTARTS(?rubriekCode, "WAkf"),
+                        1, 0) AS ?q_ix_flag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "904") || STRSTARTS(?rubriekCode, "WOvt"), 1, 0) AS ?r_i_flag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "900") || STRSTARTS(?rubriekCode, "WFbeRlm"), 1, 0) AS ?r_ii_flag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "903") || STRSTARTS(?rubriekCode, "WWfa") || STRSTARTS(?rubriekCode, "WVhe"), 1, 0) AS ?r_iii_flag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "485") || STRSTARTS(?rubriekCode, "901") || STRSTARTS(?rubriekCode, "WFbe"), 1, 0) AS ?r_iv_flag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "WBel"), 1, 0) AS ?s_i_flag)
+                    BIND(IF(STRSTARTS(?rubriekCode, "902") || STRSTARTS(?rubriekCode, "WRed") || STRSTARTS(?rubriekCode, "WAad"), 1, 0) AS ?s_ii_flag)
+                }
+            }
+
+            VALUES (?detail_type ?jaarrekeningpost) {
+                (1  "P.I Netto omzet")
+                (2  "P.II Wijziging in voorraden gereed product en onderhanden werk ten opzichte van de voorafgaande balansdatum")
+                (3  "P.III Geactiveerde productie voor het eigen bedrijf")
+                (4  "P.IV Overige bedrijfsopbrengsten")
+                (5  "Q.I Kosten van grond- en hulpstoffen")
+                (6  "Q.II Kosten uitbesteed werk en andere externe kosten")
+                (7  "Q.III Lonen en salarissen")
+                (8  "Q.IV Sociale lasten")
+                (9  "Q.V Pensioenlasten")
+                (10 "Q.VI Afschrijvingen op immateriële vaste activa en materiële vaste activa")
+                (11 "Q.VII Overige waardevermindering immateriële vaste activa en materiële vaste activa")
+                (12 "Q.VIII Bijzondere waardevermindering van vlottende activa")
+                (13 "Q.IX Overige bedrijfskosten")
+                (14 "R.I Opbrengst van vorderingen die tot de vaste activa behoren en van effecten")
+                (15 "R.II Andere rentebaten en soortgelijke opbrengsten")
+                (16 "R.III Waardeverandering van vorderingen die tot de vaste activa behoren en van effecten")
+                (17 "R.IV Rentelasten en soortgelijke kosten")
+                (18 "S.I Belastingen")
+                (19 "S.II Aandeel in winst/verlies van ondernemingen waarin wordt deelgenomen")
+            }
+
+            BIND(
+                IF(?detail_type = 1, ?p_i_totaal,
+                IF(?detail_type = 2, ?p_ii_plus_totaal - ?p_ii_min_totaal,
+                IF(?detail_type = 3, ?p_iii_totaal,
+                IF(?detail_type = 4, ?p_iv_totaal,
+                IF(?detail_type = 5, ?q_i_plus_totaal - ?q_i_min_totaal,
+                IF(?detail_type = 6, ?q_ii_totaal,                         
+                IF(?detail_type = 7, ?q_iii_totaal - ?q_iii_min_totaal  ,                         
+                IF(?detail_type = 8, ?q_iv_totaal,
+                IF(?detail_type = 9, ?q_v_totaal,
+                IF(?detail_type = 10, ?q_vi_totaal,
+                IF(?detail_type = 11, ?q_vii_totaal,
+                IF(?detail_type = 12, ?q_viii_totaal,
+                IF(?detail_type = 13, ?q_ix_totaal,
+                IF(?detail_type = 14, ?r_i_totaal,
+                IF(?detail_type = 15, ?r_ii_totaal,
+                IF(?detail_type = 16, ?r_iii_totaal,
+                IF(?detail_type = 17, ?r_iv_plus_totaal - ?r_iv_min_totaal,
+                IF(?detail_type = 18, ?s_i_totaal,
+                IF(?detail_type = 19, ?s_ii_totaal,
+                    0
+               )))))))))))))))))))
+                AS ?bedrag_rubriek
+            )
+
+            # Bepaal of er data beschikbaar is voor de individuele jaarrekeningpost
+            BIND(
+                IF(?detail_type = 1, IF(?p_i_has_data > 0, 1, 0),
+                IF(?detail_type = 2, IF(?p_ii_has_data > 0, 1, 0),
+                IF(?detail_type = 3, IF(?p_iii_has_data > 0, 1, 0),
+                IF(?detail_type = 4, IF(?p_iv_has_data > 0, 1, 0),
+                IF(?detail_type = 5, IF(?q_i_has_data > 0, 1, 0),
+                IF(?detail_type = 6, IF(?q_ii_has_data > 0, 1, 0),
+                IF(?detail_type = 7, IF(?q_iii_has_data > 0, 1, 0),
+                IF(?detail_type = 8, IF(?q_iv_has_data > 0, 1, 0),
+                IF(?detail_type = 9, IF(?q_v_has_data > 0, 1, 0),
+                IF(?detail_type = 10, IF(?q_vi_has_data > 0, 1, 0),
+                IF(?detail_type = 11, IF(?q_vii_has_data > 0, 1, 0),
+                IF(?detail_type = 12, IF(?q_viii_has_data > 0, 1, 0),
+                IF(?detail_type = 13, IF(?q_ix_has_data > 0, 1, 0),
+                IF(?detail_type = 14, IF(?r_i_has_data > 0, 1, 0),
+                IF(?detail_type = 15, IF(?r_ii_has_data > 0, 1, 0),
+                IF(?detail_type = 16, IF(?r_iii_has_data > 0, 1, 0),
+                IF(?detail_type = 17, IF(?r_iv_has_data > 0, 1, 0),
+                IF(?detail_type = 18, IF(?s_i_has_data > 0, 1, 0),
+                IF(?detail_type = 19, IF(?s_ii_has_data > 0, 1, 0),
+                0)))))))))))))))))))
+                AS ?heeftData
+            )
+        }
+    }
+}
+ 
+	UNION
+    {
+        # =======================================================================
+        # DEEL 3: Volledige lijst van alle jaarrekeningposten 
+        # =======================================================================
+        BIND(0 AS ?bedrag_rubriek)
+        BIND(0 AS ?heeftData)  # Tijdens initieren is het nog onduidelijk of er data voor de rubriek aanwezig is
+        VALUES ?jaarrekeningpost {
+            # P: Som der bedrijfsopbrengsten
+            "P.I Netto omzet"
+            "P.II Wijziging in voorraden gereed product en onderhanden werk ten opzichte van de voorafgaande balansdatum"
+            "P.III Geactiveerde productie voor het eigen bedrijf"
+            "P.IV Overige bedrijfsopbrengsten"
+            "P Som der bedrijfsopbrengsten"
+            
+            # Q: Som der bedrijfslasten
+            "Q.I Kosten van grond- en hulpstoffen"
+            "Q.II Kosten uitbesteed werk en andere externe kosten"
+            "Q.III Lonen en salarissen"
+            "Q.IV Sociale lasten"
+            "Q.V Pensioenlasten"
+            "Q.VI Afschrijvingen op immateriële vaste activa en materiële vaste activa"
+            "Q.VII Overige waardevermindering immateriële vaste activa en materiële vaste activa"
+            "Q.VIII Bijzondere waardevermindering van vlottende activa"
+            "Q.IX Overige bedrijfskosten"
+            "Q Som der bedrijfslasten"
+            
+            # R: Financiële baten en lasten
+            "R.I Opbrengst van vorderingen die tot de vaste activa behoren en van effecten"
+            "R.II Andere rentebaten en soortgelijke opbrengsten"
+            "R.III Waardeverandering van vorderingen die tot de vaste activa behoren en van effecten"
+            "R.IV Rentelasten en soortgelijke kosten"
+            "R Resultaat voor belastingen"
+            
+            # S: Belastingen en resultaat deelnemingen
+            "S.I Belastingen"
+            "S.II Aandeel in winst/verlies van ondernemingen waarin wordt deelgenomen"
+            "S Resultaat na belastingen"
+        }
+    } }
+GROUP BY ?jaarrekeningpost
+ORDER BY ?jaarrekeningpost

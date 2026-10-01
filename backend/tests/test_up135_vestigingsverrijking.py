@@ -121,3 +121,60 @@ def test_12_unieke_tellingen_en_de_grens_van_deze_testset():
     # Niet-zorg is 0 omdat alle functies in de set type "Zorg" hebben.
     assert int(rijen[ORG][1]) == 0
     assert int(rijen[ORG][0]) == 28
+
+
+# ── Indicator 4.1: een ratio waarvan het organisatiecijfer geen gemiddelde is ──
+
+def test_41_organisatieratio_is_geen_gemiddelde_van_a_en_b():
+    rijen = _rijen("4.1")
+    assert set(rijen) == {ORG, "Vestiging A", "Vestiging B"}
+    a = float(rijen["Vestiging A"][0])
+    b = float(rijen["Vestiging B"][0])
+    o = float(rijen[ORG][0])
+    # De uitkomsten die in de rekenhandleiding staan.
+    assert (a, b, o) == (26.07, 23.4, 25.02)
+    # Het organisatiecijfer ligt tussen A en B, maar niet op het gemiddelde.
+    assert b < o < a
+    assert abs(o - (a + b) / 2) > 0.2, "voorbeeld verliest zijn waarde als deze samenvallen"
+
+
+def test_41_lege_categorie_geeft_de_afwijkend_gespelde_waarde():
+    """Vastgelegd gedrag: de query spelt "Ongedefineerd" zonder tweede i (R-14)."""
+    rijen = _rijen("4.1")
+    assert rijen[ORG][1] == "Ongedefineerd"
+
+
+# ── Indicator 14.1: unieke telling per zorgprofiel ───────────────────────────
+
+def test_141_per_zorgprofiel_telt_a_plus_b_op_tot_de_organisatie():
+    g = bouw_graaf.bouw()
+    uit = {}
+    for rij in g.query(bouw_graaf.query_135("14.1", peildatum=PEIL)):
+        indeling, profiel, aantal = (str(v) for v in rij)
+        uit[(indeling, profiel.rsplit("#", 1)[-1])] = int(aantal)
+
+    verwacht = {"4VV": (2, 1, 3), "5VV": (4, 2, 6), "6VV": (3, None, 3),
+                "7VV": (8, 3, 11), "8VV": (2, 2, 4)}
+    for profiel, (a, b, o) in verwacht.items():
+        assert uit.get(("Vestiging A", profiel)) == a, profiel
+        assert uit.get(("Vestiging B", profiel)) == b, profiel
+        assert uit.get((ORG, profiel)) == o, profiel
+        # In deze set hoort elke cliënt bij één vestiging, dus A + B is het totaal.
+        assert (a or 0) + (b or 0) == o, profiel
+
+    # Alleen de VV-reeks doet mee: 27 van de 60 cliënten in de set.
+    assert sum(v for (i, _), v in uit.items() if i == ORG) == 27
+
+
+# ── Herkomst van de triples blijft gedocumenteerd ────────────────────────────
+
+def test_herkomst_en_hiaten_zijn_vastgelegd():
+    """De scheiding tussen happy-flow en fictieve verrijking moet leesbaar blijven."""
+    herkomst = bouw_graaf.herkomst()
+    fictief = [k for k, v in herkomst.items() if v.startswith("FICTIEF")]
+    assert "locatie, vestiging, vestigingsnummer" in fictief
+    assert any("happy-flow" in v for v in herkomst.values())
+    # En wat bewust niet wordt gemodelleerd, staat er ook bij.
+    ontbreekt = bouw_graaf.ontbreekt()
+    assert "Grootboekrubriek, Grootboekpost, EindSaldo" in ontbreekt
+    assert "ODBKwalificatieWaarde" in ontbreekt

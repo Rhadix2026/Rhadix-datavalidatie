@@ -1,0 +1,106 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; bij uitvoering wordt uitsluitend een BIND van een
+# parameter geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 5.1
+# Parameters: ?kwartaal, ?jaar, ?zorgkantoor
+# Ontologie: versie 3.0 of nieuwer
+
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX onz-pers: <http://purl.org/ozo/onz-pers#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT 
+    (?vestiging AS ?Indeling)
+    (SUM(?1620) AS ?16_20)
+    (SUM(?2125) AS ?21_25)
+    (SUM(?2630) AS ?26_30)
+    (SUM(?3135) AS ?31_35)
+    (SUM(?3640) AS ?36_40)
+    (SUM(?4145) AS ?41_45)
+    (SUM(?4650) AS ?46_50)
+    (SUM(?5155) AS ?51_55)
+    (SUM(?5660) AS ?56_60)
+    (SUM(?6165) AS ?61_65)
+    (SUM(?6670) AS ?66_70)
+    (SUM(?7175) AS ?71_75)
+{
+    {
+        SELECT  DISTINCT 
+            ?vestiging 
+            ?persoon
+            ?leeftijd
+        {
+            # BIND(2023 AS ?jaar)
+            # BIND("Q1" AS ?kwartaal)
+            # BIND(onz-org:ZorgkantoorMenzis AS ?zorgkantoor)
+
+            BIND(IF(?kwartaal = 'Q1', xsd:date(CONCAT(STR(?jaar), '-01-01')),
+                IF(?kwartaal = 'Q2', xsd:date(CONCAT(STR(?jaar), '-04-01')),
+                IF(?kwartaal = 'Q3', xsd:date(CONCAT(STR(?jaar), '-07-01')),
+                IF(?kwartaal = 'Q4', xsd:date(CONCAT(STR(?jaar), '-10-01')),
+                '')))) AS ?start_periode)
+            BIND(?start_periode + "P3M"^^xsd:duration + "-P1D"^^xsd:duration AS ?eind_periode)
+            
+            ?overeenkomst 
+                a onz-pers:ArbeidsOvereenkomst ;
+                onz-pers:heeftOpdrachtnemer ?persoon ;
+                onz-g:hasPart ?overeenkomst_afspraak .
+            ?overeenkomst_afspraak
+                a onz-pers:WerkOvereenkomstAfspraak ;
+                onz-g:startDatum ?start_afspraak .
+            OPTIONAL {
+                ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak
+            }
+            FILTER (?start_afspraak <= ?eind_periode && (?eind_afspraak >= ?start_periode || !BOUND(?eind_afspraak)))
+
+            ?persoon 
+                a onz-g:Human ;
+                onz-g:hasDateOfBirth ?geboortedatum .
+            
+            BIND(YEAR(?eind_periode) - YEAR(?geboortedatum) AS ?leeftijd_voorl)
+            BIND(IF(MONTH(?geboortedatum) > MONTH(?eind_periode) 
+                || (MONTH(?geboortedatum) = MONTH(?eind_periode) && DAY(?geboortedatum) > DAY(?eind_periode)), 
+                ?leeftijd_voorl - 1, ?leeftijd_voorl) AS ?leeftijd)
+            
+            {     
+                ?overeenkomst_afspraak onz-g:isAbout ?locatie .
+                ?locatie 
+                    a onz-g:StationaryArtifact ;
+                    onz-g:partOf* ?vestiging_uri .
+                ?vestiging_uri a onz-org:Vestiging ;
+                    onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 .
+                BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+                ?pc_gebied 
+                    onz-g:identifiedBy ?postcode ;
+                    onz-g:partOf+ ?zk_regio .
+                ?zk_regio a onz-org:ZorgkantoorRegio .
+                ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+                ?vestiging_uri onz-g:identifiedBy ?vest_nr .    	
+                ?vest_nr a onz-org:Vestigingsnummer ;
+                    onz-g:hasDataValue ?vestiging .
+            } UNION {
+                BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+            }
+
+        }
+    }
+    BIND(IF(?leeftijd >= 16 && ?leeftijd <= 20, 1, 0) AS ?1620)
+    BIND(IF(?leeftijd >= 21 && ?leeftijd <= 25, 1, 0) AS ?2125)
+    BIND(IF(?leeftijd >= 26 && ?leeftijd <= 30, 1, 0) AS ?2630)
+    BIND(IF(?leeftijd >= 31 && ?leeftijd <= 35, 1, 0) AS ?3135)
+    BIND(IF(?leeftijd >= 36 && ?leeftijd <= 40, 1, 0) AS ?3640)
+    BIND(IF(?leeftijd >= 41 && ?leeftijd <= 45, 1, 0) AS ?4145)
+    BIND(IF(?leeftijd >= 46 && ?leeftijd <= 50, 1, 0) AS ?4650)
+    BIND(IF(?leeftijd >= 51 && ?leeftijd <= 55, 1, 0) AS ?5155)
+    BIND(IF(?leeftijd >= 56 && ?leeftijd <= 60, 1, 0) AS ?5660)
+    BIND(IF(?leeftijd >= 61 && ?leeftijd <= 65, 1, 0) AS ?6165)
+    BIND(IF(?leeftijd >= 66 && ?leeftijd <= 70, 1, 0) AS ?6670)
+    BIND(IF(?leeftijd >= 71 && ?leeftijd <= 75, 1, 0) AS ?7175)
+}
+GROUP BY ?vestiging 
+ORDER BY ?vestiging

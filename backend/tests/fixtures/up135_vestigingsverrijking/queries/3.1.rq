@@ -1,0 +1,62 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; uitsluitend de BIND van de peildatum wordt bij
+# uitvoering geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 3.1
+# Parameters: ?peildatum, ?zorgkantoor
+# Ontologie: versie 3.0 of nieuwer
+
+PREFIX onz-pers: <http://purl.org/ozo/onz-pers#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT  (?vestiging AS ?Indeling)
+    (COUNT(DISTINCT ?overeenkomst_bepaald) AS ?Aantal_arbeidsovereenkomsten_bepaalde_tijd)
+    (COUNT(DISTINCT ?overeenkomst_bepaald) + COUNT(DISTINCT ?overeenkomst_onbepaald) AS ?Aantal_arbeidsovereenkomsten_voor_bepaalde_en_onbepaalde_tijd)
+    (ROUND(100*?Aantal_arbeidsovereenkomsten_bepaalde_tijd/(?Aantal_arbeidsovereenkomsten_voor_bepaalde_en_onbepaalde_tijd)*100)/100 AS ?Percentage_bepaalde_tijd)
+
+WHERE {     
+    # definieer parameters
+    # BIND("2023-09-12"^^xsd:date AS ?peildatum)
+    # BIND(onz-org:ZorgkantoorMenzis AS ?zorgkantoor)
+
+    # selecteer personen met arbeidsovereenkomst (on)bepaalde tijd
+    VALUES ?type_overeenkomst {onz-pers:ArbeidsOvereenkomstBepaaldeTijd onz-pers:ArbeidsOvereenkomstOnbepaaldeTijd}
+    ?overeenkomst 
+        a ?type_overeenkomst ;
+        onz-g:hasPart ?overeenkomst_afspraak .
+    ?overeenkomst_afspraak
+        a onz-pers:WerkOvereenkomstAfspraak ;
+        onz-g:startDatum ?start_afspraak .
+    OPTIONAL { ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }
+    FILTER(?start_afspraak <= ?peildatum && ((?eind_afspraak >= ?peildatum) || (!BOUND(?eind_afspraak))))
+    
+    {     
+        ?overeenkomst_afspraak onz-g:isAbout ?locatie .
+    	?locatie a onz-g:StationaryArtifact ;
+        	onz-g:partOf* ?vestiging_uri .
+    	?vestiging_uri a onz-org:Vestiging ;
+        onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 .
+    BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+    ?pc_gebied 
+        onz-g:identifiedBy ?postcode ;
+        onz-g:partOf+ ?zk_regio .
+    ?zk_regio a onz-org:ZorgkantoorRegio .
+    ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+        ?vestiging_uri onz-g:identifiedBy ?vest_nr .    	
+        ?vest_nr a onz-org:Vestigingsnummer ;
+        onz-g:hasDataValue ?vestiging .
+    } UNION {
+        # Includeer ook de organisatie als geheel en label deze als vestiging
+        BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+    }
+
+    # Conditional binding voor unieke telling per type
+    BIND(IF(?type_overeenkomst = onz-pers:ArbeidsOvereenkomstBepaaldeTijd, ?overeenkomst, ?unbound) AS ?overeenkomst_bepaald)
+    BIND(IF(?type_overeenkomst = onz-pers:ArbeidsOvereenkomstOnbepaaldeTijd, ?overeenkomst, ?unbound) AS ?overeenkomst_onbepaald)
+}
+GROUP BY ?vestiging
+ORDER BY ?vestiging

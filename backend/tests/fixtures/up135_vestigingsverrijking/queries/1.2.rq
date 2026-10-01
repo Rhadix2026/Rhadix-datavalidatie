@@ -1,0 +1,85 @@
+# ONGEWIJZIGDE SPARQL-query uit KIK-V Publicatieplatform,
+# Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling 1.3.5
+# (publicatie 15-07-2026, commit c064e4d68ec1c58a58f26091982e31201fcc652e).
+# Letterlijk overgenomen; uitsluitend de BIND van de peildatum wordt bij
+# uitvoering geactiveerd. Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 1.2
+# Parameters: ?peildatum, ?zorgkantoor
+# Ontologie: versie 3.0.0 of nieuwer
+
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-pers: <http://purl.org/ozo/onz-pers#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT 
+	(?vestiging AS ?Indeling)
+    (SUM(?zorg_functie) AS ?Zorg)
+    (SUM(?niet_zorg_functie) AS ?Niet_zorg)
+    (COUNT(DISTINCT ?persoon) AS ?Totaal)
+{
+    SELECT
+    	?vestiging
+    	?persoon
+    	(MAX(?zorg) AS ?zorg_functie)
+    	(MAX(?niet_zorg) AS ?niet_zorg_functie)
+
+    {
+        #BIND("2024-06-12"^^xsd:date AS ?peildatum)
+        #BIND(onz-org:ZorgkantoorMenzis AS ?zorgkantoor)
+        #BIND(onz-org:ZorgkantoorZilverenKruis AS ?zorgkantoor)
+
+        VALUES ?personeels_overeenkomst 
+        { 
+            onz-pers:ArbeidsOvereenkomst
+            onz-pers:OproepOvereenkomst
+            onz-pers:UitzendOvereenkomst
+            onz-pers:InhuurOvereenkomst
+        }
+        ?overeenkomst 
+            a ?personeels_overeenkomst ;
+            onz-pers:heeftOpdrachtnemer ?persoon ;
+            onz-g:hasPart ?overeenkomst_afspraak .
+        ?overeenkomst_afspraak
+            a onz-pers:WerkOvereenkomstAfspraak ;
+            onz-g:startDatum ?start_afspraak .
+        OPTIONAL {
+            ?overeenkomst_afspraak onz-g:eindDatum ?eind_afspraak }
+        FILTER(?start_afspraak <= ?peildatum && (?eind_afspraak >= ?peildatum || !BOUND(?eind_afspraak)))
+
+        ?overeenkomst_afspraak onz-g:isAbout ?functie .                
+        ?functie a onz-g:OccupationalPositionRole .
+
+        # Bepaal of de functie op de overeenkomst een ZorgverlenerFunctie is
+        BIND(IF(EXISTS{?functie a onz-pers:ZorgverlenerFunctie}, 1, 0) AS ?zorg)
+        BIND(IF(?zorg = 0, 1, 0) AS ?niet_zorg)
+
+        {   
+            # Vestiging
+            ?overeenkomst_afspraak onz-g:isAbout ?locatie .
+            ?locatie a onz-g:StationaryArtifact .
+            ?locatie onz-g:partOf* ?vestiging_uri .
+            ?vestiging_uri a onz-org:Vestiging ;
+                onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 ;
+                onz-g:identifiedBy ?vest_nr .
+            ?vest_nr a onz-org:Vestigingsnummer ;
+            	onz-g:hasDataValue ?vestiging . 	
+
+            BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+            ?pc_gebied 
+            onz-g:identifiedBy ?postcode ;
+            onz-g:partOf+ ?zk_regio .
+            ?zk_regio a onz-org:ZorgkantoorRegio .
+            ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+        } 
+        UNION 
+        {   
+            # Organisatieniveau
+            BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+        }
+
+    } 
+    GROUP BY ?persoon ?vestiging 
+} 
+GROUP BY ?vestiging
+ORDER BY ?vestiging

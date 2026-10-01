@@ -1,0 +1,66 @@
+# FICTIEVE VESTIGINGSVERRIJKING VOOR REKENVOORBEELD — GEEN PRODUCTIEGEGEVEN
+#
+# Doel: de happy-flow set (frontend/public/kikv-voorbeeldset) bevat geen koppeling
+# tussen werkovereenkomsten en vestigingen: de aanduidingen VE1..VE8 in
+# vestiging_ons.csv komen in geen enkel ander bestand voor, en er is geen postcode.
+# Daardoor kan de vestigingstak van de UP 1.3.5-query's niet lopen.
+#
+# Deze tabel voegt uitsluitend het minimum toe dat die tak nodig heeft:
+# een vestiging per werkovereenkomst, een vestigingsnummer, een zescijferige
+# postcode en een zorgkantoorregio.
+#
+# Verdeling: de 40 werkovereenkomsten zijn vooraf over twee vestigingen verdeeld,
+# 24 naar A (60%) en 16 naar B (40%), op oplopend DienstverbandNummer. De
+# EINDUITKOMST is NIET achteraf 60/40 gedeeld; de verdeling zit in de bronrecords
+# en de ongewijzigde query bepaalt daarna zelf de uitkomst per vestiging.
+#
+# Beide vestigingen liggen bewust in dezelfde zorgkantoorregio, zodat het
+# aanvragende zorgkantoor beide regels ontvangt en de postcoderoute
+# postcode -> postcodegebied -> administratief gebied -> zorgkantoorregio
+# twee keer wordt doorlopen.
+#
+# Elke overeenkomst is aan een vestiging toegewezen. Daardoor geldt bij gewone
+# tellingen A + B = organisatietotaal. Zou een deel niet aan een vestiging zijn
+# toebedeeld (hoofdkantoor), dan is het organisatietotaal hoger dan A + B; dat
+# effect zit in deze verrijking bewust niet, om de controle eenduidig te houden.
+DienstverbandNummer,vestiging,vestigingsnummer,postcode6,zorgkantoorregio
+200001,Vestiging A,000011112222,7411AB,Salland
+200002,Vestiging A,000011112222,7411AB,Salland
+200003,Vestiging A,000011112222,7411AB,Salland
+200004,Vestiging A,000011112222,7411AB,Salland
+200005,Vestiging A,000011112222,7411AB,Salland
+200006,Vestiging A,000011112222,7411AB,Salland
+200007,Vestiging A,000011112222,7411AB,Salland
+200008,Vestiging A,000011112222,7411AB,Salland
+200009,Vestiging A,000011112222,7411AB,Salland
+200010,Vestiging A,000011112222,7411AB,Salland
+200011,Vestiging A,000011112222,7411AB,Salland
+200012,Vestiging A,000011112222,7411AB,Salland
+200013,Vestiging A,000011112222,7411AB,Salland
+200014,Vestiging A,000011112222,7411AB,Salland
+200015,Vestiging A,000011112222,7411AB,Salland
+200016,Vestiging A,000011112222,7411AB,Salland
+200017,Vestiging A,000011112222,7411AB,Salland
+200018,Vestiging A,000011112222,7411AB,Salland
+200019,Vestiging A,000011112222,7411AB,Salland
+200020,Vestiging A,000011112222,7411AB,Salland
+200021,Vestiging A,000011112222,7411AB,Salland
+200022,Vestiging A,000011112222,7411AB,Salland
+200023,Vestiging A,000011112222,7411AB,Salland
+200024,Vestiging A,000011112222,7411AB,Salland
+200025,Vestiging B,000033334444,7511CD,Salland
+200026,Vestiging B,000033334444,7511CD,Salland
+200027,Vestiging B,000033334444,7511CD,Salland
+200028,Vestiging B,000033334444,7511CD,Salland
+200029,Vestiging B,000033334444,7511CD,Salland
+200030,Vestiging B,000033334444,7511CD,Salland
+200031,Vestiging B,000033334444,7511CD,Salland
+200032,Vestiging B,000033334444,7511CD,Salland
+200033,Vestiging B,000033334444,7511CD,Salland
+200034,Vestiging B,000033334444,7511CD,Salland
+200035,Vestiging B,000033334444,7511CD,Salland
+200036,Vestiging B,000033334444,7511CD,Salland
+200037,Vestiging B,000033334444,7511CD,Salland
+200038,Vestiging B,000033334444,7511CD,Salland
+200039,Vestiging B,000033334444,7511CD,Salland
+200040,Vestiging B,000033334444,7511CD,Salland

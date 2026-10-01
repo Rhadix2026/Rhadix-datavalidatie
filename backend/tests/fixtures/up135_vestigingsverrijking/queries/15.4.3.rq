@@ -1,0 +1,80 @@
+# ONGEWIJZIGDE SPARQL-query uit de bronrepository
+# gitlab.com/kik-v/uitwisselprofielen/uitwisselprofiel-zorgkantoren, tag 1.3.5
+# (commit c064e4d68ec1, 15-07-2026). Letterlijk overgenomen; bij uitvoering wordt
+# uitsluitend een BIND van een parameter geactiveerd.
+# Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 15.4.3
+# Parameters: ?peildatum ?zorgkantoor
+# Ontologie: versie 3.0 of nieuwer
+
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>
+
+SELECT
+    (?Organisatieonderdeel AS ?Indeling)
+    (SUM(IF(?lv = onz-zorg:instelling, 1, 0)) AS ?Verblijf)
+    (SUM(IF(?lv = onz-zorg:vpt, 1, 0)) AS ?VPT)
+    (SUM(IF(?lv = onz-zorg:mpt, 1, 0)) AS ?MPT)
+    (SUM(IF(?lv = onz-zorg:pgb, 1, 0)) AS ?PGB)
+
+WHERE {
+    # Deze binnenste query zorgt ervoor dat alleen unieke clienten per organisatieonderdeel en leveringsvorm in de results komen en zo dus dat klanten met dubbele indicaties van dezelfde sector niet dubbel worden geteld in de summatie hierboven
+    SELECT DISTINCT
+        ?Organisatieonderdeel
+        ?client
+        ?lv
+    WHERE {
+
+        # BIND("2024-01-01"^^xsd:date AS ?peildatum)  # Test parameter
+
+        # Gedeeld patroon: zorgproces + indicatie + client
+        ?zorgproces
+            a onz-g:CureAndCareProcess ;
+            onz-g:definedBy ?indicatie ;
+            onz-g:startDatum ?start_zorgproces .
+        OPTIONAL { ?zorgproces onz-g:eindDatum ?eind_zorgproces }
+        FILTER (?start_zorgproces <= ?peildatum && ((?eind_zorgproces >= ?peildatum) || (!BOUND(?eind_zorgproces))))
+
+        ?indicatie
+            a onz-zorg:WlzIndicatie ;
+            onz-g:hasPart/onz-g:isAbout ?sector ;
+            onz-g:hasPart ?lv ;
+            onz-g:isAbout ?client ;
+            onz-g:startDatum ?ind_start .
+        OPTIONAL { ?indicatie onz-g:eindDatum ?ind_eind }
+        FILTER (?ind_start <= ?peildatum && ((?ind_eind >= ?peildatum) || (!BOUND(?ind_eind))))
+
+        ?sector a onz-zorg:LangdurigeZorgSector .
+        FILTER(?sector = onz-zorg:VV)
+        ?lv a onz-zorg:Leveringsvorm .
+        ?client a onz-g:Human .
+
+        {
+            # Per vestiging
+            ?zorgproces onz-g:hasPerdurantLocation ?locatie .
+            ?locatie
+                a onz-g:StationaryArtifact ;
+                onz-g:partOf* ?vestiging_uri .
+            ?vestiging_uri a onz-org:Vestiging ;
+                onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 ;
+                onz-g:identifiedBy ?vest_nr .
+            BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+            ?pc_gebied
+                onz-g:identifiedBy ?postcode ;
+                onz-g:partOf+ ?zk_regio .
+            ?zk_regio a onz-org:ZorgkantoorRegio .
+            ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+            ?vest_nr a onz-org:Vestigingsnummer ;
+                onz-g:hasDataValue ?vestiging .
+            BIND(?vestiging AS ?Organisatieonderdeel)
+        }
+        UNION
+        {
+            # Totaal organisatie (inclusief zorgprocessen zonder locatie)
+            BIND("Organisatie (gecontracteerd + algemeen)" AS ?Organisatieonderdeel)
+        }
+    }
+}
+GROUP BY ?Organisatieonderdeel

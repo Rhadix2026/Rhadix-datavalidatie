@@ -1,0 +1,75 @@
+# ONGEWIJZIGDE SPARQL-query uit de bronrepository
+# gitlab.com/kik-v/uitwisselprofielen/uitwisselprofiel-zorgkantoren, tag 1.3.5
+# (commit c064e4d68ec1, 15-07-2026). Letterlijk overgenomen; bij uitvoering wordt
+# uitsluitend een BIND van een parameter geactiveerd.
+# Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 15.4.1
+# Parameters: ?peildatum ?zorgkantoor
+# Ontologie: versie 3.0.0 of nieuwer
+ 
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+ 
+SELECT 
+	(?vestiging AS ?Indeling)
+    (COUNT(DISTINCT IF(BOUND(?wlz), ?client, ?unbound)) AS ?Wlz)
+    (COUNT(DISTINCT IF(BOUND(?zvw), ?client, ?unbound)) AS ?Zvw)
+    (COUNT(DISTINCT IF(BOUND(?wmo), ?client, ?unbound)) AS ?Wmo)
+    (COUNT(DISTINCT IF(!BOUND(?zvw) && !BOUND(?wlz) && !BOUND(?wmo) , ?client, ?unbound)) AS ?Overig)
+WHERE {
+	# BIND ("2024-01-01"^^xsd:date AS ?peildatum)
+    
+    { 
+        ?indicatie a onz-zorg:IndicatieBesluit 
+    } UNION {
+        ?indicatie a onz-zorg:ForensischeIndicatieStelling
+    }
+    
+    ?indicatie
+    	onz-g:isAbout ?client ;
+        onz-g:startDatum ?start_indicatie .
+        OPTIONAL { ?indicatie onz-g:eindDatum ?eind_indicatie . }
+    FILTER (?start_indicatie <= ?peildatum && (!BOUND(?eind_indicatie) || ?eind_indicatie >= ?peildatum))
+    
+    ?client
+        a onz-g:Human .   
+    
+    OPTIONAL {
+        ?indicatie a onz-zorg:WlzIndicatie .
+        BIND(1 AS ?wlz) .
+     }
+    OPTIONAL {
+        ?indicatie a onz-zorg:ZvwIndicatie .
+        BIND(1 AS ?zvw) .
+    }
+    OPTIONAL {
+        ?indicatie a onz-zorg:WmoIndicatie .
+        BIND(1 AS ?wmo) .
+    }
+
+    {
+        # Per vestiging
+        ?indicatie ^onz-g:definedBy/onz-g:hasPerdurantLocation ?locatie .
+        ?locatie onz-g:partOf* ?vestiging_uri .
+        ?vestiging_uri a onz-org:Vestiging ;
+        onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6;
+        onz-g:identifiedBy ?vest_nr . 
+        BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+        ?pc_gebied 
+            onz-g:identifiedBy ?postcode ;
+        onz-g:partOf+ ?zk_regio .
+        ?zk_regio a onz-org:ZorgkantoorRegio .
+        ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+        ?vest_nr a onz-org:Vestigingsnummer ;
+        onz-g:hasDataValue ?vestiging .
+    } UNION {
+        # Totaal organisatie (inclusief zorgprocessen zonder locatie)
+        BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+    }
+}
+GROUP BY ?vestiging
+ORDER BY ?vestiging

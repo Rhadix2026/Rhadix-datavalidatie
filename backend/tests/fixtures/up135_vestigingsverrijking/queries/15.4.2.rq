@@ -1,0 +1,77 @@
+# ONGEWIJZIGDE SPARQL-query uit de bronrepository
+# gitlab.com/kik-v/uitwisselprofielen/uitwisselprofiel-zorgkantoren, tag 1.3.5
+# (commit c064e4d68ec1, 15-07-2026). Letterlijk overgenomen; bij uitvoering wordt
+# uitsluitend een BIND van een parameter geactiveerd.
+# Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 15.4.2
+# Parameters: ?peildatum ?zorgkantoor 
+# Ontologie: versie 2.0.0 of nieuwer
+
+
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT 
+	(?vestiging AS ?Indeling)        
+    (COUNT(DISTINCT IF(?sector = onz-zorg:VV, ?client, ?unbound)) AS ?VV)
+    (COUNT(DISTINCT IF(?sector = onz-zorg:LG, ?client, ?unbound)) AS ?LG)
+    (COUNT(DISTINCT IF(?sector = onz-zorg:LVG, ?client, ?unbound)) AS ?LVG)
+    (COUNT(DISTINCT IF(?sector = onz-zorg:VG, ?client, ?unbound)) AS ?VG)
+    (COUNT(DISTINCT IF(?sector = onz-zorg:ZGAUD, ?client, ?unbound)) AS ?ZGAUD)
+    (COUNT(DISTINCT IF(?sector = onz-zorg:ZGVIS, ?client, ?unbound)) AS ?ZGVIS)
+    (COUNT(DISTINCT IF(?sector = onz-zorg:GGZ-B, ?client, ?unbound)) AS ?GGZ_B)
+    (COUNT(DISTINCT IF(?sector = onz-zorg:GGZ-W, ?client, ?unbound)) AS ?GGZ_W)
+WHERE
+{
+	# BIND ("2024-01-01"^^xsd:date AS ?peildatum)  # Test parameter
+
+    ?sector a onz-zorg:LangdurigeZorgSector .
+    
+    # Gedeeld patroon: zorgproces + indicatie + client
+    ?zorgproces 
+        a onz-g:CureAndCareProcess ;
+        onz-g:definedBy ?indicatie ;
+        onz-g:startDatum ?start_zorgproces .
+    OPTIONAL { ?zorgproces onz-g:eindDatum ?eind_zorgproces }
+    
+    FILTER(?start_zorgproces <= ?peildatum && ( !BOUND(?eind_zorgproces) || ?eind_zorgproces >= ?peildatum ))
+    ?indicatie
+        a onz-zorg:WlzIndicatie ;
+        onz-g:isAbout ?client ;
+        onz-g:hasPart/onz-g:isAbout ?sector ;
+        onz-g:startDatum ?start_indicatie .
+    OPTIONAL {?indicatie onz-g:eindDatum ?eind_indicatie}
+    FILTER (?start_indicatie <= ?peildatum && (!BOUND(?eind_indicatie) || ?eind_indicatie >= ?peildatum))
+    
+    ?client a onz-g:Human .
+    
+    {
+        # Per vestiging
+        ?zorgproces onz-g:hasPerdurantLocation ?locatie .
+        ?locatie onz-g:partOf* ?vestiging_uri .
+        ?vestiging_uri 
+            a onz-org:Vestiging ;
+            onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6;
+            onz-g:identifiedBy ?vest_nr . 
+        BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+        ?pc_gebied 
+            onz-g:identifiedBy ?postcode ;
+            onz-g:partOf+ ?zk_regio .
+        ?zk_regio a onz-org:ZorgkantoorRegio .
+        ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+        ?vest_nr 
+            a onz-org:Vestigingsnummer ;
+            onz-g:hasDataValue ?vestiging .
+    }
+    UNION
+    {
+        # Totaal organisatie (inclusief zorgprocessen zonder locatie)
+        BIND("Organisatie (gecontracteerd + algemeen)" AS ?vestiging)
+    }
+}
+GROUP BY ?vestiging
+ORDER BY ?vestiging

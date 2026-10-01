@@ -1,0 +1,104 @@
+# ONGEWIJZIGDE SPARQL-query uit de bronrepository
+# gitlab.com/kik-v/uitwisselprofielen/uitwisselprofiel-zorgkantoren, tag 1.3.5
+# (commit c064e4d68ec1, 15-07-2026). Letterlijk overgenomen; bij uitvoering wordt
+# uitsluitend een BIND van een parameter geactiveerd.
+# Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 15.4.4
+# Parameters: ?startperiode, ?eindperiode, ?zorgkantoor
+# Ontologie: versie 3.0.0 of nieuwer
+
+PREFIX onz-org: <http://purl.org/ozo/onz-org#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX onz-g: <http://purl.org/ozo/onz-g#>
+PREFIX onz-zorg: <http://purl.org/ozo/onz-zorg#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX onz-fin: <http://purl.org/ozo/onz-fin#>
+
+
+SELECT DISTINCT 
+    ?Indeling 
+    ?Procent_gedeclareerd_bedrag_Wlz ?Procent_gedeclareerd_bedrag_Zvw ?Procent_gedeclareerd_bedrag_Wmo ?Procent_gedeclareerd_bedrag_Overig
+{
+    {
+      SELECT 
+        ("Totaal organisatie" AS ?Indeling)
+        ((ROUND(SUM(?wlzAmount) / SUM(?amount) * 10000) / 100.0) AS ?Procent_gedeclareerd_bedrag_Wlz)
+        ((ROUND(SUM(?zvwAmount) / SUM(?amount) * 10000) / 100.0) AS ?Procent_gedeclareerd_bedrag_Zvw)
+        ((ROUND(SUM(?wmoAmount)    / SUM(?amount) * 10000) / 100.0) AS ?Procent_gedeclareerd_bedrag_Wmo)
+        ((100.0 
+        - ROUND(SUM(?wlzAmount) / SUM(?amount) * 10000) / 100.0
+        - ROUND(SUM(?zvwAmount) / SUM(?amount) * 10000) / 100.0
+        - ROUND(SUM(?wmoAmount) / SUM(?amount) * 10000) / 100.0
+        ) AS ?Procent_gedeclareerd_bedrag_Overig)
+        
+        WHERE {
+            #BIND("2024-01-01"^^xsd:date AS ?startperiode)
+            #BIND("2024-12-31"^^xsd:date AS ?eindperiode)
+            
+            ?declaratie
+                a onz-g:CareInvoice ;
+        		onz-g:hasDate ?date ;
+        		onz-g:goedgekeurd "true"^^xsd:boolean ;
+				onz-fin:heeftGeldBedrag ?amount ;
+        		onz-g:isAbout ?zorgproces .
+      
+            FILTER(?startperiode <= ?date && ?date <= ?eindperiode)
+
+      		?zorgproces a onz-g:CureAndCareProcess ;
+                  onz-g:definedBy ?indicatie ;
+                  onz-g:hasPerdurantLocation ?locatie .
+			             ?indicatie a ?soortIndicatie.
+            {
+                SELECT ?soortIndicatie 
+                WHERE {
+                    {
+                        ?soortIndicatie rdfs:subClassOf onz-zorg:IndicatieBesluit .
+
+                    } UNION {
+                        BIND(onz-zorg:ForensischeIndicatieStelling AS ?soortIndicatie)
+                    }
+                    FILTER(!(?soortIndicatie in (onz-zorg:IndicatieBesluit, owl:Nothing)))
+                }
+            }
+
+             # Selecteer de wetten 
+             BIND(IF(?soortIndicatie = onz-zorg:WlzIndicatie, ?amount, 0) AS ?wlzAmount )
+             BIND(IF(?soortIndicatie = onz-zorg:ZvwIndicatie, ?amount, 0) AS ?zvwAmount )
+             BIND(IF(?soortIndicatie = onz-zorg:WmoIndicatie, ?amount, 0) AS ?wmoAmount )
+           
+
+            # Locatie triple structuur 
+            ?locatie onz-g:partOf* ?vestiging_uri .
+            ?vestiging_uri a onz-org:Vestiging .
+   
+    	}
+	}
+    
+     # Extra locatie-informatie voor mapping naar zorgkantoor (wordt niet in output opgenomen)
+    ?vestiging_uri
+        onz-g:hasLocalizableArea/onz-g:identifiedBy/onz-g:hasPart/onz-g:hasPart ?postcode_6 .
+
+    BIND(IRI(SUBSTR(STR(?postcode_6), 1, STRLEN(STR(?postcode_6)) - 2)) AS ?postcode)
+
+    ?pc_gebied 
+        onz-g:identifiedBy ?postcode ;
+        onz-g:partOf+ ?zk_regio .
+
+    ?zk_regio a onz-org:ZorgkantoorRegio .
+    ?zorgkantoor onz-g:hasOperatingRange ?zk_regio .
+
+    {
+        ?vestiging_uri onz-g:identifiedBy ?vest_nr .
+        ?vest_nr a onz-org:Vestigingsnummer ;
+                 onz-g:hasDataValue ?vestiging .
+    } UNION {
+        # Organisatieniveau toevoegen als 'vestiging'
+        ?vestiging_uri onz-org:vestigingVan ?organisatie_uri .
+        BIND("Totaal organisatie" AS ?vestiging)
+        BIND("n.v.t." AS ?zk_vestiging)
+    }
+
+    BIND(IF(!BOUND(?zk_vestiging), ?zorgkantoor, ?zk_vestiging) AS ?zorgkantoor_vestiging)    
+}

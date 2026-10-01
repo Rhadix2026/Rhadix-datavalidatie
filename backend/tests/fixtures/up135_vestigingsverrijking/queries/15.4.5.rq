@@ -1,0 +1,58 @@
+# ONGEWIJZIGDE SPARQL-query uit de bronrepository
+# gitlab.com/kik-v/uitwisselprofielen/uitwisselprofiel-zorgkantoren, tag 1.3.5
+# (commit c064e4d68ec1, 15-07-2026). Letterlijk overgenomen; bij uitvoering wordt
+# uitsluitend een BIND van een parameter geactiveerd.
+# Bron: CC BY-ND 4.0, naamsvermelding KIK-V.
+# Indicator: Zorgkantoren 15.4.5
+# Parameters: ?startperiode, ?eindperiode
+# Ontologie: versie 3.0.0
+
+PREFIX onz-g:     <http://purl.org/ozo/onz-g#>
+PREFIX onz-zorg:  <http://purl.org/ozo/onz-zorg#>
+PREFIX xsd:       <http://www.w3.org/2001/XMLSchema#>
+PREFIX onz-org:   <http://purl.org/ozo/onz-org#>
+PREFIX rdfs:      <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX onz-fin: <http://purl.org/ozo/onz-fin#>
+
+
+SELECT 
+    ("Totaal organisatie" AS ?Indeling)
+    ((ROUND(SUM(?ggzWAmount) / SUM(?amount) * 10000) / 100.0) AS ?Procent_gedeclareerd_bedrag_GGZ_W)
+    ((ROUND(SUM(?ggzBAmount) / SUM(?amount) * 10000) / 100.0) AS ?Procent_gedeclareerd_bedrag_GGZ_B)
+    ((ROUND(SUM(?lgAmount)   / SUM(?amount) * 10000) / 100.0) AS ?Procent_gedeclareerd_bedrag_LG)
+    ((ROUND(SUM(?lvgAmount)  / SUM(?amount) * 10000) / 100.0) AS ?Procent_gedeclareerd_bedrag_LVG)
+    ((ROUND(SUM(?vgAmount)   / SUM(?amount) * 10000) / 100.0) AS ?Procent_gedeclareerd_bedrag_VG)
+    ((ROUND(SUM(?zgaudAmount)/ SUM(?amount) * 10000) / 100.0) AS ?Procent_gedeclareerd_bedrag_ZGAUD)
+    ((ROUND(SUM(?zgvisAmount)/ SUM(?amount) * 10000) / 100.0) AS ?Procent_gedeclareerd_bedrag_ZGVIS)
+    ((ROUND(SUM(?vvAmount)   / SUM(?amount) * 10000) / 100.0) AS ?Procent_gedeclareerd_bedrag_VV)
+WHERE {
+    #BIND("2024-01-01"^^xsd:date AS ?startperiode)
+    #BIND("2024-12-31"^^xsd:date AS ?eindperiode)
+
+    ?declaratie
+        a onz-g:CareInvoice ;
+        onz-g:hasDate ?date ;
+        onz-g:goedgekeurd "true"^^xsd:boolean ;
+        onz-fin:heeftGeldBedrag ?amount ;
+        onz-g:isAbout ?zorgproces .
+
+    FILTER(?startperiode <= ?date && ?date <= ?eindperiode)
+
+    ?zorgproces
+        a onz-g:CureAndCareProcess ;
+        onz-g:definedBy ?indicatie .
+
+    ?indicatie
+        a onz-zorg:WlzIndicatie ;
+    	onz-g:hasPart/onz-g:isAbout ?sector .
+
+    # Per sectorbedrag
+    BIND(IF(?sector = onz-zorg:GGZ-W, ?amount, 0) AS ?ggzWAmount)
+    BIND(IF(?sector = onz-zorg:GGZ-B, ?amount, 0) AS ?ggzBAmount)
+    BIND(IF(?sector = onz-zorg:LG,     ?amount, 0) AS ?lgAmount)
+    BIND(IF(?sector = onz-zorg:LVG,    ?amount, 0) AS ?lvgAmount)
+    BIND(IF(?sector = onz-zorg:VG,     ?amount, 0) AS ?vgAmount)
+    BIND(IF(?sector = onz-zorg:ZGAUD,  ?amount, 0) AS ?zgaudAmount)
+    BIND(IF(?sector = onz-zorg:ZGVIS,  ?amount, 0) AS ?zgvisAmount)
+    BIND(IF(?sector = onz-zorg:VV,     ?amount, 0) AS ?vvAmount)
+}

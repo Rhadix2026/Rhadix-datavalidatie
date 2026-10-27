@@ -112,6 +112,28 @@ def test_melding_noemt_veld_en_rij_in_de_tekst():
     assert meldingen[0]["examples"] == ["rij 7"]
 
 
+def test_melding_is_leesbaar_in_beide_schermen():
+    """AlgemeenDashboard leest message/count/examples, ZibDashboard label/detail.
+
+    Zonder `label` toont ExpandableIssueRow een foutregel zonder titel. Deze
+    test pint beide velden vast, inclusief dat ze niet leeg zijn.
+    """
+    m = onvolledige_rijen_naar_meldingen([{"rij": 7, "ontbrekend": ["Gender"]}])[0]
+    # AlgemeenDashboard
+    assert m["message"] and m["count"] == 1 and m["examples"]
+    # ZibDashboard via ExpandableIssueRow
+    assert m["label"] and "Gender" in m["label"]
+    assert m["detail"] and "rij 7" in m["detail"]
+
+
+def test_detail_vat_veel_rijen_samen():
+    onvolledig = [{"rij": r, "ontbrekend": ["Gender"]} for r in range(3, 13)]
+    m = onvolledige_rijen_naar_meldingen(onvolledig)[0]
+    assert m["count"] == 10
+    assert "en 5 meer" in m["detail"]
+    assert len(m["examples"]) == 10        # tot 20 voorbeelden blijven volledig
+
+
 def test_meerdere_rijen_worden_per_veld_samengevoegd():
     onvolledig = [
         {"rij": 3, "ontbrekend": ["Gender"]},

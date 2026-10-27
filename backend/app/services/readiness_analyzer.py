@@ -20,13 +20,99 @@ Output (returned dict)
   "top_blocking_fields":        [...],       # top-10
   "top_blocking_relationships": [...],       # top-10
   "indicator_results":   {id: {...}, ...},
+  "retired_indicators":  [{id, title, basis, reason, evidence}, ...],
+  "missing_query_indicators": [{id, title, note}, ...],
 }
+
+Ingetrokken indicatoren staan in `retired_indicators` en NIET in
+`indicator_results`; ze tellen dus niet mee in `total_indicators` en niet in de
+score, en worden ook niet als 'blocked' gepresenteerd (B-19a).
 """
 from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
 from typing import Any
+
+# ─── Ingetrokken indicatoren (B-19a) ──────────────────────────────────────────
+#
+# Een ingetrokken indicator telt niet mee in fully/partially/blocked/total en
+# dus niet in de profielscore. Hij verdwijnt niet: hij wordt apart gerapporteerd
+# in `retired_indicators`, met de grondslag erbij.
+#
+# Twee grondslagen, bewust gescheiden gehouden:
+#
+#   1. "titelmarkering" — het profiel zegt het zelf, in de titel van de
+#      indicator. Automatisch detecteerbaar.
+#   2. "register"       — de intrekking is buiten het profiel aangetoond en
+#      staat hieronder expliciet vastgelegd, met bron.
+#
+# **Het ontbreken van een SPARQL-bestand is op zichzelf géén bewijs van
+# intrekking.** Zorgkantoren 13.4 laat zien waarom: de markdown documenteert de
+# indicator nog volledig, inclusief de query in een codeblok. Zo'n indicator
+# blijft dus meetellen en komt in `missing_query_indicators` te staan als
+# aandachtspunt, tenzij een van de twee grondslagen van toepassing is.
+
+_INTREKKING_IN_TITEL = re.compile(r"\b(vervallen|ingetrokken|deprecated|withdrawn)\b", re.I)
+
+# Expliciet register voor extern aangetoonde intrekkingen. Eén regel per
+# indicator per profielversie, zodat elke uitsluiting navolgbaar is. Een latere
+# profielversie die hier niet in staat, valt automatisch terug op het
+# aandachtspunt — uitsluiting gebeurt nooit stilzwijgend.
+INGETROKKEN_REGISTER: list[dict[str, Any]] = [
+    {
+        "profile_name": "Uitwisselprofiel Zorgkantoren Inkoopondersteuning en beleidsontwikkeling",
+        "versions":     ["1.3.5"],
+        "indicator_id": "13.4",
+        "reason":       "Ingetrokken in uitwisselprofiel 1.3.5: de query, het model, de "
+                        "functionele documentatie en de testbestanden zijn verwijderd. "
+                        "Alleen de technische markdown bleef staan, zonder markering.",
+        "evidence":     "GitLab kik-v/uitwisselprofielen/uitwisselprofiel-zorgkantoren, "
+                        "versieverschil 1.3.4 -> 1.3.5, commit c064e4d68ec1: verwijderd zijn "
+                        "Gevalideerde_vragen_technisch/Indicator 13.4.rq en .ttl, "
+                        "Gevalideerde_vragen_functioneel/Indicator 13.4.md en "
+                        "de bijbehorende testbestanden.",
+    },
+]
+
+
+def _register_treffer(profile: dict, ind_id: str) -> dict | None:
+    """Zoekt een registerregel voor deze indicator in deze profielversie."""
+    naam = (profile.get("name") or "").strip()
+    versie = (profile.get("version") or "").strip()
+    for regel in INGETROKKEN_REGISTER:
+        if regel["indicator_id"] != ind_id:
+            continue
+        if regel["profile_name"] != naam:
+            continue
+        if versie not in regel["versions"]:
+            continue
+        return regel
+    return None
+
+
+def _intrekking(profile: dict, ind_id: str, ind_data: dict) -> dict | None:
+    """Geeft de uitsluitingsgrond terug, of None als de indicator meetelt."""
+    titel = ((ind_data.get("metadata") or {}).get("title") or "").strip()
+    if _INTREKKING_IN_TITEL.search(titel):
+        return {
+            "id":       ind_id,
+            "title":    titel or ind_id,
+            "basis":    "titelmarkering",
+            "reason":   "De titel in het uitwisselprofiel markeert deze indicator als vervallen.",
+            "evidence": f"Titel in het profiel: {titel!r}",
+        }
+    regel = _register_treffer(profile, ind_id)
+    if regel:
+        return {
+            "id":       ind_id,
+            "title":    titel or ind_id,
+            "basis":    "register",
+            "reason":   regel["reason"],
+            "evidence": regel["evidence"],
+        }
+    return None
+
 
 # ─── Canonical source domains Rhadix understands ──────────────────────────────
 
@@ -543,10 +629,27 @@ def analyze_readiness(profile: dict, scan_result: dict) -> dict[str, Any]:
     indicators = profile.get("indicators", {})
 
     ind_results: dict[str, dict] = {}
+    retired: list[dict] = []
+    zonder_query: list[dict] = []
     for ind_id, ind_data in indicators.items():
         # Sla index-bestanden over — beginnen met '-' of hebben geen metadata
         if ind_id.startswith("-"):
             continue
+        # Ingetrokken indicatoren worden apart gerapporteerd en niet gescoord:
+        # ze horen niet in de noemer en mogen niet als 'blocked' verschijnen.
+        grond = _intrekking(profile, ind_id, ind_data)
+        if grond:
+            retired.append(grond)
+            continue
+        # Geen query, maar ook geen aangetoonde intrekking: blijft meetellen en
+        # wordt als aandachtspunt gemeld (B-19a, voorwaarde 4).
+        if "sparql" not in (ind_data.get("files") or {}):
+            zonder_query.append({
+                "id":    ind_id,
+                "title": ((ind_data.get("metadata") or {}).get("title") or ind_id),
+                "note":  "Geen SPARQL-bestand in het profiel, en geen aangetoonde intrekking. "
+                         "Telt mee in de score; nagaan of dit een intrekking is of een gebrek.",
+            })
         ind_results[ind_id] = _score_indicator(ind_data, ctx)
 
     results_list = list(ind_results.values())
@@ -580,4 +683,8 @@ def analyze_readiness(profile: dict, scan_result: dict) -> dict[str, Any]:
         "heatmap":                    _build_heatmap(results_list),
         # Per-indicator detail
         "indicator_results":          ind_results,
+        # Ingetrokken indicatoren: buiten de telling, mét grondslag (B-19a)
+        "retired_indicators":         retired,
+        # Geen query, geen aangetoonde intrekking: telt mee, wel een aandachtspunt
+        "missing_query_indicators":   zonder_query,
     }

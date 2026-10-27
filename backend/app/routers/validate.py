@@ -124,8 +124,18 @@ def voeg_onvolledige_rijen_toe(result: dict, onvolledige_per_bestand: dict) -> i
     """Hang de meldingen over onvolledige rijen aan `file_results[].issues`.
 
     Het ZIB-pad telt fouten uit `file_results`, dus die telling volgt
-    automatisch. Het algemeen-pad houdt een eigen `summary`; die wordt hier
-    bijgewerkt, op dezelfde manier als de cross-check-bevindingen dat doen.
+    automatisch. Het algemeen-pad houdt een eigen `summary` met een eigen
+    foutenteller; die wordt hier bijgewerkt zodat de melding ook in de kop
+    zichtbaar is.
+
+    **De scoreberekening blijft bewust ongemoeid.** `quality`, `rhadix_index`
+    en de per-bestand-scores worden hier niet aangeraakt. De cross-check-
+    bevindingen halen een volle 100 wél naar 99, maar dat patroon overnemen zou
+    de betekenis van eerder vastgestelde cijfers verschuiven; dat vraagt een
+    afzonderlijk functioneel besluit (afgesproken 27-10-2026). Gevolg om te
+    kennen: een bestand met een onvolledige rij kan `error_count > 0` tonen bij
+    een onveranderde score.
+
     Geeft het aantal toegevoegde meldingen terug.
     """
     if not onvolledige_per_bestand:
@@ -141,9 +151,6 @@ def voeg_onvolledige_rijen_toe(result: dict, onvolledige_per_bestand: dict) -> i
     if toegevoegd and isinstance(result.get("summary"), dict):
         s = result["summary"]
         s["error_count"] = s.get("error_count", 0) + toegevoegd
-        if s.get("quality", 0) == 100:
-            s["quality"] = 99
-            s["rhadix_index"] = round(s.get("completeness", 100) * 99 / 100)
     return toegevoegd
 
 

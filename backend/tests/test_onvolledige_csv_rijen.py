@@ -142,14 +142,35 @@ def test_injectie_hangt_de_melding_aan_het_juiste_bestand():
     assert result["file_results"][1]["issues"][0]["field"] == "Gender"
 
 
-def test_injectie_telt_mee_in_de_kop_en_haalt_de_volle_score_eraf():
+def test_injectie_telt_mee_in_de_kop():
     result = {
         "file_results": [{"filename": "a.csv", "issues": []}],
         "summary": {"error_count": 2, "quality": 100, "completeness": 100},
     }
     voeg_onvolledige_rijen_toe(result, {"a.csv": [{"rij": 3, "ontbrekend": ["Gender"]}]})
     assert result["summary"]["error_count"] == 3
-    assert result["summary"]["quality"] == 99
+
+
+def test_injectie_laat_de_scoreberekening_ongemoeid():
+    """Afgesproken 27-10-2026: de melding verschijnt wel, de score verandert niet.
+
+    De cross-check-bevindingen halen een volle 100 naar 99; dat patroon is hier
+    bewust NIET overgenomen, omdat het de betekenis van eerder vastgestelde
+    cijfers zou verschuiven. Deze test legt dat vast, zodat niemand het er
+    later ongemerkt bij doet.
+    """
+    result = {
+        "file_results": [{"filename": "a.csv", "issues": [], "score": 100}],
+        "summary": {"error_count": 0, "quality": 100, "completeness": 100, "rhadix_index": 100},
+    }
+    voeg_onvolledige_rijen_toe(result, {"a.csv": [{"rij": 3, "ontbrekend": ["Gender"]}]})
+    assert result["summary"]["quality"] == 100
+    assert result["summary"]["rhadix_index"] == 100
+    assert result["summary"]["completeness"] == 100
+    assert result["file_results"][0]["score"] == 100
+    # de melding staat er wél, en wordt in de kop geteld
+    assert result["file_results"][0]["issues"][0]["type"] == "incomplete_row"
+    assert result["summary"]["error_count"] == 1
 
 
 def test_injectie_zonder_bevindingen_laat_alles_ongemoeid():

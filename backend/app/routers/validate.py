@@ -102,6 +102,12 @@ def onvolledige_rijen_naar_meldingen(onvolledig: list) -> list[dict]:
     """Zet onvolledige rijen om in meldingen volgens het contract van
     `file_results[].issues`: één melding per ontbrekend veld, zodat het veld in
     de detailweergave betekenis heeft en de rijen als voorbeelden verschijnen.
+
+    De twee schermen die deze meldingen tonen lezen verschillende velden:
+    `AlgemeenDashboard` gebruikt `message`, `count` en `examples`, terwijl
+    `ZibDashboard` via `ExpandableIssueRow` op `label` en `detail` leunt. Beide
+    sets worden gevuld, anders toont het ZIB-scherm een foutregel zonder tekst.
+    De zes contractsleutels blijven leidend; `label` en `detail` zijn additief.
     """
     per_veld: dict[str, list[int]] = {}
     for item in onvolledig:
@@ -109,13 +115,20 @@ def onvolledige_rijen_naar_meldingen(onvolledig: list) -> list[dict]:
             per_veld.setdefault(veld, []).append(item.get("rij"))
     meldingen = []
     for veld, rijen in sorted(per_veld.items()):
+        rij_tekst = ", ".join(f"rij {r}" for r in rijen[:5])
+        if len(rijen) > 5:
+            rij_tekst += f" en {len(rijen) - 5} meer"
+        bericht = f"Veld '{veld}' ontbreekt: de rij heeft minder kolommen dan de kopregel"
         meldingen.append({
             "severity": "error",
             "type":     "incomplete_row",
             "field":    veld,
             "count":    len(rijen),
-            "message":  f"Veld '{veld}' ontbreekt: de rij heeft minder kolommen dan de kopregel",
+            "message":  bericht,
             "examples": [f"rij {r}" for r in rijen[:20]],
+            # voor ZibDashboard / ExpandableIssueRow
+            "label":    f"{veld} — onvolledige rij",
+            "detail":   f"{bericht} ({rij_tekst})",
         })
     return meldingen
 

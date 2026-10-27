@@ -60,7 +60,24 @@ def _resolve_app_and_license(standard: str, user, db):
     return app.id, (ta.license_id if ta else None)
 
 
-def parse_csv_bytes(content: bytes, filename: str, max_rows: int = MAX_ROWS) -> tuple[list, list]:
+def parse_csv_bytes(
+    content: bytes,
+    filename: str,
+    max_rows: int = MAX_ROWS,
+    onvolledig: Optional[list] = None,
+) -> tuple[list, list, int]:
+    """Lees een CSV naar headers, rijen en het werkelijke rijtotaal.
+
+    `onvolledig` is een optionele lijst die wordt gevuld met
+    `{"rij": <regelnummer in het bestand>, "ontbrekend": [veldnamen]}` voor elke
+    rij die minder kolommen heeft dan de kopregel. De aanroeper kan daar een
+    validatiemelding van maken; de parser beoordeelt niet, hij registreert.
+
+    `csv.DictReader` vult ontbrekende velden met `None` (restval) en zet
+    overtollige velden onder sleutel `None` (restkey). De bewaking `if k` vangt
+    het tweede geval; `v or ""` het eerste. Haal die niet weg: restkey levert
+    een lijst, die heeft geen `.strip()`.
+    """
     text = content.decode("utf-8-sig", errors="replace")
     first_line = text.split("\n")[0]
     delim = ";" if first_line.count(";") > first_line.count(",") else ","
@@ -69,12 +86,65 @@ def parse_csv_bytes(content: bytes, filename: str, max_rows: int = MAX_ROWS) -> 
     rows = []
     total = 0
     for row in reader:
-        clean = {k.strip('"').strip(): v.strip('"').strip() for k, v in row.items() if k}
+        ontbrekend = [str(k).strip('"').strip() for k, v in row.items() if k and v is None]
+        clean = {k.strip('"').strip(): (v or "").strip('"').strip() for k, v in row.items() if k}
         if any(v for v in clean.values()):
             total += 1
             if len(rows) < max_rows:
                 rows.append(clean)
+            if ontbrekend and onvolledig is not None:
+                # reader.line_num is het regelnummer in het bestand, kopregel meegerekend
+                onvolledig.append({"rij": reader.line_num, "ontbrekend": ontbrekend})
     return list(headers), rows, total
+
+
+def onvolledige_rijen_naar_meldingen(onvolledig: list) -> list[dict]:
+    """Zet onvolledige rijen om in meldingen volgens het contract van
+    `file_results[].issues`: één melding per ontbrekend veld, zodat het veld in
+    de detailweergave betekenis heeft en de rijen als voorbeelden verschijnen.
+    """
+    per_veld: dict[str, list[int]] = {}
+    for item in onvolledig:
+        for veld in item.get("ontbrekend") or []:
+            per_veld.setdefault(veld, []).append(item.get("rij"))
+    meldingen = []
+    for veld, rijen in sorted(per_veld.items()):
+        meldingen.append({
+            "severity": "error",
+            "type":     "incomplete_row",
+            "field":    veld,
+            "count":    len(rijen),
+            "message":  f"Veld '{veld}' ontbreekt: de rij heeft minder kolommen dan de kopregel",
+            "examples": [f"rij {r}" for r in rijen[:20]],
+        })
+    return meldingen
+
+
+def voeg_onvolledige_rijen_toe(result: dict, onvolledige_per_bestand: dict) -> int:
+    """Hang de meldingen over onvolledige rijen aan `file_results[].issues`.
+
+    Het ZIB-pad telt fouten uit `file_results`, dus die telling volgt
+    automatisch. Het algemeen-pad houdt een eigen `summary`; die wordt hier
+    bijgewerkt, op dezelfde manier als de cross-check-bevindingen dat doen.
+    Geeft het aantal toegevoegde meldingen terug.
+    """
+    if not onvolledige_per_bestand:
+        return 0
+    toegevoegd = 0
+    for fr in result.get("file_results") or []:
+        onvolledig = onvolledige_per_bestand.get(fr.get("filename"))
+        if not onvolledig:
+            continue
+        meldingen = onvolledige_rijen_naar_meldingen(onvolledig)
+        fr.setdefault("issues", []).extend(meldingen)
+        toegevoegd += len(meldingen)
+    if toegevoegd and isinstance(result.get("summary"), dict):
+        s = result["summary"]
+        s["error_count"] = s.get("error_count", 0) + toegevoegd
+        if s.get("quality", 0) == 100:
+            s["quality"] = 99
+            s["rhadix_index"] = round(s.get("completeness", 100) * 99 / 100)
+    return toegevoegd
 
 
 def _normalize_xml_value(val: str) -> str:
@@ -187,9 +257,11 @@ def parse_json_bytes(content: bytes, max_rows: int = MAX_ROWS) -> tuple[list, li
     return headers_ordered, rows, total
 
 
-def parse_upload(content: bytes, filename: str, ext: str) -> tuple[list, list, int]:
+def parse_upload(
+    content: bytes, filename: str, ext: str, onvolledig: Optional[list] = None
+) -> tuple[list, list, int]:
     if ext == "csv":
-        return parse_csv_bytes(content, filename)
+        return parse_csv_bytes(content, filename, onvolledig=onvolledig)
     if ext == "xml":
         return parse_xml_bytes(content)
     if ext == "json":
@@ -267,13 +339,17 @@ async def upload_and_validate(
 
     parsed = []
     truncation_warnings = []
+    # Per bestand de rijen die minder kolommen hebben dan de kopregel. Worden na
+    # de validatie als meldingen aan file_results toegevoegd (B-17).
+    onvolledige_per_bestand: dict[str, list] = {}
     for upload in files:
         content = await upload.read()
         ext = upload.filename.split(".")[-1].lower()
         if ext not in ("csv", "xlsx", "xls", "xml", "json"):
             raise HTTPException(400, f"Unsupported file type: {ext}")
+        _onvolledig: list = []
         try:
-            headers, rows, total = parse_upload(content, upload.filename, ext)
+            headers, rows, total = parse_upload(content, upload.filename, ext, onvolledig=_onvolledig)
         except ValueError as _perr:
             # Ongeldige JSON/XML (bijv. AFAS-getal met voorloopnul zoals `00`) →
             # duidelijke per-bestand-melding i.p.v. een stille 500.
@@ -285,6 +361,8 @@ async def upload_and_validate(
                 "verwerkt": len(rows),
                 "totaal":   total,
             })
+        if _onvolledig:
+            onvolledige_per_bestand[upload.filename] = _onvolledig
         parsed.append({"filename": upload.filename, "headers": headers, "rows": rows})
 
     # Bewaar fase-1 data voor een eventuele benchmark (overschrijft de vorige = cache wissen bij nieuwe scan)
@@ -329,6 +407,7 @@ async def upload_and_validate(
     if standard == "algemeen":
         alg_input = [{"filename": p["filename"], "headers": p["headers"], "rows": p["rows"]} for p in parsed]
         result = validate_algemeen(alg_input)
+        voeg_onvolledige_rijen_toe(result, onvolledige_per_bestand)   # B-17
         # Cross-file-checks ("personen niet in Medewerker", "overlappende periodes", …)
         # ook op de algemeen/AFAS-route — herstelt de gap-analyse voor AFAS-bron (CSV+JSON).
         try:
@@ -383,6 +462,7 @@ async def upload_and_validate(
     if standard == "zib":
         zib_input = [{"filename": p["filename"], "rows": p["rows"]} for p in parsed]
         result = validate_zib(zib_input)
+        voeg_onvolledige_rijen_toe(result, onvolledige_per_bestand)   # B-17
 
         files_summary = [
             {
@@ -468,6 +548,7 @@ async def upload_and_validate(
         })
 
     result = validate_files(files_input)
+    voeg_onvolledige_rijen_toe(result, onvolledige_per_bestand)   # B-17
 
     run_id = None
     created_at = None

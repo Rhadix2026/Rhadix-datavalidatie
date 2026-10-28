@@ -36,6 +36,16 @@ def _aan() -> bool:
     return os.getenv("SESSION_REVOCATION", "off").lower().strip() == "on"
 
 
+def max_levensduur_seconden() -> int:
+    """Langste toegestane tokenlevensduur: gelijk aan die van de uitgever
+    (JWT_ACCESS_TOKEN_EXPIRE_MINUTES, standaard 60), plus één minuut klokmarge."""
+    try:
+        minuten = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+    except ValueError:
+        minuten = 60
+    return minuten * 60 + 60
+
+
 def versheidsbudget() -> int:
     return int(os.getenv("REVOCATION_FRESHNESS_BUDGET", "60"))
 
@@ -127,6 +137,12 @@ def controleer(
         log.info("token zonder iat toegelaten binnen het overgangsvenster (sub=%s)", sub[:8])
     else:
         iat = datetime.fromtimestamp(int(iat_ruw), tz=timezone.utc)
+        # Een intrekking blijft tokenlevensduur + marge bewaard. Een token dat langer
+        # leeft dan die levensduur zou na het verlopen van de intrekking weer
+        # geldig worden; zo'n token wordt daarom nooit geaccepteerd.
+        exp_ruw = claims.get("exp")
+        if exp_ruw is not None and int(exp_ruw) - int(iat_ruw) > max_levensduur_seconden():
+            return Uitkomst(False, "Token leeft langer dan toegestaan", "B")
         uitgelogd_op = logout_at_voor_sub(sub) if sub else None
         if uitgelogd_op is not None:
             if uitgelogd_op.tzinfo is None:

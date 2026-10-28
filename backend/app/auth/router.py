@@ -84,6 +84,49 @@ def _na_laatste_uitlog(db: Session, user: User) -> None:
         time.sleep(wacht + 0.01)
 
 
+def _geef_token(db: Session, user: User, response: Response) -> TokenResponse:
+    """Nieuw centraal token (en SSO-cookie) voor `user`; gedeeld door login en
+    wachtwoordwijziging. Wacht zo nodig tot na het laatste intrekkingsmoment."""
+    _na_laatste_uitlog(db, user)
+
+    app_slugs = _app_slugs_for(user, db)
+    # Branding meesturen zodat sub-apps (Uitvraag/Datastation) dezelfde look-and-feel
+    # tonen zonder cross-origin call. Logo als absolute URL naar het publieke endpoint.
+    from app.services.branding import resolve_effective_branding
+    _b = resolve_effective_branding(db, user.tenant)
+    _base = (os.getenv("PUBLIC_BASE_URL", "") or "").rstrip("/")
+    _logo_url = None
+    if _b.get("logo_tenant_id") and _base:
+        _v = f"?v={_b['logo_version']}" if _b.get("logo_version") else ""
+        _logo_url = f"{_base}/api/branding/{_b['logo_tenant_id']}/logo{_v}"
+    _branding = {
+        "primary_color": _b.get("primary_color"),
+        "accent_color":  _b.get("accent_color"),
+        "wordmark":      _b.get("wordmark"),
+        "logo_url":      _logo_url,
+    }
+    token = create_access_token({
+        "sub":         str(user.id),
+        "role":        user.role.value,
+        "tenant_id":   str(user.tenant_id),
+        "tenant_name": user.tenant.name,
+        "email":       user.email,
+        "name":        user.full_name or user.email,
+        "apps":        app_slugs,
+        "branding":    _branding,
+    })
+    # SSO-cookie op het gedeelde domein (alleen als SSO_COOKIE_DOMAIN gezet is,
+    # bv. ".rhadix.nl"); maakt cross-app SSO mogelijk zonder opnieuw inloggen.
+    import os as _os
+    _dom = _os.getenv("SSO_COOKIE_DOMAIN")
+    _cookie_name = _os.getenv("SSO_COOKIE_NAME", "rhadix_sso")
+    if _dom:
+        response.set_cookie(_cookie_name, token, domain=_dom, path="/",
+                            httponly=True, secure=True, samesite="lax",
+                            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+    return TokenResponse(access_token=token)
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     """Authenticate with email + password and receive a JWT access token."""
@@ -137,44 +180,7 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
     user.last_login_at = datetime.now(timezone.utc)
     db.commit()
 
-    _na_laatste_uitlog(db, user)
-
-    app_slugs = _app_slugs_for(user, db)
-    # Branding meesturen zodat sub-apps (Uitvraag/Datastation) dezelfde look-and-feel
-    # tonen zonder cross-origin call. Logo als absolute URL naar het publieke endpoint.
-    from app.services.branding import resolve_effective_branding
-    _b = resolve_effective_branding(db, user.tenant)
-    _base = (os.getenv("PUBLIC_BASE_URL", "") or "").rstrip("/")
-    _logo_url = None
-    if _b.get("logo_tenant_id") and _base:
-        _v = f"?v={_b['logo_version']}" if _b.get("logo_version") else ""
-        _logo_url = f"{_base}/api/branding/{_b['logo_tenant_id']}/logo{_v}"
-    _branding = {
-        "primary_color": _b.get("primary_color"),
-        "accent_color":  _b.get("accent_color"),
-        "wordmark":      _b.get("wordmark"),
-        "logo_url":      _logo_url,
-    }
-    token = create_access_token({
-        "sub":         str(user.id),
-        "role":        user.role.value,
-        "tenant_id":   str(user.tenant_id),
-        "tenant_name": user.tenant.name,
-        "email":       user.email,
-        "name":        user.full_name or user.email,
-        "apps":        app_slugs,
-        "branding":    _branding,
-    })
-    # SSO-cookie op het gedeelde domein (alleen als SSO_COOKIE_DOMAIN gezet is,
-    # bv. ".rhadix.nl"); maakt cross-app SSO mogelijk zonder opnieuw inloggen.
-    import os as _os
-    _dom = _os.getenv("SSO_COOKIE_DOMAIN")
-    _cookie_name = _os.getenv("SSO_COOKIE_NAME", "rhadix_sso")
-    if _dom:
-        response.set_cookie(_cookie_name, token, domain=_dom, path="/",
-                            httponly=True, secure=True, samesite="lax",
-                            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60)
-    return TokenResponse(access_token=token)
+    return _geef_token(db, user, response)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -197,10 +203,11 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
     )
 
 
-@router.patch("/me/password", status_code=204)
+@router.patch("/me/password")
 def change_password(
     body: PasswordChangeRequest,
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -222,16 +229,16 @@ def change_password(
     current_user.password_hash = hash_password(body.new_password)
     db.commit()
 
-    audit_log(
-        PASSWORD_CHANGED, request,
-        user_id=str(current_user.id),
-        email=current_user.email,
-        tenant_id=str(current_user.tenant_id),
-    )
+    # B-31: alle bestaande sessies van deze gebruiker vervallen (effectief zodra
+    # SESSION_REVOCATION=on). Zodat hij zichzelf niet buitensluit, krijgt hij in
+    # hetzelfde antwoord een nieuw token, uitgegeven ná het intrekkingsmoment.
+    from app.services import beveiligingsregel
+    beveiligingsregel.toepassen(db, PASSWORD_CHANGED, current_user, request=request, door=current_user)
     try:
         mailer.send_password_changed(current_user.email, current_user.full_name)
     except Exception:
         import logging; logging.getLogger("rhadix.mail").exception("password-changed mail faalde")
+    return _geef_token(db, current_user, response)
 
 
 # ── Uitloggen ────────────────────────────────────────────────────────────────
@@ -465,7 +472,8 @@ def reset_password(body: ResetPasswordRequest, request: Request, db: Session = D
     user.password_hash = hash_password(body.new_password)
     user.email_verified = True
     db.commit()
-    audit_log(PASSWORD_RESET, request, user_id=str(user.id), email=user.email, tenant_id=str(user.tenant_id))
+    from app.services import beveiligingsregel
+    beveiligingsregel.toepassen(db, PASSWORD_RESET, user, request=request, door="wachtwoord-vergeten")
     try:
         mailer.send_password_changed(user.email, user.full_name)
     except Exception:

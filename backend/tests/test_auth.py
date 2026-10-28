@@ -217,7 +217,8 @@ class TestPasswordChange:
             json={"current_password": "Correct-Password-123!", "new_password": "New-Password-456-Ok!"},
             headers={"Authorization": f"Bearer {token_org_user}"},
         )
-        assert res.status_code == 204
+        # B-31: 200 met een nieuw token (bestaande sessies vervallen bij SESSION_REVOCATION=on)
+        assert res.status_code == 200 and res.json()["access_token"]
 
         # Can now login with new password
         res2 = client.post("/api/auth/login", json={"email": "user@tenant-a.nl", "password": "New-Password-456-Ok!"})
@@ -229,7 +230,7 @@ class TestPasswordChange:
             json={"current_password": "New-Password-456-Ok!", "new_password": "Correct-Password-123!"},
             headers={"Authorization": f"Bearer {token_org_user}"},
         )
-        assert res3.status_code == 204
+        assert res3.status_code == 200   # B-31: met nieuw token
 
     def test_change_password_wrong_current(self, client, token_org_user):
         res = client.patch(

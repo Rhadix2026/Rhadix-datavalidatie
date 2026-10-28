@@ -28,7 +28,8 @@ class TestBeheerderWijzigtEigenWachtwoord:
                   "new_password": "Nieuw-Beheer-Wachtwoord-1!"},
             headers=auth(token_org_admin),
         )
-        assert res.status_code == 204, res.text
+        # B-31: 200 met een nieuw token (bestaande sessies vervallen bij SESSION_REVOCATION=on)
+        assert res.status_code == 200 and res.json()["access_token"], res.text
 
         # Het nieuwe wachtwoord werkt…
         nieuw = client.post("/api/auth/login",

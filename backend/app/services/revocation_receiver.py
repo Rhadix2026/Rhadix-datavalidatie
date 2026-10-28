@@ -84,6 +84,20 @@ def ontvang(db, claims: dict[str, Any], nu: Optional[datetime] = None) -> dict:
             expires_at=verloopt,
         ))
 
+    # Een intrekking die nog niet verlopen is, blijft staan, ook als de nieuwe lijst
+    # haar niet meer bevat (bijv. een uitgever die van een oudere back-up draait).
+    # Zo kan een ingetrokken token nooit opnieuw geldig worden; de lijst groeit
+    # hooguit tot de vervaltijd van die rijen (tokenlevensduur + marge).
+    nieuw = {(r.sub, r.jti, r.not_before) for r in rijen}
+    behouden = 0
+    for oud in db.query(RevokedSession).filter(RevokedSession.expires_at > nu).all():
+        sleutel = (oud.sub, oud.jti, _utc(oud.not_before))
+        if sleutel not in nieuw:
+            rijen.append(RevokedSession(id=uuid.uuid4(), jti=oud.jti, sub=oud.sub,
+                                        not_before=_utc(oud.not_before), expires_at=_utc(oud.expires_at)))
+            behouden += 1
+    if behouden:
+        log.warning("%d nog geldige intrekking(en) ontbraken in de nieuwe lijst en blijven staan", behouden)
     db.query(RevokedSession).delete(synchronize_session=False)
     db.add_all(rijen)
     stand.last_generated_at = gemaakt

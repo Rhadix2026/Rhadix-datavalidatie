@@ -28,7 +28,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Request
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -263,6 +263,11 @@ def admin_toggle_tenant_active(
         {User.is_active: body.is_active}, synchronize_session=False
     )
     db.commit()
+    if not body.is_active:
+        from app.audit import USER_DEACTIVATED
+        from app.services import beveiligingsregel
+        beveiligingsregel.toepassen_op_tenant(db, USER_DEACTIVATED, tid, door=current_user,
+                                              via="tenant_deactivate")
     audit_log(ADMIN_ACTION, action="tenant_deactivate", tenant_id=str(tid),
               tenant_name=tenant.name, is_active=body.is_active, by=str(current_user.id))
     return {"id": str(tenant.id), "name": tenant.name, "is_active": tenant.is_active}
@@ -501,7 +506,7 @@ def admin_update_user(
     user_id: str,
     body:    AdminUpdateUserRequest,
     db:      Session = Depends(get_db),
-    _:       User    = Depends(require_role(UserRole.RHADIX_ADMIN)),
+    current_user: User = Depends(require_role(UserRole.RHADIX_ADMIN)),
 ):
     """RHADIX_ADMIN wijzigt naam en/of rol van een gebruiker."""
     uid  = _parse_uuid(user_id, "user_id")
@@ -519,8 +524,15 @@ def admin_update_user(
         # zonder beheerder komen te zitten, en het platform niet zonder Rhadix-beheerder.
         # Deze route kende die controle alleen bij deactiveren en verwijderen.
         controleer_rolwijziging(db, user, nieuwe_rol)
+        rol_gewijzigd = user.role != nieuwe_rol
         user.role = nieuwe_rol
+    else:
+        rol_gewijzigd = False
     db.commit()
+    if rol_gewijzigd:
+        from app.audit import ROLE_CHANGED
+        from app.services import beveiligingsregel
+        beveiligingsregel.toepassen(db, ROLE_CHANGED, user, door=current_user, nieuwe_rol=user.role.value)
     db.refresh(user)
     audit_log(USER_UPDATED, user_id=str(user.id), email=user.email,
               changes={"full_name": body.full_name, "role": body.role})
@@ -933,6 +945,9 @@ def revoke_app_from_tenant(
         raise HTTPException(404, "Assignment not found")
     db.delete(ta)
     db.commit()
+    from app.audit import APP_REVOKED
+    from app.services import beveiligingsregel
+    beveiligingsregel.toepassen_op_tenant(db, APP_REVOKED, tid, door=_, application_id=str(aid))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -965,6 +980,10 @@ def admin_toggle_user_active(
 
     user.is_active = not user.is_active
     db.commit()
+    from app.audit import USER_DEACTIVATED, USER_REACTIVATED
+    from app.services import beveiligingsregel
+    beveiligingsregel.toepassen(db, USER_REACTIVATED if user.is_active else USER_DEACTIVATED, user,
+                                door=current_user, intrekken=not user.is_active)
     return {"id": str(user.id), "email": user.email, "is_active": user.is_active}
 
 
@@ -986,14 +1005,18 @@ def admin_delete_user(
 
     db.delete(user)
     db.commit()
+    from app.audit import USER_DELETED
+    from app.services import beveiligingsregel
+    beveiligingsregel.toepassen(db, USER_DELETED, user, door=current_user)
 
 
 @router.post("/users/{user_id}/reset-password", status_code=204)
 def admin_reset_user_password(
     user_id: str,
     body:    AdminResetPasswordRequest,
+    request: Request,
     db:      Session = Depends(get_db),
-    _:       User    = Depends(require_role(UserRole.RHADIX_ADMIN)),
+    current_user: User = Depends(require_role(UserRole.RHADIX_ADMIN)),
 ):
     """Admin sets a new password for any user."""
     uid  = _parse_uuid(user_id, "user_id")
@@ -1007,3 +1030,6 @@ def admin_reset_user_password(
 
     user.password_hash = hash_password(body.new_password)
     db.commit()
+    from app.audit import PASSWORD_RESET_BY_ADMIN
+    from app.services import beveiligingsregel
+    beveiligingsregel.toepassen(db, PASSWORD_RESET_BY_ADMIN, user, request=request, door=current_user)

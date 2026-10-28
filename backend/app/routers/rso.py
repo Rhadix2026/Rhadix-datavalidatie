@@ -275,9 +275,16 @@ def update_rso_user(
         # Zelfde bescherming als op de org- en adminroute: de laatste actieve beheerder
         # van een organisatie mag niet worden gedegradeerd.
         controleer_rolwijziging(db, target, new_role)
+        rol_gewijzigd = target.role != new_role
         target.role = new_role
+    else:
+        rol_gewijzigd = False
     db.commit()
     db.refresh(target)
+    if rol_gewijzigd:
+        from app.audit import ROLE_CHANGED
+        from app.services import beveiligingsregel
+        beveiligingsregel.toepassen(db, ROLE_CHANGED, target, door=user, nieuwe_rol=target.role.value)
     return {"id": str(target.id), "email": target.email,
             "full_name": target.full_name, "role": target.role.value}
 
@@ -312,6 +319,10 @@ def toggle_rso_user_active(
         controleer_ruimte(db, target.tenant_id)
     target.is_active = not target.is_active
     db.commit()
+    from app.audit import USER_DEACTIVATED, USER_REACTIVATED
+    from app.services import beveiligingsregel
+    beveiligingsregel.toepassen(db, USER_REACTIVATED if target.is_active else USER_DEACTIVATED, target,
+                                door=user, intrekken=not target.is_active)
     return {"id": str(target.id), "email": target.email, "is_active": target.is_active}
 
 
@@ -334,6 +345,9 @@ def reset_rso_user_password(
         raise HTTPException(422, str(exc))
     target.password_hash = hash_password(body.new_password)
     db.commit()
+    from app.audit import PASSWORD_RESET_BY_ADMIN
+    from app.services import beveiligingsregel
+    beveiligingsregel.toepassen(db, PASSWORD_RESET_BY_ADMIN, target, door=user)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

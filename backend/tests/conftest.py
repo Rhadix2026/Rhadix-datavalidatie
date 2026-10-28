@@ -20,6 +20,7 @@ from app.models.auth_models import (   # noqa: registers auth tables
 )
 from app.models.models import ValidationRun                # noqa: registers validation_runs
 from app.models.task_models import Task                    # noqa: registers tasks
+from app.models.machine_models import MachineAccount, MachineSecret  # noqa: registers B-28 tables
 from app.models.revocation_models import (  # noqa: registers B-16 tables
     RevocationState, RevokedSession, SessionRevocation,
 )
@@ -117,6 +118,8 @@ def clean_db():
         s.execute(text("DELETE FROM tenant_applications"))
         s.execute(text("DELETE FROM licenses"))
         s.execute(text("DELETE FROM tasks"))
+        s.execute(text("DELETE FROM machine_secrets"))
+        s.execute(text("DELETE FROM machine_accounts"))
         s.execute(text("DELETE FROM session_revocations"))
         s.execute(text("DELETE FROM revoked_sessions"))
         s.execute(text("DELETE FROM revocation_state"))

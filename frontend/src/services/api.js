@@ -69,6 +69,10 @@ export async function changeOwnPassword(currentPassword, newPassword) {
     body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
   })
   if (!res.ok) throw new Error(_detail(await res.text()))
+  // B-31: na een wachtwoordwijziging vervallen bestaande sessies; de backend geeft
+  // meteen een nieuw token mee, zodat de gebruiker ingelogd blijft.
+  const data = await res.json().catch(() => null)
+  if (data && data.access_token) setAuthToken(data.access_token)
 }
 
 export async function forgotPassword(email) {

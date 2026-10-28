@@ -52,11 +52,28 @@ def _levensduur() -> timedelta:
 
 # ── vastleggen bij uitloggen ───────────────────────────────────────────────
 
-def registreer_logout(db, sub: str, payload: Optional[dict]) -> None:
-    """Leg een uitlogactie vast en wek de hartslag. Faalt nooit naar buiten:
-    uitloggen moet altijd slagen, ook als de database dat niet doet."""
-    from sqlalchemy import update
+def _zet_logout_at(db, sub: str, moment: datetime) -> None:
+    """`users.logout_at` alleen vooruit zetten, nooit terug: een later vastgelegde,
+    oudere intrekking (achterstand) mag een nieuwere niet overschrijven."""
+    from sqlalchemy import or_, update
     from app.models.auth_models import User
+    db.execute(update(User)
+               .where(User.id == uuid.UUID(sub))
+               .where(or_(User.logout_at.is_(None), User.logout_at < moment))
+               .values(logout_at=moment))
+
+
+def registreer_logout(db, sub: str, payload: Optional[dict]) -> None:
+    """Leg een uitlogactie vast (zie `registreer_intrekking`)."""
+    registreer_intrekking(db, sub, payload, reden="logout")
+
+
+def registreer_intrekking(db, sub: str, payload: Optional[dict], reden: str = "logout") -> None:
+    """Trek alle tokens van `sub` met `iat` vóór nu in (en met `payload` ook dat ene
+    token op jti) en wek de hartslag. Gebruikt bij uitloggen en bij elke wijziging van
+    een credential of bevoegdheid (B-31). Faalt nooit naar buiten: de handeling die
+    erom vraagt moet altijd slagen, ook als de database dat niet doet; dan gaat de
+    intrekking mee in de hartslag en wordt ze later alsnog opgeslagen."""
     from app.models.revocation_models import SessionRevocation
 
     nu = _nu()
@@ -69,9 +86,9 @@ def registreer_logout(db, sub: str, payload: Optional[dict]) -> None:
     try:
         db.add(SessionRevocation(id=uuid.uuid4(), jti=rij.jti, sub=rij.sub,
                                  not_before=rij.not_before, expires_at=rij.expires_at))
-        db.execute(update(User).where(User.id == uuid.UUID(rij.sub)).values(logout_at=nu))
+        _zet_logout_at(db, rij.sub, nu)
         db.commit()
-        log.info("intrekking vastgelegd (sub=%s, jti=%s)", rij.sub[:8], (rij.jti or "-")[:8])
+        log.info("intrekking vastgelegd (sub=%s, jti=%s, reden=%s)", rij.sub[:8], (rij.jti or "-")[:8], reden)
     except Exception:
         db.rollback()
         log.exception("intrekking niet in de database — gaat mee in de hartslag "
@@ -99,8 +116,6 @@ def laatste_uitlog(db, sub: str) -> Optional[datetime]:
 # ── de actuele lijst ───────────────────────────────────────────────────────
 
 def _sla_achterstand_op(db) -> None:
-    from sqlalchemy import update
-    from app.models.auth_models import User
     from app.models.revocation_models import SessionRevocation
 
     with _lock:
@@ -110,7 +125,7 @@ def _sla_achterstand_op(db) -> None:
     for r in achterstand:
         db.add(SessionRevocation(id=uuid.uuid4(), jti=r.jti, sub=r.sub,
                                  not_before=r.not_before, expires_at=r.expires_at))
-        db.execute(update(User).where(User.id == uuid.UUID(r.sub)).values(logout_at=r.not_before))
+        _zet_logout_at(db, r.sub, r.not_before)
     db.commit()
     with _lock:
         for r in achterstand:

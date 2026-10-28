@@ -82,6 +82,14 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Een machinetoken (B-28) geeft nooit toegang tot Datavalidatie zelf.
+    if payload.get("typ") == "machine":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Machinetoken niet toegestaan",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     # Controleer of het token ingetrokken is (logout)
     jti = payload.get("jti") or _tok
     if token_is_blocked(jti):
@@ -121,7 +129,7 @@ def _optional_user(request, credentials, db, *, intrekking: bool) -> Optional[Us
     try:
         payload  = decode_access_token(_tok)
         user_id  = payload.get("sub")
-        if not user_id:
+        if not user_id or payload.get("typ") == "machine":   # machinetoken = geen sessie (B-28)
             return None
         # Een ingetrokken sessie telt als geen sessie (B-16) — hetzelfde als een
         # verlopen token hier al deed. Met SESSION_REVOCATION=off: geen effect.

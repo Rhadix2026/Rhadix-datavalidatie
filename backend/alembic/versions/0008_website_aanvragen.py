@@ -1,4 +1,4 @@
-"""Phase 7 — website-aanvragen eerst vastleggen, dan verwerken
+"""Phase 8 — website-aanvragen eerst vastleggen, dan verwerken
 
 Eigen schema `website` met twee tabellen: `aanvragen` en `aanvraag_stappen`.
 Raakt geen enkele tabel van Datavalidatie.
@@ -7,16 +7,16 @@ Idempotent (IF NOT EXISTS) zodat de migratie ook werkt als het startup-vangnet
 `app.website.opslag.borg_schema` de objecten al heeft aangemaakt. Alles is
 additief: bij terugdraaien van de code mag het schema blijven staan.
 
-Revision ID: 0007
-Revises: 0006
+Revision ID: 0008
+Revises: 0007
 Create Date: 2026-10-28
 """
 from typing import Sequence, Union
 
 from alembic import op
 
-revision: str = "0007"
-down_revision: Union[str, None] = "0006"
+revision: str = "0008"
+down_revision: Union[str, None] = "0007"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

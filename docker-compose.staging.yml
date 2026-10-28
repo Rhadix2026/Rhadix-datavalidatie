@@ -67,7 +67,13 @@ services:
       # Secret, environment staging); het geheim zelf staat nergens op de server.
       # Zonder hash is het endpoint dicht (503). Alleen vanaf het interne netwerk.
       REVOCATION_BREAKGLASS_SECRET_SHA256: ${REVOCATION_BREAKGLASS_SECRET_SHA256:-}
-      FUSEKI_URL:         http://rhadix-staging-fuseki:3030
+      # ── B-26 client-IP en loginbegrenzing ───────────────────────────────
+      # Leeg = vertrouw alleen loopback en de eigen Docker-gateway (de host-nginx).
+      # Cloudflare-netten leeg = de ingebouwde, gepubliceerde lijst.
+      TRUSTED_PROXY_NETWORKS:    ${TRUSTED_PROXY_NETWORKS:-}
+      CLOUDFLARE_NETWORKS:       ${CLOUDFLARE_NETWORKS:-}
+      LOGIN_RATE_LIMIT_PER_HOUR: ${LOGIN_RATE_LIMIT_PER_HOUR:-96}
+      FUSEKI_URL:        http://rhadix-staging-fuseki:3030
       FUSEKI_DATASET:     rhadix
       FUSEKI_USER:        admin
       FUSEKI_PASSWORD:    ${STAGING_FUSEKI_PASSWORD:-rhadix-staging-admin}

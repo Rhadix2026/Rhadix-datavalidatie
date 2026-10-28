@@ -18,6 +18,8 @@ from typing import Any, Optional
 
 from fastapi import Request
 
+from app.auth.client_ip import client_ip
+
 logger = logging.getLogger("rhadix.audit")
 
 
@@ -97,7 +99,5 @@ def audit_log(
 # ---------------------------------------------------------------------------
 
 def _get_ip(request: Request) -> str:
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    # Via de vertrouwde proxyketen; X-Forwarded-For telt niet (B-26).
+    return client_ip(request)

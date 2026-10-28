@@ -98,6 +98,14 @@ def clean_db():
         s.commit()
 
 
+@pytest.fixture(autouse=True)
+def reset_login_limieten():
+    """Brute-force- en uurtellers leven in het procesgeheugen; elke test begint leeg."""
+    from app.auth import brute_force
+    brute_force.reset()
+    yield
+
+
 # ---------------------------------------------------------------------------
 # FastAPI test client with DB override
 # ---------------------------------------------------------------------------

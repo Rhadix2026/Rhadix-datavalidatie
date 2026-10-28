@@ -19,7 +19,10 @@ from app.audit import (
     PASSWORD_RESET_REQUESTED, PASSWORD_RESET, INVITE_ACCEPTED, EMAIL_VERIFIED,
     audit_log,
 )
-from app.auth.brute_force import is_blocked, record_failure, record_success, seconds_until_unblocked
+from app.auth.brute_force import (
+    is_blocked, record_failure, record_success, seconds_until_unblocked, verzoek_toegestaan,
+)
+from app.auth.client_ip import client_ip, limiet_sleutel
 from app.auth.token_blocklist import block_token
 from app.auth.dependencies import get_current_user, get_logout_user
 from app.auth.app_toegang import app_slugs_voor
@@ -54,11 +57,9 @@ def _app_slugs_for(user, db) -> list[str]:
 
 
 def _get_client_ip(request: Request) -> str:
-    """Bepaal het echte IP-adres van de client (ook achter een proxy/Cloudflare)."""
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    """Begrenzingssleutel van de client: het IP via de vertrouwde proxyketen
+    (app.auth.client_ip, B-26), bij IPv6 het /64-net."""
+    return limiet_sleutel(client_ip(request))
 
 
 def _na_laatste_uitlog(db: Session, user: User) -> None:
@@ -96,6 +97,16 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Too many failed login attempts. Try again in {remaining} seconds.",
             headers={"Retry-After": str(remaining)},
+        )
+
+    # Uurlimiet op alle loginverzoeken van deze client (B-26)
+    toegestaan, wacht = verzoek_toegestaan(client_ip)
+    if not toegestaan:
+        audit_log(LOGIN_BLOCKED, request, email=body.email, remaining_seconds=wacht, reden="uurlimiet")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many login attempts. Try again in {wacht} seconds.",
+            headers={"Retry-After": str(wacht)},
         )
 
     user = db.query(User).filter(

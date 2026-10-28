@@ -401,6 +401,14 @@ def test_specifieke_instelling_gaat_voor_de_centrale(monkeypatch):
     assert instellingen.antwoordadres() == "antwoord@voorbeeld.nl"
 
 
+def test_ontbrekend_antwoordadres_is_een_waarschuwing_geen_blokkade(monkeypatch, caplog):
+    assert instellingen.antwoordadres() is None
+    assert instellingen.controleer() == [], "mail kan gewoon weg"
+    with caplog.at_level(logging.WARNING, logger="rhadix.website"):
+        instellingen.meld_bij_start(dns=False)
+    assert "WEBSITE_REPLY_TO" in caplog.text
+
+
 def test_meld_bij_start_logt_elk_probleem(monkeypatch, caplog):
     monkeypatch.delenv("WEBSITE_INTERN_ADRES")
     with caplog.at_level(logging.ERROR, logger="rhadix.website"):

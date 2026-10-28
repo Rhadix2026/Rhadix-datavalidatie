@@ -30,7 +30,7 @@ Schema
 ------
 Alembic draait in deze repo niet betrouwbaar (B-23); daarom borgt `borg_schema()`
 bij het opstarten het schema en de tabellen, idempotent, zoals de andere
-vangnetten in `main.py`. Migratie 0007 doet hetzelfde voor wie Alembic wel
+vangnetten in `main.py`. Migratie 0008 doet hetzelfde voor wie Alembic wel
 draait.
 """
 from __future__ import annotations

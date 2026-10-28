@@ -148,7 +148,7 @@ def test_rapportmail_volledig(smtp, rapport):
     msg = smtp[0]
     assert msg["To"] == "jan@voorbeeld.nl"
     assert msg["From"] == "Rhoderlanden Groep <noreply@rhadix.nl>"
-    assert msg["Reply-To"] == "intern@voorbeeld.nl", "zonder WEBSITE_REPLY_TO: het interne adres"
+    assert msg["Reply-To"] is None, "geen terugval op het (mogelijk persoonlijke) interne adres"
     assert msg["Subject"] == "Uw Data Readiness-rapport — 53 van 100"
 
     bijlagen = list(msg.iter_attachments())
@@ -235,7 +235,7 @@ def test_lege_omgevingsvariabele_valt_terug_op_het_centrale_adres(monkeypatch):
     for sleutel in ("READINESS_INTERN_ADRES", "READINESS_REPLY_TO", "READINESS_AFZENDERNAAM"):
         monkeypatch.setenv(sleutel, "")
     assert rm.intern_adres() == "intern@voorbeeld.nl"
-    assert rm.antwoordadres() == "intern@voorbeeld.nl"
+    assert rm.antwoordadres() is None, "lege waarde: geen Reply-To, ook geen intern adres"
     assert rm.afzendernaam() == "Rhoderlanden Groep"
 
     monkeypatch.setenv("READINESS_INTERN_ADRES", "   ")
@@ -263,3 +263,10 @@ def test_html_ontsnapt_ingevoerde_tekst(rapport):
     assert "<script>" not in html
     assert "&lt;script&gt;" in html
     assert "A &amp; B &lt;b&gt;" in html
+
+
+def test_antwoordadres_is_instelbaar_en_los_van_het_interne_adres(smtp, rapport, monkeypatch):
+    monkeypatch.setenv("WEBSITE_REPLY_TO", "antwoord@voorbeeld.nl")
+    rm.verstuur_rapport(rapport, "jan@voorbeeld.nl", b"%PDF-")
+    assert smtp[0]["Reply-To"] == "antwoord@voorbeeld.nl"
+    assert smtp[0]["From"] == "Rhoderlanden Groep <noreply@rhadix.nl>"

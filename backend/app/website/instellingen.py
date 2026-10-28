@@ -13,8 +13,13 @@ Centrale instellingen
     WEBSITE_INTERN_ADRES   ontvanger van alle interne meldingen (contact,
                            Bespreek mijn uitslag, Readiness-signaal) en van het
                            dagoverzicht
-    WEBSITE_REPLY_TO       antwoordadres in het rapport aan de bezoeker;
-                           zonder waarde geldt het interne adres
+    WEBSITE_REPLY_TO       antwoordadres in het rapport aan de bezoeker.
+                           Valt bewust NIET terug op het interne adres: dat
+                           kan een persoonlijk postvak zijn, en het
+                           antwoordadres is zichtbaar voor elke bezoeker.
+                           Zonder waarde krijgt het rapport geen Reply-To
+                           (een antwoord gaat dan naar noreply@rhadix.nl en
+                           komt niet aan); dat wordt bij het opstarten gemeld.
 
 Bestaande, specifiekere instellingen blijven werken en gaan vóór de centrale:
 
@@ -48,9 +53,9 @@ def intern_adres(soort: str | None = None) -> str | None:
 
 
 def antwoordadres() -> str | None:
-    """Reply-To van het rapport aan de bezoeker."""
-    return (_env("READINESS_REPLY_TO") or _env("WEBSITE_REPLY_TO")
-            or intern_adres(READINESS))
+    """Reply-To van het rapport aan de bezoeker, of None. Geen terugval op
+    het interne adres; zie de toelichting bovenaan."""
+    return _env("READINESS_REPLY_TO") or _env("WEBSITE_REPLY_TO") or None
 
 
 def afzendernaam() -> str:
@@ -127,8 +132,20 @@ def controleer(dns: bool = False) -> list[str]:
     return problemen
 
 
+def waarschuwingen() -> list[str]:
+    """Niet blokkerend, wel het melden waard."""
+    uit: list[str] = []
+    if not antwoordadres():
+        uit.append("geen antwoordadres voor het rapport (WEBSITE_REPLY_TO): een antwoord "
+                   "van de bezoeker gaat naar de afzender en komt niet aan")
+    return uit
+
+
 def meld_bij_start(dns: bool = True) -> list[str]:
-    """Logt elk probleem als ERROR, zodat het in `docker logs` opvalt."""
+    """Logt elk probleem als ERROR en elke waarschuwing als WARNING, zodat het
+    in `docker logs` opvalt."""
+    for waarschuwing in waarschuwingen():
+        log.warning("Website-mailconfiguratie: %s", waarschuwing)
     problemen = controleer(dns=dns)
     for probleem in problemen:
         log.error("Website-mailconfiguratie: %s — meldingen blijven in de wachtrij "

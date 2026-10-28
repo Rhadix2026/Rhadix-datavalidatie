@@ -21,6 +21,7 @@ from app.services.algemeen_benchmark import benchmark_against_reference
 from app.services.actuality_validator import validate_actuality, detect_date_fields, get_kikv_norm_for_schema
 from app.services.traceability import enrich_file_result, collect_all_issues
 from app.services.owl_validator import validate_structural, validate_relational
+from app.services import score_accounting as _acc
 from app.services.sparql_validator import validate_use_cases
 
 router = APIRouter()
@@ -129,6 +130,9 @@ def onvolledige_rijen_naar_meldingen(onvolledig: list) -> list[dict]:
             # voor ZibDashboard / ExpandableIssueRow
             "label":    f"{veld} — onvolledige rij",
             "detail":   f"{bericht} ({rij_tekst})",
+            # Bewust buiten de scoreberekening gehouden (B-17), dus zichtbaar als
+            # bevinding buiten de score in de verantwoording (B-22).
+            "in_score": False,
         })
     return meldingen
 
@@ -164,7 +168,42 @@ def voeg_onvolledige_rijen_toe(result: dict, onvolledige_per_bestand: dict) -> i
     if toegevoegd and isinstance(result.get("summary"), dict):
         s = result["summary"]
         s["error_count"] = s.get("error_count", 0) + toegevoegd
+    if toegevoegd:
+        _werk_verantwoording_bij(result)
     return toegevoegd
+
+
+def _werk_verantwoording_bij(result: dict) -> None:
+    """Bouwt `score_accounting` opnieuw op nadat de route meldingen heeft
+    toegevoegd (B-22). De controletellingen blijven staan — die zijn door de
+    validator bepaald en veranderen niet; alleen de bevindingen worden opnieuw
+    verdeeld over 'in de score' en 'buiten de score'.
+    """
+    oud = result.get("score_accounting")
+    if not isinstance(oud, dict):
+        return
+    versie = result.get("score_version") or {}
+    pad = versie.get("path") or result.get("standard") or "algemeen"
+    checks = oud.get("checks") or {}
+    label, waarde = _score_label_en_waarde(result)
+    result["score_accounting"] = _acc.bouw(
+        path=pad,
+        issues=[i for fr in (result.get("file_results") or []) for i in (fr.get("issues") or [])],
+        score_label=label,
+        score_waarde=waarde,
+        checks_executed=checks.get("executed"),
+        checks_passed=checks.get("passed"),
+        skipped=checks.get("skipped") or {},
+    )
+
+
+def _score_label_en_waarde(result: dict) -> tuple[str, object]:
+    """Welk cijfer de verantwoording beschrijft, per route."""
+    if isinstance(result.get("summary"), dict) and "quality" in result["summary"]:
+        return "Kwaliteitsscore", result["summary"]["quality"]
+    if result.get("standard") == "zib":
+        return "Rhadix-index", result.get("score")
+    return "Score", result.get("score")
 
 
 def _normalize_xml_value(val: str) -> str:

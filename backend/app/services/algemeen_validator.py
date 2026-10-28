@@ -6,6 +6,7 @@ Geen KIK-V of ZIB kennis vereist — checkt beschikbaarheid en basisformaten.
 from __future__ import annotations
 import re
 from typing import Any
+from app.services import score_accounting as _acc
 
 from app.services.dataquality import is_date
 from app.services.rules import normalize_verzuimtype, VERZUIMTYPE_VALUES
@@ -34,6 +35,8 @@ def _prescan_to_issues(rows: list[dict], known_cols: set[str]) -> list[dict]:
             "examples": [{"row": r.get("rowNumber"), "value": r.get("currentValue")}
                          for r in pi.get("rows", [])],
             "prescan":  True,
+            # De pre-scan-uitval telt mee in quality_checks, dus wél in de score.
+            "in_score": True,
         })
     return out
 
@@ -428,14 +431,22 @@ def validate_algemeen(files_input: list[dict]) -> dict:
         n_present   = sum(present_req.values())
         completeness = round(100 * n_present / max(len(req_fields), 1))
 
+        # Tellers voor de verantwoording (B-22, richting 1). Puur registreren;
+        # de formules hieronder blijven ongewijzigd.
+        n_overgeslagen_leeg = 0
+        n_velden_niet_in_kop = 0
+
         for f, present in present_req.items():
             if not present:
+                n_velden_niet_in_kop += 1
                 issues.append({
                     "field":    f,
                     "type":     "missing_field",
                     "message":  f"Verplicht veld '{f}' ontbreekt in de export.",
                     "severity": "error",
                     "count":    len(rows),
+                    # Verlaagt 'completeness', niet 'quality' — dus buiten de kwaliteitsscore.
+                    "in_score": False,
                 })
 
         # ── Kwaliteit: formaatvalidatie op aanwezige velden ────────────────
@@ -457,6 +468,9 @@ def validate_algemeen(files_input: list[dict]) -> dict:
                 # als float/int/bool; coerce naar string zodat formaatvalidatie niet crasht.
                 val = ("" if raw is None else str(raw)).strip()
                 if not val:
+                    # Een lege waarde telt voor geen van beide cijfers mee. Dat blijft zo;
+                    # het wordt nu alleen geteld zodat het zichtbaar is (B-22).
+                    n_overgeslagen_leeg += 1
                     continue
                 field_total += 1
                 if validator(val):
@@ -481,6 +495,8 @@ def validate_algemeen(files_input: list[dict]) -> dict:
                         "severity": severity,
                         "count":    fail_count,
                         "examples": field_issues,
+                        # Deze afkeuringen zitten in quality_checks, dus wél in de score.
+                        "in_score": True,
                     })
 
         # ── Schema-onafhankelijke pre-scan (E.164-telefoon, BSN-elfproef, IBAN,
@@ -513,6 +529,18 @@ def validate_algemeen(files_input: list[dict]) -> dict:
             "completeness": completeness,
             "quality":      quality,
             "rhadix_index": rhadix_index,
+            "score_accounting": _acc.bouw(
+                path="algemeen",
+                issues=issues,
+                score_label="Kwaliteitsscore",
+                score_waarde=quality,
+                checks_executed=quality_checks,
+                checks_passed=quality_passed,
+                skipped={
+                    "empty_values":  n_overgeslagen_leeg,
+                    "fields_absent": n_velden_niet_in_kop,
+                },
+            ),
             "issues":       issues,
             "required_fields": list(req_fields.keys()),
             "present_fields":  sorted(header_set & set(all_fields.keys())),
@@ -529,9 +557,35 @@ def validate_algemeen(files_input: list[dict]) -> dict:
         overall_quality = 99
     overall_index        = round(overall_completeness * overall_quality / 100)
 
+    # Verantwoording op totaalniveau: de tellingen opgeteld over de bestanden,
+    # plus het aantal bestanden dat buiten de gemiddelden is gelaten.
+    _alle_issues = [i for fr in file_results for i in fr.get("issues", [])]
+    _uitgevoerd = sum((fr.get("score_accounting") or {}).get("checks", {}).get("executed") or 0
+                      for fr in file_results)
+    _geslaagd = sum((fr.get("score_accounting") or {}).get("checks", {}).get("passed") or 0
+                    for fr in file_results)
+    _leeg = sum((fr.get("score_accounting") or {}).get("checks", {}).get("skipped", {}).get("empty_values") or 0
+                for fr in file_results)
+    _afwezig = sum((fr.get("score_accounting") or {}).get("checks", {}).get("skipped", {}).get("fields_absent") or 0
+                   for fr in file_results)
+
     return {
-        "standard":     "algemeen",
-        "file_results": file_results,
+        "standard":      "algemeen",
+        "score_version": _acc.score_version("algemeen"),
+        "file_results":  file_results,
+        "score_accounting": _acc.bouw(
+            path="algemeen",
+            issues=_alle_issues,
+            score_label="Kwaliteitsscore",
+            score_waarde=overall_quality,
+            checks_executed=_uitgevoerd,
+            checks_passed=_geslaagd,
+            skipped={
+                "empty_values":           _leeg,
+                "fields_absent":          _afwezig,
+                "files_without_template": len(file_results) - len(known),
+            },
+        ),
         "summary": {
             "completeness": overall_completeness,
             "quality":      overall_quality,

@@ -12,6 +12,7 @@ import re
 from typing import Any
 from app.services.zib_rules import ZIB_FIELD_RULES, detect_zib_schema
 from app.services.dataquality import is_date
+from app.services import score_accounting as _acc
 from app.services.prescan import (
     detect_format, validate_format,
     prescan_columns, prescan_quality_stats,
@@ -336,6 +337,17 @@ def validate_zib(files: list[dict]) -> dict:
         "rhadix_index":         avg_rhadix,
         "dataverzuim":          avg_dataverzuim,
         "score":                avg_rhadix,
+        # Verantwoording (B-22, richting 1). Deze route rekent met een index over
+        # beschikbaarheid en kwaliteit en telt geen losse waardecontroles; `checks`
+        # blijft daarom leeg, met dezelfde sleutels als de andere routes.
+        "score_version":        _acc.score_version("zib"),
+        "score_accounting":     _acc.bouw(
+            path="zib",
+            issues=[dict(i, in_score=True)
+                    for fr in file_results for i in (fr.get("issues") or [])],
+            score_label="Rhadix-index",
+            score_waarde=avg_rhadix,
+        ),
         "file_results":         file_results,
         "run_id":               None,
         "created_at":           None,

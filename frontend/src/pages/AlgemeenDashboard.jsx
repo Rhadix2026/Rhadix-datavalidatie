@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Nav, NavBack, NavLink, Page , TruncationWarning } from '../components/UI'
 import BenchmarkBar from '../components/BenchmarkBar'
 import { voorbeeldenLabel } from '../lib/validatiemeldingen'
+import ScoreVerantwoording from '../components/ScoreVerantwoording'
 
 function ScoreBadge({ value, size = 'md' }) {
   const color = value >= 85 ? '#059669' : value >= 65 ? 'var(--blue)' : value >= 50 ? '#f59e0b' : '#ef4444'
@@ -338,7 +339,8 @@ function CrossChecksSection({ checks }) {
 export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack, authUser }) {
   const [showBenchmark, setShowBenchmark] = useState(false)
   if (!results) return null
-  const { file_results = [], summary = {}, benchmark = null, cross_checks = [] } = results
+  const { file_results = [], summary = {}, benchmark = null, cross_checks = [],
+          score_accounting = null, score_version = null } = results
 
   const indexColor = summary.rhadix_index >= 85 ? '#059669'
     : summary.rhadix_index >= 65 ? 'var(--blue)'
@@ -388,6 +390,7 @@ export default function AlgemeenDashboard({ results, onNewScan, onHome, onBack, 
               ))}
             </div>
           </div>
+          <ScoreVerantwoording accounting={score_accounting} version={score_version} />
         </div>
 
         {authUser && (file_results.some(r => (r.issues||[]).length > 0) || cross_checks.length > 0) && (

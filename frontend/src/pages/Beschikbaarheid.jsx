@@ -1,4 +1,5 @@
 import { Nav, NavBack, Page, PageTitle, BtnPrimary, BtnOutline, ProgressBar, GapRow, ExpandableIssueRow } from '../components/UI'
+import ScoreVerantwoording from '../components/ScoreVerantwoording'
 
 function scoreColor(s) {
   return s >= 80 ? 'var(--green)' : s >= 60 ? 'var(--amber)' : 'var(--red)'
@@ -90,6 +91,10 @@ export default function Beschikbaarheid({ results, systems, step1Completed, step
             <div style={{ fontSize: 48, fontWeight: 800, color: 'var(--blue)', letterSpacing: '-0.04em', lineHeight: 1 }}>{score}</div>
           </div>
           <ProgressBar value={score} color={scoreColor(score)} />
+          <ScoreVerantwoording
+            accounting={results?.score_accounting}
+            version={results?.score_version}
+          />
 
           {/* Sub scores */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginTop: 16 }}>

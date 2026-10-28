@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Nav, NavLink, Page, BtnPrimary, ProgressBar, StatusBadge, StatusIcon, ExpandableIssueRow, GapRow , TruncationWarning } from '../components/UI'
 import { MaakTakenButton } from '../components/TaskUI'
+import ScoreVerantwoording from '../components/ScoreVerantwoording'
 
 // ── Rhadix Index uitleg ───────────────────────────────────────────────────────
 function RhadixUitleg({ score1, score2, radixIndex }) {
@@ -272,6 +273,10 @@ export default function Dashboard({ results, scanHistory = [], step1Completed, s
             )
           })}
         </div>
+        <ScoreVerantwoording
+          accounting={results?.score_accounting}
+          version={results?.score_version}
+        />
 
         {/* Rapporten card — alle 3 rapporten, per stap gelabeld */}
         {results?.run_id && (

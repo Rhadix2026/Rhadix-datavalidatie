@@ -16,6 +16,7 @@ from app.services.rules import (
     get_concept_uri,
     format_allowed_short,
 )
+from app.services import score_accounting as _acc
 
 # ─── KIK-V REFERENCE SCHEMA ──────────────────────────────────────────────────
 KIKV_REFERENCE = {
@@ -1020,6 +1021,12 @@ def validate_files(files_input: list) -> dict:
     max_issues   = total_rows * max(len(file_results), 1)
     score        = max(0.0, round(100.0 - (total_errors * 5 + total_warns * 2), 1))
 
+    # Verantwoording (B-22, richting 1). Deze route straft bevindingen af en telt
+    # geen waardecontroles; `checks` blijft daarom leeg, met behoud van dezelfde
+    # sleutels zodat het contract over de drie routes gelijk is.
+    _alle = [dict(i, in_score=True) for fr in file_results for i in fr.get("issues", [])]
+    _alle += [dict(c, in_score=True, type=c.get("type") or "cross_check") for c in cross_results]
+
     return {
         "file_results":   file_results,
         "cross_results":  cross_results,
@@ -1027,5 +1034,12 @@ def validate_files(files_input: list) -> dict:
         "total_errors":   total_errors,
         "total_warns":    total_warns,
         "score":          score,
+        "score_version":  _acc.score_version("kikv"),
+        "score_accounting": _acc.bouw(
+            path="kikv",
+            issues=_alle,
+            score_label="Score",
+            score_waarde=score,
+        ),
         "files_summary":  [{"filename": fr["filename"], "schema_key": fr["schema_key"], "row_count": fr["row_count"]} for fr in file_results],
     }

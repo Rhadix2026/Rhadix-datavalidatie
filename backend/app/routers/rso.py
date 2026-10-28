@@ -26,7 +26,7 @@ Rechten (conform besluit):
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -252,6 +252,7 @@ class UpdateRsoUserRequest(BaseModel):
 
 @router.patch("/users/{user_id}")
 def update_rso_user(
+    request: Request,
     user_id: str,
     body: UpdateRsoUserRequest,
     db: Session = Depends(get_db),
@@ -284,7 +285,7 @@ def update_rso_user(
     if rol_gewijzigd:
         from app.audit import ROLE_CHANGED
         from app.services import beveiligingsregel
-        beveiligingsregel.toepassen(db, ROLE_CHANGED, target, door=user, nieuwe_rol=target.role.value)
+        beveiligingsregel.toepassen(db, ROLE_CHANGED, target, request=request, door=user, nieuwe_rol=target.role.value)
     return {"id": str(target.id), "email": target.email,
             "full_name": target.full_name, "role": target.role.value}
 
@@ -304,6 +305,7 @@ def _is_last_active_rso_admin(db: Session, root_id: uuid.UUID, target: User) -> 
 
 @router.patch("/users/{user_id}/deactivate")
 def toggle_rso_user_active(
+    request: Request,
     user_id: str,
     db: Session = Depends(get_db),
     user: User  = Depends(_require_rso),
@@ -322,7 +324,7 @@ def toggle_rso_user_active(
     from app.audit import USER_DEACTIVATED, USER_REACTIVATED
     from app.services import beveiligingsregel
     beveiligingsregel.toepassen(db, USER_REACTIVATED if target.is_active else USER_DEACTIVATED, target,
-                                door=user, intrekken=not target.is_active)
+                                request=request, door=user, intrekken=not target.is_active)
     return {"id": str(target.id), "email": target.email, "is_active": target.is_active}
 
 
@@ -332,6 +334,7 @@ class RsoResetPasswordRequest(BaseModel):
 
 @router.post("/users/{user_id}/reset-password", status_code=204)
 def reset_rso_user_password(
+    request: Request,
     user_id: str,
     body: RsoResetPasswordRequest,
     db: Session = Depends(get_db),
@@ -347,7 +350,7 @@ def reset_rso_user_password(
     db.commit()
     from app.audit import PASSWORD_RESET_BY_ADMIN
     from app.services import beveiligingsregel
-    beveiligingsregel.toepassen(db, PASSWORD_RESET_BY_ADMIN, target, door=user)
+    beveiligingsregel.toepassen(db, PASSWORD_RESET_BY_ADMIN, target, request=request, door=user)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

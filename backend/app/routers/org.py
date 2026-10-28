@@ -14,7 +14,7 @@ GET    /api/org/license                          — eigen licentie inzien (alle
 """
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -183,6 +183,7 @@ ROLLEN_VOOR_ORG_ADMIN = {UserRole.ORG_USER, UserRole.ORG_ADMIN}
 
 @router.patch("/users/{user_id}")
 def update_org_user(
+    request: Request,
     user_id: str,
     body:         UpdateOrgUserRequest,
     db:           Session = Depends(get_db),
@@ -230,7 +231,7 @@ def update_org_user(
     if rol_gewijzigd:
         from app.audit import ROLE_CHANGED
         from app.services import beveiligingsregel
-        beveiligingsregel.toepassen(db, ROLE_CHANGED, user, door=current_user, nieuwe_rol=user.role.value)
+        beveiligingsregel.toepassen(db, ROLE_CHANGED, user, request=request, door=current_user, nieuwe_rol=user.role.value)
     return {
         "id":        str(user.id),
         "email":     user.email,
@@ -242,6 +243,7 @@ def update_org_user(
 
 @router.patch("/users/{user_id}/deactivate")
 def toggle_user_active(
+    request: Request,
     user_id: str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(_org_roles),
@@ -263,12 +265,13 @@ def toggle_user_active(
     from app.audit import USER_DEACTIVATED, USER_REACTIVATED
     from app.services import beveiligingsregel
     beveiligingsregel.toepassen(db, USER_REACTIVATED if user.is_active else USER_DEACTIVATED, user,
-                                door=current_user, intrekken=not user.is_active)
+                                request=request, door=current_user, intrekken=not user.is_active)
     return {"id": str(user.id), "is_active": user.is_active}
 
 
 @router.delete("/users/{user_id}", status_code=204)
 def delete_org_user(
+    request: Request,
     user_id: str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(_org_roles),
@@ -285,11 +288,12 @@ def delete_org_user(
     db.commit()
     from app.audit import USER_DELETED
     from app.services import beveiligingsregel
-    beveiligingsregel.toepassen(db, USER_DELETED, user, door=current_user)
+    beveiligingsregel.toepassen(db, USER_DELETED, user, request=request, door=current_user)
 
 
 @router.post("/users/{user_id}/reset-password", status_code=204)
 def reset_user_password(
+    request: Request,
     user_id: str,
     body:         ResetPasswordRequest,
     db:           Session = Depends(get_db),
@@ -307,7 +311,7 @@ def reset_user_password(
     db.commit()
     from app.audit import PASSWORD_RESET_BY_ADMIN
     from app.services import beveiligingsregel
-    beveiligingsregel.toepassen(db, PASSWORD_RESET_BY_ADMIN, user, door=current_user)
+    beveiligingsregel.toepassen(db, PASSWORD_RESET_BY_ADMIN, user, request=request, door=current_user)
 
 
 @router.get("/users/{user_id}/apps")
@@ -395,6 +399,7 @@ def assign_app_to_user(
 
 @router.delete("/users/{user_id}/apps/{app_id}", status_code=204)
 def revoke_app_from_user(
+    request: Request,
     user_id: str,
     app_id:  str,
     db:           Session = Depends(get_db),
@@ -420,7 +425,7 @@ def revoke_app_from_user(
     db.commit()
     from app.audit import APP_REVOKED
     from app.services import beveiligingsregel
-    beveiligingsregel.toepassen(db, APP_REVOKED, target_user, door=current_user, application_id=str(aid))
+    beveiligingsregel.toepassen(db, APP_REVOKED, target_user, request=request, door=current_user, application_id=str(aid))
 
 
 @router.get("/license")

@@ -43,6 +43,35 @@ def _fk_pragma(conn, _):
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Website-aanvragen hebben een eigen engine (app/website/opslag.py); in de tests
+# een eigen SQLite in het geheugen, los van de Datavalidatie-tabellen hierboven.
+from app.website import opslag as website_opslag  # noqa: E402
+
+website_engine = create_engine("sqlite://", connect_args={"check_same_thread": False},
+                               poolclass=StaticPool)
+website_opslag.gebruik_engine(website_engine)
+website_opslag.Basis.metadata.create_all(bind=website_opslag.engine())
+
+
+@pytest.fixture
+def website_mail(monkeypatch):
+    """Mail aan en een intern adres, zoals op een ingerichte omgeving. De
+    mailfuncties zelf worden in de tests vervangen; er gaat niets de deur uit."""
+    monkeypatch.setenv("MAIL_ENABLED", "true")
+    monkeypatch.setenv("SMTP_HOST", "smtp.test")
+    monkeypatch.setenv("WEBSITE_INTERN_ADRES", "intern@voorbeeld.nl")
+    for sleutel in ("CONTACT_ONTVANGER", "READINESS_INTERN_ADRES", "READINESS_REPLY_TO",
+                    "WEBSITE_REPLY_TO", "WEBSITE_OPSLAG"):
+        monkeypatch.delenv(sleutel, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def schone_website_opslag():
+    yield
+    with website_opslag.sessie() as s:
+        s.query(website_opslag.Stap).delete()
+        s.query(website_opslag.Aanvraag).delete()
+
 
 def override_get_db():
     db = TestingSessionLocal()

@@ -88,12 +88,18 @@ def send_email(to: str, subject: str, html: str, text: str | None = None,
                 if user:
                     s.login(user, pw)
                 s.send_message(msg)
-        log.info("Mail verzonden naar %s (%s)", to, subject)
+        log.info("Mail verzonden naar %s (%s)", _maskeer(to), subject)
         return True
     except Exception:
         import traceback
         log.error("Mail verzenden mislukt:\n%s", traceback.format_exc())
         return False
+
+
+def _maskeer(adres: str) -> str:
+    """j***@voorbeeld.nl: herkenbaar in de log, niet bruikbaar als adres."""
+    lokaal, _, domein = (adres or "").partition("@")
+    return f"{lokaal[:1]}***@{domein}" if domein else "—"
 
 
 def _html_to_text(html: str) -> str:

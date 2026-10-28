@@ -13,11 +13,13 @@ werkende route van.
 
 Bewust geïsoleerd — dezelfde afbakening als `readiness.py`:
 
-* **geen databasesessie** en geen model-import, dus geen enkele toegang tot de
-  productiegegevens van Datavalidatie, Rhadix of het CRM;
+* **geen databasesessie van Datavalidatie** en geen model-import, dus geen
+  toegang tot de productiegegevens van Datavalidatie, Rhadix of het CRM;
 * **geen authenticatie en geen tenantcontext**;
-* **geen opslag** — het bericht wordt per e-mail doorgezet en daarna losgelaten.
-  De begrenzing houdt alleen hashes in het geheugen van het proces bij.
+* **eerst vastleggen, dan doorsturen** — het bericht wordt vastgelegd in de
+  eigen website-opslag (`app.website`), daarna per e-mail doorgezet en in het
+  CRM geregistreerd. Mislukt een van beide, dan probeert de herhaaltaak het
+  later opnieuw; het bericht zelf gaat niet verloren.
 
 Het antwoordadres van de mail is het adres van de afzender, zodat een reactie
 rechtstreeks bij de bezoeker uitkomt.
@@ -29,9 +31,10 @@ import logging
 from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.services import contact_mail
-from app.services import readiness_crm as crm
 from app.services import readiness_limiet as limiet
+from app.website import opslag as website_opslag
+from app.website import verwerking as website
+from app.website.velden import geldige_aanvraag_id
 
 log = logging.getLogger("rhadix.contact")
 
@@ -62,6 +65,11 @@ class ContactVerzoek(BaseModel):
     utm_campaign: str = Field(default="", max_length=160)
     utm_content: str = Field(default="", max_length=160)
     utm_term: str = Field(default="", max_length=160)
+    # Door de browser per formulier gemaakt; dezelfde id nog eens = dezelfde
+    # inzending, geen tweede bericht.
+    aanvraag_id: str = Field(default="", max_length=36)
+
+    controleer_aanvraag_id = field_validator("aanvraag_id")(geldige_aanvraag_id)
 
     @field_validator("naam", "organisatie", "telefoon", "onderwerp")
     @classmethod
@@ -83,8 +91,10 @@ class ContactVerzoek(BaseModel):
 
 class ContactAntwoord(BaseModel):
     ok: bool
-    verzonden: bool
+    verzonden: bool               # de melding aan ons is verstuurd
     herhaling: bool = False
+    opgeslagen: bool = False      # het bericht is duurzaam vastgelegd
+    aanvraag_id: str | None = None
 
 
 @router.post("", response_model=ContactAntwoord,
@@ -120,34 +130,28 @@ def contact(verzoek: ContactVerzoek, response: Response) -> ContactAntwoord:
             "Probeer het later opnieuw, of bel ons.",
         )
 
-    # 4 — Doorsturen.
-    if not contact_mail.verstuur(
-        naam=verzoek.naam, email=verzoek.email, organisatie=verzoek.organisatie,
-        telefoon=verzoek.telefoon, bericht=verzoek.bericht, onderwerp=verzoek.onderwerp,
-    ):
-        log.error("Contact: bericht kon niet worden verstuurd")
+    # 4 — Vastleggen, dan doorsturen en in het CRM registreren. Spam komt hier
+    #     niet: honeypot en herhaling keren hierboven al terug.
+    ontvangst = website.ontvang(website.CONTACT, {
+        "naam": verzoek.naam, "email": verzoek.email, "organisatie": verzoek.organisatie,
+        "telefoon": verzoek.telefoon, "bericht": verzoek.bericht,
+        "onderwerp": verzoek.onderwerp, "van": verzoek.van, "cta": verzoek.cta,
+        "campagne": {s: getattr(verzoek, s) for s in
+                     ("utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term")
+                     if getattr(verzoek, s)} or None,
+    }, aanvraag_id=verzoek.aanvraag_id or None)
+    verzonden = ontvangst.gelukt(website_opslag.MAIL_INTERN)
+
+    if not ontvangst.opgeslagen and not verzonden:
+        log.error("Contact: bericht niet verstuurd en niet vastgelegd")
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,
             "Uw bericht kon nu niet worden verstuurd. Probeer het later opnieuw of "
             "mail ons rechtstreeks.",
         )
 
-    limiet.leg_vast(afdruk, verzoek.email)
+    if ontvangst.nieuw:
+        limiet.leg_vast(afdruk, verzoek.email)
 
-    # 5 — Vastleggen in het CRM. Staat bewust ná de verzending en vangt zijn
-    #     eigen fouten af: het bericht van de bezoeker is belangrijker dan de
-    #     registratie, en een haperend CRM mag nooit een contactformulier breken.
-    #
-    #     Spam komt hier niet: honeypot en herhaling keren hierboven al terug,
-    #     vóór dit punt. Alleen berichten die werkelijk zijn doorgestuurd,
-    #     belanden in het CRM.
-    campagne = {s: getattr(verzoek, s) for s in
-                ("utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term")
-                if getattr(verzoek, s)}
-    crm.registreer_bericht(
-        naam=verzoek.naam, email=verzoek.email, organisatie=verzoek.organisatie,
-        telefoon=verzoek.telefoon, onderwerp=verzoek.onderwerp, bericht=verzoek.bericht,
-        van=verzoek.van, cta_code=verzoek.cta, campagne=campagne or None,
-    )
-
-    return ContactAntwoord(ok=True, verzonden=True)
+    return ContactAntwoord(ok=True, verzonden=verzonden, herhaling=not ontvangst.nieuw,
+                           opgeslagen=ontvangst.opgeslagen, aanvraag_id=ontvangst.aanvraag_id)

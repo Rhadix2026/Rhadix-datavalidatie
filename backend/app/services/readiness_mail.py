@@ -24,19 +24,26 @@ postbus van Rhoderlanden terecht.
 Een eigen verzenddomein is later één configuratiestap — domein verifiëren, SPF
 en DKIM publiceren — en vraagt geen wijziging in deze code.
 
-Geen opslag
------------
-Naam, organisatie en e-mailadres worden uitsluitend gebruikt om deze twee mails
-te versturen. Er wordt niets in een database of CRM vastgelegd.
+Adressen
+--------
+Het interne adres en het antwoordadres komen uit `app.website.instellingen`.
+Er is **geen ingebouwde standaard** meer: ontbreekt het adres, dan gaat er
+niets weg en blijft de melding in de wachtrij van `app.website` staan tot het
+is ingesteld.
+
+Opslag
+------
+Deze module verstuurt alleen. De aanvraag zelf wordt vóór het versturen
+vastgelegd door `app.website.opslag`, en voor opvolging geregistreerd in het
+CRM (`readiness_crm.py`).
 """
 from __future__ import annotations
 
-import os
+from functools import partial
 
 from app.services.mailer import send_email
 from app.services.readiness_rapport import Rapport
-
-STANDAARD_ADRES = "info@rhoderlandengroep.nl"
+from app.website import instellingen
 
 # Huisstijl van de Rhoderlanden-site.
 DONKER = "#0f1712"
@@ -47,26 +54,10 @@ LIJN = "#dfe4d4"
 TINT = "#eef4e3"
 
 
-def _uit_omgeving(sleutel: str, standaard: str) -> str:
-    """Leest een instelling, maar behandelt een lege waarde als niet gezet.
-
-    De compose-bestanden geven deze variabelen altijd door, desnoods leeg
-    (`${READINESS_REPLY_TO:-}`). Zonder deze controle zou zo'n lege waarde de
-    standaard overrulen en zouden er mails zonder ontvanger ontstaan.
-    """
-    return (os.getenv(sleutel) or "").strip() or standaard
-
-
-def intern_adres() -> str:
-    return _uit_omgeving("READINESS_INTERN_ADRES", STANDAARD_ADRES)
-
-
-def antwoordadres() -> str:
-    return _uit_omgeving("READINESS_REPLY_TO", STANDAARD_ADRES)
-
-
-def afzendernaam() -> str:
-    return _uit_omgeving("READINESS_AFZENDERNAAM", "Rhoderlanden Groep")
+# De adressen staan centraal; deze namen blijven bestaan voor bestaande aanroepen.
+intern_adres = partial(instellingen.intern_adres, instellingen.READINESS)
+antwoordadres = instellingen.antwoordadres
+afzendernaam = instellingen.afzendernaam
 
 
 def _esc(tekst: str) -> str:
@@ -152,8 +143,10 @@ def rapport_html(rapport: Rapport) -> str:
 
         f'<hr style="border:none;border-top:1px solid {LIJN};margin:24px 0 12px;">'
         f'<p style="margin:0;font-size:11px;color:#7a8272;">U ontvangt deze e-mail omdat u op '
-        f'de website van Rhoderlanden Groep om dit rapport heeft gevraagd. Uw naam, organisatie '
-        f'en e-mailadres zijn alleen gebruikt om deze mail te versturen en worden niet bewaard.</p>'
+        f'de website van Rhoderlanden Groep om dit rapport heeft gevraagd. Hoe wij uw naam, '
+        f'organisatie en e-mailadres gebruiken en hoe lang wij ze bewaren, leest u in onze '
+        f'<a href="https://rhoderlandengroep.nl/privacyverklaring.html" style="color:#7a8272;">'
+        f'privacyverklaring</a>.</p>'
     )
     return _omhulsel(inhoud)
 
@@ -173,7 +166,7 @@ def verstuur_rapport(rapport: Rapport, email: str, pdf: bytes) -> bool:
 
 # ── Signaalmail aan Rhoderlanden ──────────────────────────────────────────────
 
-def signaal_html(rapport: Rapport, email: str) -> str:
+def signaal_html(rapport: Rapport, email: str, aanvraag_id: str | None = None) -> str:
     punten = rapport.prioritering[0][1][:2] if rapport.prioritering else []
     lijst = "".join(
         f'<li style="margin-bottom:6px;"><b>{_esc(naam)}</b> ({score}) — {_esc(tekst)}</li>'
@@ -196,20 +189,25 @@ def signaal_html(rapport: Rapport, email: str) -> str:
         f'style="width:100%;font-size:14px;margin-bottom:18px;">{rijen}</table>'
         + (f'<p style="margin:0 0 6px;font-weight:bold;">Belangrijkste aandachtspunten</p>'
            f'<ul style="margin:0 0 18px;padding-left:20px;font-size:14px;">{lijst}</ul>' if lijst else "")
-        + f'<p style="margin:0;font-size:13px;color:#7a8272;">Het volledige rapport is naar de '
-          f'aanvrager gestuurd en gaat hier bewust niet mee. Er is niets opgeslagen: deze mail '
-          f'is de enige vastlegging.</p>'
+        + '<p style="margin:0;font-size:13px;color:#7a8272;">Het volledige rapport is naar de '
+          'aanvrager gestuurd en gaat hier bewust niet mee. De aanvraag is vastgelegd'
+          + (f' onder nummer <b>{_esc(aanvraag_id)}</b>' if aanvraag_id else '')
+          + ' en wordt in het CRM geregistreerd voor opvolging.</p>'
     )
 
 
-def verstuur_signaal(rapport: Rapport, email: str) -> bool:
-    """Korte interne melding. Geen bijlage."""
+def verstuur_signaal(rapport: Rapport, email: str, aanvraag_id: str | None = None) -> bool:
+    """Korte interne melding. Geen bijlage. Zonder intern adres gaat er niets
+    weg en is de uitkomst False."""
+    adres = intern_adres()
+    if not adres:
+        return False
     onderwerp = (f"Readiness-aanvraag: {rapport.organisatie} — "
                  f"{rapport.soort} {rapport.totaal}/100")
     return send_email(
-        to=intern_adres(),
+        to=adres,
         subject=onderwerp,
-        html=signaal_html(rapport, email),
+        html=signaal_html(rapport, email, aanvraag_id),
         from_name=afzendernaam(),
         reply_to=email,          # antwoorden gaat rechtstreeks naar de aanvrager
     )

@@ -60,17 +60,25 @@ services:
       AUTH_INVITE_TTL_DAYS:  ${AUTH_INVITE_TTL_DAYS:-7}
       AUTH_VERIFY_TTL_HOURS: ${AUTH_VERIFY_TTL_HOURS:-24}
       # ── Readiness-rapport (Rhoderlanden-website) ──────────────────────────
-      # Wie de interne signaalmail ontvangt, welk antwoordadres de bezoeker
-      # krijgt en onder welke naam wordt verstuurd. Zonder deze waarden valt de
-      # code terug op info@rhoderlandengroep.nl; op staging wijzen we ze bewust
-      # naar een testadres zodat er tijdens het testen niets bij Rhoderlanden
-      # binnenkomt.
+      # Specifieke overschrijvingen van WEBSITE_INTERN_ADRES / WEBSITE_REPLY_TO
+      # (zie hieronder) en de afzendernaam. Op staging wijzen ze bewust naar een
+      # testadres zodat er tijdens het testen niets bij Rhoderlanden binnenkomt.
       READINESS_INTERN_ADRES: ${READINESS_INTERN_ADRES:-}
       READINESS_REPLY_TO:     ${READINESS_REPLY_TO:-}
       READINESS_AFZENDERNAAM: ${READINESS_AFZENDERNAAM:-}
-      # Ontvanger van het contactformulier op de website. Zonder waarde geldt
-      # info@rhoderlandengroep.nl; op staging wijst dit naar een testpostbus.
+      # Ontvanger van het contactformulier op de website; gaat vóór het
+      # centrale WEBSITE_INTERN_ADRES. Op staging wijst dit naar een testpostbus.
       CONTACT_ONTVANGER:      ${CONTACT_ONTVANGER:-}
+      # ── Website-aanvragen (app/website) ───────────────────────────────────
+      # Centraal intern adres voor alle website-meldingen en het dagoverzicht,
+      # en het antwoordadres van het rapport. Er is GEEN ingebouwde standaard:
+      # zonder adres blijven meldingen in de wachtrij en meldt /api/health
+      # website.mail = onvolledig.
+      WEBSITE_INTERN_ADRES:   ${WEBSITE_INTERN_ADRES:-}
+      WEBSITE_REPLY_TO:       ${WEBSITE_REPLY_TO:-}
+      # aan = eerst vastleggen, dan verwerken; uit = oude werkwijze (rollback).
+      WEBSITE_OPSLAG:         ${WEBSITE_OPSLAG:-aan}
+      WEBSITE_BEWAARTERMIJN_DAGEN: ${WEBSITE_BEWAARTERMIJN_DAGEN:-90}
       # CRM-registratie van rapportaanvragen. Zonder serviceaccount slaat de
       # koppeling over; de rapportaanvraag werkt dan gewoon door.
       CRM_BASIS_URL:          ${CRM_BASIS_URL:-}

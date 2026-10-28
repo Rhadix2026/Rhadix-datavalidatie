@@ -5,22 +5,26 @@ readiness.py — Publiek endpoint voor het Readiness-rapport van Rhoderlanden Gr
 
 Bewust geïsoleerd
 -----------------
-Deze router staat volledig los van de rest van Datavalidatie:
+Deze router staat los van de rest van Datavalidatie:
 
-* **geen databasesessie** — er is geen `Depends(get_db)` en er wordt geen model
-  geïmporteerd. Deze code kan dus niets lezen of schrijven in de database van
-  Datavalidatie of Rhadix;
+* **geen databasesessie van Datavalidatie** — er is geen `Depends(get_db)` en er
+  wordt geen model uit `app.models` geïmporteerd. Deze code kan dus niets lezen
+  of schrijven in de tabellen van Datavalidatie of Rhadix;
 * **geen authenticatie en geen tenantcontext** — geen `Depends(get_current_user)`,
-  geen organisatie, geen rol, geen applicatietoegang;
-* **geen opslag hier** — naam, organisatie en e-mailadres worden gebruikt om
-  twee mails te versturen en daarna losgelaten. De begrenzing bewaart alleen
-  hashes in het geheugen van het proces.
+  geen organisatie, geen rol, geen applicatietoegang.
 
-Eén uitzondering op dat laatste: de aanvraag wordt voor commerciële opvolging
-geregistreerd in het **CRM**. Dat gebeurt niet via de database maar over HTTPS,
-met een eigen serviceaccount, in `readiness_crm.py` — het enige punt dat naar
-buiten praat. Lukt dat niet, dan merkt de bezoeker er niets van: hij heeft zijn
-rapport dan al ontvangen. Zie stap 7 hieronder.
+Vastleggen vóór versturen
+-------------------------
+De aanvraag wordt eerst vastgelegd in de eigen website-opslag (`app.website`,
+schema `website`, eigen engine), en pas daarna verwerkt: het rapport aan de
+bezoeker, de melding aan ons en de registratie in het CRM. Mislukt een van die
+stappen, dan gaat de aanvraag niet verloren: de herhaaltaak probeert het later
+opnieuw. Is de opslag zelf niet beschikbaar, dan valt het endpoint terug op de
+werkwijze van vóór deze wijziging.
+
+Het antwoord zegt wat er werkelijk gebeurd is: `opgeslagen` (vastgelegd) en
+`rapport` (`verzonden`, `in_wachtrij` of `mislukt`). De website baseert zijn
+melding en zijn conversiemeting daarop.
 
 Wat het endpoint wél doet, staat hieronder in `rapport()`, in die volgorde.
 
@@ -39,14 +43,13 @@ import logging
 from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.services import readiness_crm as crm
 from app.services import readiness_limiet as limiet
-from app.services import readiness_mail as mail
-from app.services.readiness_pdf import bouw_pdf
-from app.services.readiness_rapport import bouw
 from app.services.readiness_scoring import (
     AANTAL_VRAGEN, GELDIGE_CHECKS, bereken, controleer_antwoorden,
 )
+from app.website import opslag as website_opslag
+from app.website import verwerking as website
+from app.website.velden import geldige_aanvraag_id
 
 log = logging.getLogger("rhadix.readiness")
 
@@ -76,6 +79,11 @@ class RapportVerzoek(BaseModel):
     utm_campaign: str = Field(default="", max_length=160)
     utm_content: str = Field(default="", max_length=160)
     utm_term: str = Field(default="", max_length=160)
+    # Door de browser per formulier gemaakt; dezelfde id nog eens = dezelfde
+    # inzending (dubbelklik, netwerkherhaling), geen tweede aanvraag.
+    aanvraag_id: str = Field(default="", max_length=36)
+
+    controleer_aanvraag_id = field_validator("aanvraag_id")(geldige_aanvraag_id)
 
     def campagne(self) -> dict:
         velden = {
@@ -115,6 +123,9 @@ class RapportAntwoord(BaseModel):
     dimensies: list[dict]
     verzonden: bool
     herhaling: bool = False
+    opgeslagen: bool = False
+    aanvraag_id: str | None = None
+    rapport: str = ""              # verzonden | in_wachtrij | mislukt
 
 
 @router.post("/report", response_model=RapportAntwoord,
@@ -156,40 +167,36 @@ def rapport(verzoek: RapportVerzoek, response: Response) -> RapportAntwoord:
             "Probeer het later opnieuw, of neem contact met ons op.",
         )
 
-    # 5 — Rapport opbouwen en versturen.
-    opzet = bouw(uitslag, naam=verzoek.naam, organisatie=verzoek.organisatie)
-    try:
-        pdf = bouw_pdf(opzet)
-    except Exception:
-        log.exception("Readiness: PDF bouwen mislukt")
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            "Het rapport kon niet worden opgemaakt.")
+    # 5 — Eerst vastleggen, dan verwerken: rapport aan de bezoeker, melding aan
+    #     ons, registratie in het CRM. Elke stap staat los van de andere.
+    ontvangst = website.ontvang(
+        website.RAPPORT,
+        {"check": verzoek.check, "antwoorden": verzoek.antwoorden, "naam": verzoek.naam,
+         "organisatie": verzoek.organisatie, "email": verzoek.email,
+         "campagne": verzoek.campagne()},
+        check_soort=verzoek.check, aanvraag_id=verzoek.aanvraag_id or None,
+    )
+    stap = website_opslag.MAIL_BEZOEKER
+    rapportstand = ("verzonden" if ontvangst.gelukt(stap)
+                    else "in_wachtrij" if ontvangst.opgeslagen and ontvangst.openstaand(stap)
+                    else "mislukt")
 
-    verzonden = mail.verstuur_rapport(opzet, verzoek.email, pdf)
-    if not verzonden:
-        # Niets vastleggen: de bezoeker moet het opnieuw kunnen proberen.
-        log.error("Readiness: rapport kon niet worden verzonden")
+    if not ontvangst.opgeslagen and rapportstand != "verzonden":
+        # Niet vastgelegd én niet verstuurd: niets te beloven. De bezoeker moet
+        # het opnieuw kunnen proberen.
+        log.error("Readiness: rapport niet verzonden en aanvraag niet vastgelegd")
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,
             "Het rapport kon nu niet worden verstuurd. Probeer het later opnieuw.",
         )
 
-    # 6 — Signaalmail. Mislukt die, dan blijft het rapport van de bezoeker
-    #     gewoon staan; dit mag zijn verzoek niet laten falen.
-    if not mail.verstuur_signaal(opzet, verzoek.email):
-        log.warning("Readiness: signaalmail naar Rhoderlanden mislukt")
-
-    # 7 — Registratie in het CRM voor commerciële opvolging. Nadrukkelijk ná de
-    #     verzending en nadrukkelijk niet blokkerend: het rapport is al onderweg
-    #     en een storing in het CRM mag de bezoeker niets kosten. Dezelfde PDF
-    #     gaat mee, er wordt er geen tweede gemaakt.
-    crm.registreer(uitslag, naam=verzoek.naam, organisatie=verzoek.organisatie,
-                   email=verzoek.email, pdf=pdf, campagne=verzoek.campagne())
-
-    limiet.leg_vast(afdruk, verzoek.email)
+    if ontvangst.nieuw:
+        limiet.leg_vast(afdruk, verzoek.email)
 
     return RapportAntwoord(
         ok=True, totaal=uitslag.totaal, categorie=uitslag.categorie,
         dimensies=[{"naam": d.naam, "score": d.score} for d in uitslag.dimensies],
-        verzonden=True,
+        verzonden=rapportstand == "verzonden", herhaling=not ontvangst.nieuw,
+        opgeslagen=ontvangst.opgeslagen, aanvraag_id=ontvangst.aanvraag_id,
+        rapport=rapportstand,
     )

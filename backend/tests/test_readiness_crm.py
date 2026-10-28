@@ -81,6 +81,8 @@ class NepCRM:
             nieuw = {"id": f"cp-{len(self.contacten) + 1}", **json}
             self.contacten.append(nieuw)
             return NepAntwoord(201, nieuw)
+        if methode == "GET" and pad == "/activiteiten":
+            return NepAntwoord(200, self.activiteiten)
         if methode == "POST" and pad == "/activiteiten":
             nieuw = {"id": f"act-{len(self.activiteiten) + 1}", **json}
             self.activiteiten.append(nieuw)
@@ -225,7 +227,7 @@ def test_de_vijftien_antwoorden_gaan_niet_mee(nep):
     tekst = nep.activiteiten[0]["omschrijving"]
     assert "Heeft uw organisatie inzicht" not in tekst
     assert "Aantoonbaar geregeld" not in tekst
-    assert "worden niet vastgelegd" in tekst
+    assert "worden niet in het CRM vastgelegd" in tekst
 
 
 # ── Bestaand contact, geen duplicaten ─────────────────────────────────────────
@@ -293,8 +295,11 @@ def test_mislukte_activiteit_wordt_gelogd_met_herstelgegevens(nep, caplog):
     with caplog.at_level(logging.ERROR, logger="rhadix.readiness.crm"):
         assert crm.registreer(uitslag(), naam="Jan", organisatie="Zorg BV",
                               email="jan@voorbeeld.nl") is None
-    assert "jan@voorbeeld.nl" in caplog.text and "Zorg BV" in caplog.text
-    assert "53" in caplog.text, "de score hoort erbij om het later te kunnen herstellen"
+    # Herstel gebeurt nu vanuit de website-opslag (aanvraag-id); de log bevat
+    # daarom geen leesbare persoonsgegevens meer.
+    assert "jan@voorbeeld.nl" not in caplog.text
+    assert "aanvraag" in caplog.text
+    assert "53" in caplog.text
 
 
 def test_onbereikbaar_crm_werpt_niets(nep, monkeypatch):
@@ -308,10 +313,18 @@ def test_onbereikbaar_crm_werpt_niets(nep, monkeypatch):
 # ── Samenspel met de rapportaanvraag ──────────────────────────────────────────
 
 @pytest.fixture(autouse=True)
-def schone_limiet():
+def schone_limiet(website_mail):
     limiet.wis_alles()
     yield
     limiet.wis_alles()
+
+
+@pytest.fixture
+def crm_aan(monkeypatch):
+    """De CRM-stap slaat over zonder koppeling; hier staat die aan, zodat de
+    (eventueel vervangen) registreer() ook werkelijk wordt aangeroepen."""
+    monkeypatch.setattr(crm, "ingeschakeld", lambda: True)
+    monkeypatch.setattr(crm, "zoek_activiteit", lambda _id: None)
 
 
 def _verzoek(**kw):
@@ -321,11 +334,11 @@ def _verzoek(**kw):
     return basis
 
 
-def test_crm_storing_kost_de_bezoeker_zijn_rapport_niet(monkeypatch, nep):
+def test_crm_storing_kost_de_bezoeker_zijn_rapport_niet(monkeypatch, nep, crm_aan):
     """De echte registreer() loopt, met een CRM dat er niet is. De router vangt
     hier niets af — readiness_crm hoort dat zelf te doen."""
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_rapport", lambda *a, **k: True)
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_signaal", lambda *a, **k: True)
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_rapport", lambda *a, **k: True)
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_signaal", lambda *a, **k: True)
 
     def stuk(*a, **kw):
         raise ConnectionError("CRM plat")
@@ -338,38 +351,42 @@ def test_crm_storing_kost_de_bezoeker_zijn_rapport_niet(monkeypatch, nep):
     assert r.json()["totaal"] == 53
 
 
-def test_campagnegegevens_komen_bij_het_crm_terecht(monkeypatch):
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_rapport", lambda *a, **k: True)
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_signaal", lambda *a, **k: True)
+def test_campagnegegevens_komen_bij_het_crm_terecht(monkeypatch, crm_aan):
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_rapport", lambda *a, **k: True)
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_signaal", lambda *a, **k: True)
     gezien = {}
 
-    def vang(uitslag, naam, organisatie, email, pdf=None, campagne=None):
-        gezien.update({"campagne": campagne, "pdf": pdf, "email": email})
+    def vang(uitslag, naam, organisatie, email, pdf=None, campagne=None, aanvraag_id=None):
+        gezien.update({"campagne": campagne, "pdf": pdf, "email": email,
+                       "aanvraag_id": aanvraag_id})
         return {"id": "act-1"}
-    monkeypatch.setattr("app.routers.readiness.crm.registreer", vang)
+    monkeypatch.setattr("app.website.verwerking.crm.registreer", vang)
 
     r = client.post(PAD, json=_verzoek(utm_source="linkedin", utm_medium="social",
                                        utm_campaign="datagereedheid-2026-10"))
     assert r.status_code == 200
     assert gezien["campagne"] == {"utm_source": "linkedin", "utm_medium": "social",
                                   "utm_campaign": "datagereedheid-2026-10"}
-    assert gezien["pdf"][:5] == b"%PDF-", "dezelfde PDF als de aanvrager kreeg"
+    # De CRM-stap staat los van de mail en maakt geen tweede PDF: het CRM kent
+    # geen bijlagen. De aanvraag-id gaat wél mee, voor het terugvinden.
+    assert gezien["pdf"] is None
+    assert gezien["aanvraag_id"] == r.json()["aanvraag_id"]
 
 
-def test_zonder_campagne_gaat_er_een_lege_verzameling_mee(monkeypatch):
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_rapport", lambda *a, **k: True)
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_signaal", lambda *a, **k: True)
+def test_zonder_campagne_gaat_er_een_lege_verzameling_mee(monkeypatch, crm_aan):
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_rapport", lambda *a, **k: True)
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_signaal", lambda *a, **k: True)
     gezien = {}
-    monkeypatch.setattr("app.routers.readiness.crm.registreer",
+    monkeypatch.setattr("app.website.verwerking.crm.registreer",
                         lambda *a, **k: gezien.update(k) or {"id": "x"})
     client.post(PAD, json=_verzoek())
     assert gezien["campagne"] == {}
 
 
-def test_utm_velden_zijn_optioneel_en_veranderen_de_uitslag_niet(monkeypatch):
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_rapport", lambda *a, **k: True)
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_signaal", lambda *a, **k: True)
-    monkeypatch.setattr("app.routers.readiness.crm.registreer", lambda *a, **k: None)
+def test_utm_velden_zijn_optioneel_en_veranderen_de_uitslag_niet(monkeypatch, crm_aan):
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_rapport", lambda *a, **k: True)
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_signaal", lambda *a, **k: True)
+    monkeypatch.setattr("app.website.verwerking.crm.registreer", lambda *a, **k: None)
 
     zonder = client.post(PAD, json=_verzoek()).json()
     limiet.wis_alles()

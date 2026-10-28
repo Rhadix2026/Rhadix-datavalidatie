@@ -46,11 +46,13 @@ PAGINA = {
     "ai-gereedheid":           "AI-gereedheid",
     "rhadix":                  "Rhadix",
     "data-readiness":          "Readiness Check",
+    "kik-v-readiness":         "Readiness Check",
     "readiness-check":         "Readiness Check",
 }
 STANDAARD_INTERESSE = "Algemeen"
 
-# De Data Readiness Check zelf is geen knop maar een eigen ingang.
+# De Readiness Checks zelf zijn geen knop maar een eigen ingang. Het kanaal per
+# check (Data of KIK-V) staat in readiness_crm.CHECKS; dit is dat van de Data-check.
 KANAAL_READINESS = "Data Readiness Check"
 INTERESSE_READINESS = "Readiness Check"
 # Wie alleen een rapport opvraagt heeft nog geen vervolginteresse getoond.

@@ -32,6 +32,10 @@ def smtp(monkeypatch):
     ]:
         monkeypatch.setenv(sleutel, waarde)
     monkeypatch.delenv("SMTP_REPLY_TO", raising=False)
+    # Het centrale interne adres; de specifieke overschrijvingen staan uit.
+    monkeypatch.setenv("WEBSITE_INTERN_ADRES", "intern@voorbeeld.nl")
+    for sleutel in ("READINESS_INTERN_ADRES", "READINESS_REPLY_TO", "WEBSITE_REPLY_TO"):
+        monkeypatch.delenv(sleutel, raising=False)
 
     berichten = []
 
@@ -144,7 +148,7 @@ def test_rapportmail_volledig(smtp, rapport):
     msg = smtp[0]
     assert msg["To"] == "jan@voorbeeld.nl"
     assert msg["From"] == "Rhoderlanden Groep <noreply@rhadix.nl>"
-    assert msg["Reply-To"] == "info@rhoderlandengroep.nl"
+    assert msg["Reply-To"] == "intern@voorbeeld.nl", "zonder WEBSITE_REPLY_TO: het interne adres"
     assert msg["Subject"] == "Uw Data Readiness-rapport — 53 van 100"
 
     bijlagen = list(msg.iter_attachments())
@@ -162,7 +166,10 @@ def test_rapportmail_bevat_de_kernuitslag(rapport):
         assert naam.replace("&", "&amp;") in html
         assert f"<b>{score}</b>" in html
     assert "indicatief rapport" in html.lower()
-    assert "worden niet bewaard" in html
+    # Geen belofte meer dat er niets bewaard wordt; wel een verwijzing naar
+    # de privacyverklaring, waar staat wat er bewaard wordt en hoe lang.
+    assert "worden niet bewaard" not in html
+    assert "privacyverklaring" in html
 
 
 def test_rapportmail_noemt_het_rapport_indicatief(rapport):
@@ -193,7 +200,7 @@ def test_signaalmail_heeft_geen_bijlage(smtp, rapport):
 def test_signaalmail_bevat_precies_de_afgesproken_gegevens(smtp, rapport):
     rm.verstuur_signaal(rapport, "jan@voorbeeld.nl")
     msg = smtp[0]
-    assert msg["To"] == "info@rhoderlandengroep.nl"
+    assert msg["To"] == "intern@voorbeeld.nl"
     assert msg["Reply-To"] == "jan@voorbeeld.nl", "antwoorden gaat naar de aanvrager"
     assert msg["Subject"] == "Readiness-aanvraag: Zorggroep Voorbeeld — Data 53/100"
 
@@ -220,18 +227,31 @@ def test_adressen_zijn_instelbaar(smtp, rapport, monkeypatch):
     assert smtp[1]["Reply-To"] == "advies@rhoderlandengroep.nl"
 
 
-def test_lege_omgevingsvariabele_valt_terug_op_de_standaard(monkeypatch):
+def test_lege_omgevingsvariabele_valt_terug_op_het_centrale_adres(monkeypatch):
     """De compose-bestanden geven deze variabelen altijd door, desnoods leeg.
-    Een lege waarde mag de standaard niet overrulen — anders vertrekt er een
-    mail zonder ontvanger."""
+    Een lege waarde telt als niet gezet; dan geldt het centrale adres."""
+    monkeypatch.setenv("WEBSITE_INTERN_ADRES", "intern@voorbeeld.nl")
+    monkeypatch.delenv("WEBSITE_REPLY_TO", raising=False)
     for sleutel in ("READINESS_INTERN_ADRES", "READINESS_REPLY_TO", "READINESS_AFZENDERNAAM"):
         monkeypatch.setenv(sleutel, "")
-    assert rm.intern_adres() == "info@rhoderlandengroep.nl"
-    assert rm.antwoordadres() == "info@rhoderlandengroep.nl"
+    assert rm.intern_adres() == "intern@voorbeeld.nl"
+    assert rm.antwoordadres() == "intern@voorbeeld.nl"
     assert rm.afzendernaam() == "Rhoderlanden Groep"
 
     monkeypatch.setenv("READINESS_INTERN_ADRES", "   ")
-    assert rm.intern_adres() == "info@rhoderlandengroep.nl", "alleen spaties telt als niet gezet"
+    assert rm.intern_adres() == "intern@voorbeeld.nl", "alleen spaties telt als niet gezet"
+
+
+def test_zonder_adres_is_er_geen_ingebouwde_standaard(smtp, rapport, monkeypatch):
+    """Het opgeheven info@rhoderlandengroep.nl bleef stil in gebruik omdat het
+    als standaard in de code stond. Zonder instelling gaat er nu niets weg."""
+    for sleutel in ("WEBSITE_INTERN_ADRES", "READINESS_INTERN_ADRES", "READINESS_REPLY_TO",
+                    "WEBSITE_REPLY_TO"):
+        monkeypatch.delenv(sleutel, raising=False)
+    assert rm.intern_adres() is None
+    assert rm.antwoordadres() is None
+    assert rm.verstuur_signaal(rapport, "jan@voorbeeld.nl") is False
+    assert smtp == []
 
 
 def test_html_ontsnapt_ingevoerde_tekst(rapport):

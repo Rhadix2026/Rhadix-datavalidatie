@@ -486,11 +486,44 @@ def _start_hartslag():
     revocation_issuer.start()
 
 
+@app.on_event("startup")
+def _start_website():
+    # Website-aanvragen: schema borgen, mailconfiguratie controleren (in een
+    # eigen draad, de MX-controle mag het opstarten niet ophouden) en de
+    # herhaaltaak starten. Zie app/website/.
+    import threading
+    from app.website import instellingen as website_instellingen
+    from app.website import opslag as website_opslag
+    from app.website import verwerking as website_verwerking
+    if website_verwerking.opslag_aan():
+        website_opslag.borg_schema()
+    threading.Thread(target=website_instellingen.meld_bij_start,
+                     name="website-mailcontrole", daemon=True).start()
+    website_verwerking.start()
+
+
 @app.on_event("shutdown")
 def _stop_hartslag():
     revocation_issuer.stop()
 
 
+@app.on_event("shutdown")
+def _stop_website():
+    from app.website import verwerking as website_verwerking
+    website_verwerking.stop()
+
+
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "Rhadix Validator"}
+    # Alleen standen, geen adressen of aantallen: dit endpoint is publiek.
+    from app.services import readiness_crm
+    from app.website import instellingen as website_instellingen
+    from app.website import verwerking as website_verwerking
+    return {
+        "status": "ok", "service": "Rhadix Validator",
+        "website": {
+            "opslag": "aan" if website_verwerking.opslag_aan() else "uit",
+            "mail": "onvolledig" if website_instellingen.controleer() else "ok",
+            "crm": "aan" if readiness_crm.ingeschakeld() else "uit",
+        },
+    }

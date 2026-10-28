@@ -32,7 +32,7 @@ def geldig(**overschrijf):
 
 
 @pytest.fixture(autouse=True)
-def schone_limiet():
+def schone_limiet(website_mail):
     limiet.wis_alles()
     yield
     limiet.wis_alles()
@@ -47,12 +47,12 @@ def verstuurd(monkeypatch):
         opgevangen["rapport"].append({"rapport": rapport, "email": email, "pdf": pdf})
         return True
 
-    def nep_signaal(rapport, email):
+    def nep_signaal(rapport, email, aanvraag_id=None):
         opgevangen["signaal"].append({"rapport": rapport, "email": email})
         return True
 
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_rapport", nep_rapport)
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_signaal", nep_signaal)
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_rapport", nep_rapport)
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_signaal", nep_signaal)
     return opgevangen
 
 
@@ -94,10 +94,12 @@ def test_beide_checks_werken(verstuurd, check, verwacht):
     assert r.json()["categorie"] == verwacht
 
 
-def test_mislukte_verzending_geeft_502_en_legt_niets_vast(monkeypatch):
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_rapport",
+def test_mislukte_verzending_zonder_opslag_geeft_502_en_legt_niets_vast(monkeypatch):
+    """Terugvalpad (opslag uit of onbereikbaar): het oude gedrag."""
+    monkeypatch.setenv("WEBSITE_OPSLAG", "uit")
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_rapport",
                         lambda *a, **k: False)
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_signaal",
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_signaal",
                         lambda *a, **k: True)
     r = client.post(PAD, json=geldig())
     assert r.status_code == 502
@@ -107,8 +109,8 @@ def test_mislukte_verzending_geeft_502_en_legt_niets_vast(monkeypatch):
 
 
 def test_mislukte_signaalmail_laat_het_rapport_staan(monkeypatch):
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_rapport", lambda *a, **k: True)
-    monkeypatch.setattr("app.routers.readiness.mail.verstuur_signaal", lambda *a, **k: False)
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_rapport", lambda *a, **k: True)
+    monkeypatch.setattr("app.website.verwerking.readiness_mail.verstuur_signaal", lambda *a, **k: False)
     r = client.post(PAD, json=geldig())
     assert r.status_code == 200, "de bezoeker mag hier geen last van hebben"
     assert r.json()["verzonden"] is True
@@ -286,7 +288,9 @@ def test_verzoekmodel_weigert_onbekende_velden():
         "check", "antwoorden", "naam", "organisatie", "email", "website",
         # Campagneherkomst voor de CRM-opvolging. Geen persoonsgegevens, en ze
         # raken de uitslag niet — zie test_readiness_crm.py.
-        "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"}
+        "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term",
+        # Idempotentiesleutel van de browser; alleen een UUID, zie app/website/velden.py.
+        "aanvraag_id"}
     # Wat er nadrukkelijk níét in mag: een door de browser bepaalde uitslag.
     for verboden in ("totaal", "score", "dimensies", "categorie", "tenant_id"):
         assert verboden not in RapportVerzoek.model_fields

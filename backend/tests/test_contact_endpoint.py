@@ -32,7 +32,7 @@ def geldig(**overschrijf):
 
 
 @pytest.fixture(autouse=True)
-def schone_limiet():
+def schone_limiet(website_mail):
     limiet.wis_alles()
     yield
     limiet.wis_alles()
@@ -46,7 +46,7 @@ def verstuurd(monkeypatch):
         opgevangen.append(kw)
         return True
 
-    monkeypatch.setattr("app.routers.contact.contact_mail.verstuur", nep)
+    monkeypatch.setattr("app.website.verwerking.contact_mail.verstuur", nep)
     return opgevangen
 
 
@@ -55,7 +55,10 @@ def verstuurd(monkeypatch):
 def test_bericht_wordt_verstuurd(verstuurd):
     r = client.post(PAD, json=geldig())
     assert r.status_code == 200
-    assert r.json() == {"ok": True, "verzonden": True, "herhaling": False}
+    body = r.json()
+    assert {k: body[k] for k in ("ok", "verzonden", "herhaling", "opgeslagen")} == \
+        {"ok": True, "verzonden": True, "herhaling": False, "opgeslagen": True}
+    assert body["aanvraag_id"]
 
     assert len(verstuurd) == 1
     b = verstuurd[0]
@@ -85,8 +88,10 @@ def test_uitslag_bespreken_stuurt_de_samenvatting_mee(verstuurd):
     assert "Totaalscore: 53/100" in verstuurd[0]["bericht"]
 
 
-def test_mislukte_verzending_geeft_502_en_legt_niets_vast(monkeypatch):
-    monkeypatch.setattr("app.routers.contact.contact_mail.verstuur", lambda **kw: False)
+def test_mislukte_verzending_zonder_opslag_geeft_502_en_legt_niets_vast(monkeypatch):
+    """Terugvalpad (opslag uit of onbereikbaar): het oude gedrag."""
+    monkeypatch.setenv("WEBSITE_OPSLAG", "uit")
+    monkeypatch.setattr("app.website.verwerking.contact_mail.verstuur", lambda **kw: False)
     r = client.post(PAD, json=geldig())
     assert r.status_code == 502
     # Opnieuw proberen moet kunnen
@@ -147,7 +152,8 @@ def test_hetzelfde_bericht_gaat_niet_twee_keer(verstuurd):
     eerste = client.post(PAD, json=geldig())
     tweede = client.post(PAD, json=geldig())
     assert eerste.json()["verzonden"] is True
-    assert tweede.json() == {"ok": True, "verzonden": False, "herhaling": True}
+    assert {k: tweede.json()[k] for k in ("ok", "verzonden", "herhaling")} == \
+        {"ok": True, "verzonden": False, "herhaling": True}
     assert len(verstuurd) == 1
 
 
@@ -235,7 +241,7 @@ def test_mail_gaat_naar_rhoderlanden_met_antwoord_naar_de_bezoeker(smtp):
     assert contact_mail.verstuur(naam="Jan de Vries", email="jan@voorbeeld.nl",
                                  organisatie="Zorg BV", bericht="Hallo") is True
     msg = smtp[0]
-    assert msg["To"] == "info@rhoderlandengroep.nl"
+    assert msg["To"] == "intern@voorbeeld.nl"
     assert msg["From"] == "Rhoderlanden Groep <noreply@rhadix.nl>"
     assert msg["Reply-To"] == "jan@voorbeeld.nl"
     assert msg["Subject"] == "Website: bericht van Jan de Vries (Zorg BV)"
@@ -248,9 +254,17 @@ def test_ontvanger_is_instelbaar(smtp, monkeypatch):
     assert smtp[0]["To"] == "test@voorbeeld.nl"
 
 
-def test_lege_instelling_valt_terug_op_het_echte_adres(monkeypatch):
+def test_lege_instelling_valt_terug_op_het_centrale_adres(monkeypatch):
     monkeypatch.setenv("CONTACT_ONTVANGER", "   ")
-    assert contact_mail.ontvanger() == "info@rhoderlandengroep.nl"
+    assert contact_mail.ontvanger() == "intern@voorbeeld.nl"
+
+
+def test_zonder_adres_gaat_er_niets_weg(smtp, monkeypatch):
+    monkeypatch.delenv("WEBSITE_INTERN_ADRES", raising=False)
+    monkeypatch.delenv("CONTACT_ONTVANGER", raising=False)
+    assert contact_mail.ontvanger() is None
+    assert contact_mail.verstuur(naam="Jan", email="jan@voorbeeld.nl", bericht="Hoi") is False
+    assert smtp == []
 
 
 def test_regelovergangen_blijven_zichtbaar():

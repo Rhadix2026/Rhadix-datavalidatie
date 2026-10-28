@@ -114,12 +114,7 @@ def get_current_user(
     return user
 
 
-def get_optional_user(
-    request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
-    db: Session = Depends(get_db),
-) -> Optional[User]:
-    """Like get_current_user but returns None instead of raising when no token is provided."""
+def _optional_user(request, credentials, db, *, intrekking: bool) -> Optional[User]:
     _tok = _bearer_or_cookie(credentials, request)
     if not _tok:
         return None
@@ -128,6 +123,10 @@ def get_optional_user(
         user_id  = payload.get("sub")
         if not user_id:
             return None
+        # Een ingetrokken sessie telt als geen sessie (B-16) — hetzelfde als een
+        # verlopen token hier al deed. Met SESSION_REVOCATION=off: geen effect.
+        if intrekking and not beoordeel_sessie(payload, db):
+            return None
         try:
             user_uuid = uuid.UUID(user_id)
         except (ValueError, AttributeError):
@@ -135,6 +134,28 @@ def get_optional_user(
         return db.query(User).filter(User.id == user_uuid, User.is_active == True).first()
     except Exception:
         return None
+
+
+def get_optional_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Like get_current_user but returns None instead of raising when no token is provided."""
+    return _optional_user(request, credentials, db, intrekking=True)
+
+
+def get_logout_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Voor uitloggen: wie dit token hoort, **zonder** de intrekkingscontrole.
+
+    Uitloggen moet ook vastgelegd worden als het beeld muf is (controle C) —
+    juist dan. Anders zou een logout tijdens een storing niet centraal landen.
+    """
+    return _optional_user(request, credentials, db, intrekking=False)
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +218,15 @@ def require_app_access(app_slug: str):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Centrale intrekking (B-16); zelfde gedrag als in get_current_user.
+        uitkomst = beoordeel_sessie(payload, db)
+        if not uitkomst:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=uitkomst.reden,
                 headers={"WWW-Authenticate": "Bearer"},
             )
 

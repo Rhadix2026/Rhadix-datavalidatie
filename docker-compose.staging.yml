@@ -55,14 +55,17 @@ services:
       SSO_COOKIE_NAME:    rhadix_sso_staging
       # ── B-16 centrale sessie-intrekking, stap 2 (uitgever) ──────────────
       # De controle staat hier HARD op off en is niet via .env.staging aan te
-      # zetten: aanzetten is een aparte, expliciete stap. De hartslag gaat
-      # voorlopig alleen naar deze backend zelf, zodat de keten op staging
-      # meetbaar is zonder Uitvraag, Datastation of CRM te raken.
+      # zetten: aanzetten is een aparte, expliciete stap. Stap 3: Datavalidatie
+      # past de lijst in hetzelfde proces toe op zijn eigen ontvangertabellen.
+      # Externe doelen (Uitvraag, Datastation, CRM) volgen pas in stap 4–6.
       SESSION_REVOCATION:            "off"
-      REVOCATION_TARGETS:            ${REVOCATION_TARGETS:-http://localhost:8000}
+      REVOCATION_APPLY_LOCALLY:      "on"
+      REVOCATION_TARGETS:            ${REVOCATION_TARGETS:-}
       REVOCATION_HEARTBEAT_INTERVAL: ${REVOCATION_HEARTBEAT_INTERVAL:-15}
       REVOCATION_FRESHNESS_BUDGET:   ${REVOCATION_FRESHNESS_BUDGET:-60}
       # Noodprocedure: zonder geheim (≥ 32 tekens) is het endpoint dicht (503).
+      # Het geheim komt uit GitHub Secrets (environment staging) via .env.staging;
+      # daarnaast alleen bruikbaar vanaf het interne netwerk, nooit via nginx.
       REVOCATION_BREAKGLASS_SECRET:  ${REVOCATION_BREAKGLASS_SECRET:-}
       FUSEKI_URL:         http://rhadix-staging-fuseki:3030
       FUSEKI_DATASET:     rhadix

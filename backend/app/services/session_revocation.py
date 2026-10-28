@@ -49,6 +49,13 @@ def doelen() -> list[str]:
     return [d.strip().rstrip("/") for d in ruw.split(",") if d.strip()]
 
 
+def lokaal_toepassen() -> bool:
+    """Alleen voor de uitgever die ook resource is (Datavalidatie, stap 3): pas
+    elke hartslag in hetzelfde proces toe op de eigen ontvangertabellen, in
+    plaats van via HTTP naar zichzelf."""
+    return os.getenv("REVOCATION_APPLY_LOCALLY", "off").lower().strip() == "on"
+
+
 def _iat_vereist_vanaf() -> Optional[datetime]:
     """Harde overgangsdatum. Vóór dit tijdstip wordt een token zonder `iat`
     toegelaten; daarna geweigerd. Niet gezet = nooit vereisen."""

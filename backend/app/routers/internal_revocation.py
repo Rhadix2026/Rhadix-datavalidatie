@@ -10,8 +10,17 @@ internal_revocation.py — de drie interne endpoints van B-16.
 Geen van de drie gebruikt de gebruikersauthenticatie als voorwaarde. Dat is
 nodig: juist als het beeld muf is, weigert controle C ook de sessie van de
 beheerder, en moet de nooduitgang toch bereikbaar zijn.
+
+Het geheim alleen is niet genoeg: elk gebruik van het noodgeheim moet ook van
+het **interne netwerk** komen (REVOCATION_BREAKGLASS_NETWORKS) en mag niet via
+een proxy zijn binnengekomen. Publiek verkeer loopt via Cloudflare en nginx, die
+altijd X-Real-IP (en Cloudflare CF-Connecting-IP) meegeven; wie de backendpoort
+rechtstreeks benadert, heeft een extern bronadres. Beide worden geweigerd vóórdat
+het geheim wordt bekeken. Gebruik: op de server, `curl` naar de backendpoort.
 """
+import ipaddress
 import logging
+import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -29,18 +38,46 @@ router = APIRouter()
 _bearer = HTTPBearer(auto_error=False)
 
 GEHEIM_HEADER = "X-Revocation-Breakglass"
+_PROXYKOPPEN = ("x-forwarded-for", "x-real-ip", "cf-connecting-ip", "true-client-ip", "forwarded")
+_STANDAARD_NETTEN = "127.0.0.0/8,::1/128,172.16.0.0/12"
 
 
 def _ip(request: Request) -> str:
-    fwd = request.headers.get("X-Forwarded-For")
-    if fwd:
-        return fwd.split(",")[0].strip()
+    # Bewust het directe bronadres: proxykoppen zijn hier niet te vertrouwen.
     return request.client.host if request.client else "unknown"
 
 
+def _interne_netten() -> list:
+    netten = []
+    for deel in (os.getenv("REVOCATION_BREAKGLASS_NETWORKS") or _STANDAARD_NETTEN).split(","):
+        deel = deel.strip()
+        if not deel:
+            continue
+        try:
+            netten.append(ipaddress.ip_network(deel, strict=False))
+        except ValueError:
+            log.error("REVOCATION_BREAKGLASS_NETWORKS bevat een onleesbaar net: %r", deel)
+    return netten
+
+
+def intern_verzoek(request: Request) -> bool:
+    if any(k in request.headers for k in _PROXYKOPPEN):
+        return False
+    try:
+        adres = ipaddress.ip_address(_ip(request))
+    except ValueError:
+        return False
+    return any(adres in net for net in _interne_netten())
+
+
 def _eis_geheim(request: Request) -> None:
-    """503 als de noodprocedure niet is ingericht, 429 bij te veel pogingen,
-    401 bij een fout of ontbrekend geheim."""
+    """403 buiten het interne netwerk, 503 als de noodprocedure niet is
+    ingericht, 429 bij te veel pogingen, 401 bij een fout of ontbrekend geheim."""
+    if not intern_verzoek(request):
+        audit_log(ACCESS_DENIED, request, actie="revocation_breakglass_extern")
+        log.warning("noodprocedure: verzoek van buiten het interne netwerk geweigerd (%s)",
+                    _ip(request))
+        raise HTTPException(status_code=403, detail="Uitsluitend vanaf het interne netwerk")
     if sr.noodgeheim() is None:
         raise HTTPException(status_code=503, detail="Noodprocedure is niet ingericht")
     sleutel = f"breakglass:{_ip(request)}"

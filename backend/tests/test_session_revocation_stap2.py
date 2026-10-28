@@ -41,6 +41,9 @@ def _schoon(monkeypatch):
     issuer._stand_per_doel.clear()
     from app.auth import brute_force
     brute_force._attempts.clear()
+    # De TestClient heeft geen IP-adres; de netwerkgrens zelf staat in stap 3.
+    from app.routers import internal_revocation
+    monkeypatch.setattr(internal_revocation, "intern_verzoek", lambda request: True)
     yield
     issuer._laatst_bekend = None
     issuer._nog_op_te_slaan.clear()

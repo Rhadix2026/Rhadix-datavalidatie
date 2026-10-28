@@ -170,22 +170,64 @@ def _verstuur(doel: str, bericht: str) -> bool:
     return gelukt
 
 
+LOKAAL = "lokaal"
+
+
+def _pas_lokaal_toe(lijst: dict, sessiemaker) -> bool:
+    """Dezelfde `ontvang` als het endpoint, zonder netwerk en zonder handtekening:
+    de lijst komt uit dit proces zelf."""
+    from app.services import revocation_receiver
+    if sessiemaker is None:
+        from app.database import SessionLocal as sessiemaker
+    vorige = _stand_per_doel.get(LOKAAL, {})
+    try:
+        db = sessiemaker()
+        try:
+            revocation_receiver.ontvang(db, lijst)
+        finally:
+            db.close()
+        gelukt, fout = True, None
+    except Exception as exc:
+        gelukt, fout = False, type(exc).__name__
+    if gelukt and vorige.get("fout"):
+        log.info("lokale toepassing van de lijst hersteld")
+    elif not gelukt and vorige.get("fout") != fout:
+        log.error("lokale toepassing van de lijst mislukt: %s", fout)
+    _stand_per_doel[LOKAAL] = {
+        "laatst_gelukt": _nu().isoformat() if gelukt else vorige.get("laatst_gelukt"),
+        "laatste_poging": _nu().isoformat(),
+        "fout": fout,
+    }
+    return gelukt
+
+
+def _heeft_werk() -> bool:
+    return bool(sr.doelen()) or sr.lokaal_toepassen()
+
+
 def stuur_hartslag(sessiemaker=None) -> int:
-    """Eén ronde: lijst bouwen, tekenen, naar elk doel. Geeft het aantal geslaagde doelen."""
-    doelen = sr.doelen()
-    if not doelen:
+    """Eén ronde: lijst bouwen, lokaal toepassen en/of tekenen en naar elk doel
+    sturen. Geeft het aantal geslaagde ontvangers."""
+    if not _heeft_werk():
         return 0
     lijst = actuele_lijst(sessiemaker)
     if lijst is None:
         log.error("nog geen intrekkingslijst gelezen sinds de start — geen hartslag verstuurd")
         return 0
-    bericht = sr.teken_lijst(lijst)
-    return sum(_verstuur(d, bericht) for d in doelen)
+    geslaagd = 0
+    if sr.lokaal_toepassen():
+        geslaagd += _pas_lokaal_toe(lijst, sessiemaker)
+    doelen = sr.doelen()
+    if doelen:
+        bericht = sr.teken_lijst(lijst)
+        geslaagd += sum(_verstuur(d, bericht) for d in doelen)
+    return geslaagd
 
 
 def stand_per_doel() -> dict:
+    namen = ([LOKAAL] if sr.lokaal_toepassen() else []) + sr.doelen()
     return {d: _stand_per_doel.get(d, {"laatst_gelukt": None, "fout": "nog niet geprobeerd"})
-            for d in sr.doelen()}
+            for d in namen}
 
 
 def wek() -> None:
@@ -205,15 +247,22 @@ def _lus() -> None:
 def start() -> bool:
     """Start de hartslag als er doelen zijn. Idempotent."""
     global _draad
-    if not sr.doelen():
-        log.info("REVOCATION_TARGETS leeg — geen hartslag")
+    if sr._aan() and not sr.lokaal_toepassen():
+        # Datavalidatie leest zijn eigen ontvangertabellen. Zonder lokale toepassing
+        # (of het eigen adres in REVOCATION_TARGETS) worden die nooit vers, en
+        # weigert controle C elke menselijke sessie — ook die van beheerders.
+        log.error("SESSION_REVOCATION=on zonder REVOCATION_APPLY_LOCALLY=on: de eigen "
+                  "intrekkingsstand wordt alleen vers als dit adres in REVOCATION_TARGETS staat")
+    if not _heeft_werk():
+        log.info("geen REVOCATION_TARGETS en geen lokale toepassing — geen hartslag")
         return False
     if _draad is not None and _draad.is_alive():
         return True
     _stop.clear()
     _draad = threading.Thread(target=_lus, name="revocation-heartbeat", daemon=True)
     _draad.start()
-    log.info("hartslag gestart: elke %ss naar %d doel(en)", sr.hartslaginterval(), len(sr.doelen()))
+    log.info("hartslag gestart: elke %ss, lokaal=%s, %d extern(e) doel(en)",
+             sr.hartslaginterval(), "aan" if sr.lokaal_toepassen() else "uit", len(sr.doelen()))
     return True
 
 

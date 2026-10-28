@@ -21,7 +21,7 @@ from app.audit import (
 )
 from app.auth.brute_force import is_blocked, record_failure, record_success, seconds_until_unblocked
 from app.auth.token_blocklist import block_token
-from app.auth.dependencies import get_current_user, get_optional_user
+from app.auth.dependencies import get_current_user, get_logout_user
 from app.auth.app_toegang import app_slugs_voor
 from app.auth.schemas import (
     LoginRequest, PasswordChangeRequest, TokenResponse, UserResponse,
@@ -304,7 +304,7 @@ def logout(
     request: Request,
     response: Response,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_logout_user),
     db: Session = Depends(get_db),
 ):
     """Beëindig de sessie: trek het SSO-cookie in en blokkeer het token.
@@ -327,7 +327,7 @@ def logout(
 def logout_en_terug_naar_platform(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_logout_user),
     db: Session = Depends(get_db),
 ):
     """Uitloggen via een gewone paginanavigatie, met terugkeer naar het Platform.

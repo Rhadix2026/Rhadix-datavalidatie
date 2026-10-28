@@ -188,6 +188,21 @@ def _ensure_revocation_schema() -> None:
 _ensure_revocation_schema()
 
 
+def _ensure_machine_schema() -> None:
+    """Borg de B-28-tabellen machine_accounts en machine_secrets (checkfirst)."""
+    try:
+        from app.database import engine
+        from app.models.machine_models import MachineAccount, MachineSecret
+        for model in (MachineAccount, MachineSecret):
+            model.__table__.create(bind=engine, checkfirst=True)
+        log.info("machineschema geborgd (machine_accounts, machine_secrets).")
+    except Exception:
+        import traceback
+        log.error("Kon machineschema niet borgen:\n%s", traceback.format_exc())
+
+_ensure_machine_schema()
+
+
 # ---------------------------------------------------------------------------
 # Borg dat de vaste RHADIX_ADMIN in elke omgeving bestaat.
 # Niet-destructief: bestaande gebruikers blijven onaangeroerd; de admin wordt
@@ -478,6 +493,10 @@ app.include_router(dashboard_router)
 
 # ── Centrale sessie-intrekking (B-16) — dienst-tot-dienst, eigen autorisatie ──
 app.include_router(revocation_router, prefix="/api/internal",       tags=["Internal"])
+# Machineaccounts (B-28): kortlevende tokens via client_credentials, beheer door RHADIX_ADMIN.
+from app.routers.machine import beheer_router as machine_beheer_router, token_router as machine_token_router
+app.include_router(machine_token_router,  prefix="/api/auth",  tags=["Machine"])
+app.include_router(machine_beheer_router, prefix="/api/admin", tags=["Machine"])
 
 
 @app.on_event("startup")

@@ -260,25 +260,33 @@ MIN_GEHEIM_TEKENS = 32
 
 
 def noodgeheim() -> Optional[str]:
-    """Het voorgedeelde geheim, of None als de noodprocedure niet is ingericht.
-    Een te kort geheim telt als niet ingericht: liever geen nooduitgang dan een
-    die te raden is."""
-    g = (os.getenv("REVOCATION_BREAKGLASS_SECRET") or "").strip()
-    if not g:
+    """De SHA-256-hash (hex) van het voorgedeelde geheim, of None als de
+    noodprocedure niet is ingericht.
+
+    De server kent alleen de hash, nooit het geheim zelf: wie de omgeving of
+    het env-bestand leest, kan er de noodprocedure niet mee activeren. Het
+    geheim is willekeurig en lang, dus een kale SHA-256 volstaat."""
+    h = (os.getenv("REVOCATION_BREAKGLASS_SECRET_SHA256") or "").strip().lower()
+    if not h:
         return None
-    if len(g) < MIN_GEHEIM_TEKENS:
-        log.error("REVOCATION_BREAKGLASS_SECRET is korter dan %d tekens — noodprocedure uit",
-                  MIN_GEHEIM_TEKENS)
+    if len(h) != 64 or any(c not in "0123456789abcdef" for c in h):
+        log.error("REVOCATION_BREAKGLASS_SECRET_SHA256 is geen SHA-256-hexwaarde — noodprocedure uit")
         return None
-    return g
+    return h
 
 
 def geheim_klopt(aangeboden: Optional[str]) -> bool:
+    import hashlib
     import hmac
-    g = noodgeheim()
-    if not g or not aangeboden:
+    h = noodgeheim()
+    if not h or not aangeboden:
         return False
-    return hmac.compare_digest(g.encode("utf-8"), aangeboden.strip().encode("utf-8"))
+    aangeboden = aangeboden.strip()
+    # Een te kort geheim wordt niet eens vergeleken: liever geen nooduitgang dan
+    # een die te raden is.
+    if len(aangeboden) < MIN_GEHEIM_TEKENS:
+        return False
+    return hmac.compare_digest(hashlib.sha256(aangeboden.encode("utf-8")).hexdigest(), h)
 
 
 def toets_noodverzoek(body: Any) -> tuple[int, str, str]:

@@ -63,10 +63,10 @@ services:
       REVOCATION_TARGETS:            ${REVOCATION_TARGETS:-}
       REVOCATION_HEARTBEAT_INTERVAL: ${REVOCATION_HEARTBEAT_INTERVAL:-15}
       REVOCATION_FRESHNESS_BUDGET:   ${REVOCATION_FRESHNESS_BUDGET:-60}
-      # Noodprocedure: zonder geheim (≥ 32 tekens) is het endpoint dicht (503).
-      # Het geheim komt uit GitHub Secrets (environment staging) via .env.staging;
-      # daarnaast alleen bruikbaar vanaf het interne netwerk, nooit via nginx.
-      REVOCATION_BREAKGLASS_SECRET:  ${REVOCATION_BREAKGLASS_SECRET:-}
+      # Noodprocedure: de server kent alleen de SHA-256 van het geheim (GitHub
+      # Secret, environment staging); het geheim zelf staat nergens op de server.
+      # Zonder hash is het endpoint dicht (503). Alleen vanaf het interne netwerk.
+      REVOCATION_BREAKGLASS_SECRET_SHA256: ${REVOCATION_BREAKGLASS_SECRET_SHA256:-}
       FUSEKI_URL:         http://rhadix-staging-fuseki:3030
       FUSEKI_DATASET:     rhadix
       FUSEKI_USER:        admin
@@ -110,7 +110,9 @@ services:
     volumes:
       - rhadix_staging_profiles:/app/data/profiles
     ports:
-      - "${STAGING_BACKEND_PORT:-8011}:8000"
+      # Alleen loopback (B-24): nginx, de readiness-proxy en de deploy-healthcheck
+      # gaan via 127.0.0.1. Docker zet poorten anders langs ufw open voor internet.
+      - "127.0.0.1:${STAGING_BACKEND_PORT:-8011}:8000"
 
   frontend:
     image: ghcr.io/${GHCR_ORG:-rhadix2026}/rhadix-frontend:${STAGING_IMAGE_TAG:-staging}

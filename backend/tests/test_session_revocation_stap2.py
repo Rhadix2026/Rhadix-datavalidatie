@@ -28,11 +28,16 @@ HDR = {"X-Revocation-Breakglass": GEHEIM}
 NU = lambda: datetime.now(timezone.utc)  # noqa: E731
 
 
+def _hash(geheim):
+    import hashlib
+    return hashlib.sha256(geheim.encode()).hexdigest()
+
+
 @pytest.fixture(autouse=True)
 def _schoon(monkeypatch):
     monkeypatch.setenv("REVOCATION_FRESHNESS_BUDGET", "60")
     monkeypatch.setenv("REVOCATION_HEARTBEAT_INTERVAL", "15")
-    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET", GEHEIM)
+    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET_SHA256", _hash(GEHEIM))
     monkeypatch.delenv("REVOCATION_REQUIRE_IAT_FROM", raising=False)
     monkeypatch.delenv("REVOCATION_TARGETS", raising=False)
     monkeypatch.setenv("SESSION_REVOCATION", "off")
@@ -44,6 +49,7 @@ def _schoon(monkeypatch):
     # De TestClient heeft geen IP-adres; de netwerkgrens zelf staat in stap 3.
     from app.routers import internal_revocation
     monkeypatch.setattr(internal_revocation, "intern_verzoek", lambda request: True)
+    monkeypatch.setattr(internal_revocation, "interne_bron", lambda request: True)
     yield
     issuer._laatst_bekend = None
     issuer._nog_op_te_slaan.clear()
@@ -393,11 +399,23 @@ def test_13_duur_is_hard_begrensd(client):
 
 
 def test_13_niet_ingericht_geheim_sluit_de_nooduitgang(client, monkeypatch):
-    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET", "")
+    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET_SHA256", "")
     assert client.post("/api/internal/revocation-grace", json=GELDIG, headers=HDR).status_code == 503
-    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET", "kort")
+    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET_SHA256", "geen-hash")
+    assert client.post("/api/internal/revocation-grace", json=GELDIG, headers=HDR).status_code == 503
+
+
+def test_13_kort_geheim_wordt_nooit_geaccepteerd(client, monkeypatch):
+    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET_SHA256", _hash("kort"))
     assert client.post("/api/internal/revocation-grace", json=GELDIG,
-                       headers={"X-Revocation-Breakglass": "kort"}).status_code == 503
+                       headers={"X-Revocation-Breakglass": "kort"}).status_code == 401
+
+
+def test_13_klaartekstgeheim_in_de_omgeving_wordt_genegeerd(client, monkeypatch):
+    """Alleen de hash telt; een geheim in klare tekst opent niets."""
+    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET_SHA256", "")
+    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET", GEHEIM)
+    assert client.post("/api/internal/revocation-grace", json=GELDIG, headers=HDR).status_code == 503
 
 
 def test_13_raden_wordt_begrensd(client):

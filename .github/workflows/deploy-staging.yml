@@ -195,8 +195,9 @@ jobs:
             echo "STAGING_JWT_PRIVATE_KEY=${{ secrets.STAGING_JWT_PRIVATE_KEY }}" >> /opt/rhadix-app/.env.staging
             # Platform-admin: verplicht (compose faalt hard als deze ontbreekt)
             echo "STAGING_ADMIN_PASSWORD=${{ secrets.STAGING_ADMIN_PASSWORD }}" >> /opt/rhadix-app/.env.staging
-            # B-16 noodprocedure: environment-secret van staging. Leeg = endpoint dicht (503).
-            echo "REVOCATION_BREAKGLASS_SECRET=${{ secrets.REVOCATION_BREAKGLASS_SECRET }}" >> /opt/rhadix-app/.env.staging
+            # B-16 noodprocedure: alleen de SHA-256 van het geheim (environment-secret
+            # van staging). Het geheim zelf komt nooit op de server. Leeg = endpoint dicht.
+            echo "REVOCATION_BREAKGLASS_SECRET_SHA256=${{ secrets.REVOCATION_BREAKGLASS_SECRET_SHA256 }}" >> /opt/rhadix-app/.env.staging
 
             # Beveilig het env-bestand (alleen root leesbaar)
             chmod 600 /opt/rhadix-app/.env.staging

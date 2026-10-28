@@ -30,14 +30,20 @@ from app.auth.security import decode_access_token
 from conftest import TestingSessionLocal, override_get_db  # noqa: E402
 
 GEHEIM = "g" * 40
+_ECHTE_INTERNE_BRON = ir.interne_bron   # vóór het patchen in de fixture
 NU = lambda: datetime.now(timezone.utc)  # noqa: E731
+
+
+def _hash(geheim):
+    import hashlib
+    return hashlib.sha256(geheim.encode()).hexdigest()
 
 
 @pytest.fixture(autouse=True)
 def _schoon(monkeypatch):
     monkeypatch.setenv("SESSION_REVOCATION", "off")
     monkeypatch.setenv("REVOCATION_FRESHNESS_BUDGET", "60")
-    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET", GEHEIM)
+    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET_SHA256", _hash(GEHEIM))
     monkeypatch.delenv("REVOCATION_TARGETS", raising=False)
     monkeypatch.delenv("REVOCATION_APPLY_LOCALLY", raising=False)
     monkeypatch.delenv("REVOCATION_BREAKGLASS_NETWORKS", raising=False)
@@ -48,6 +54,9 @@ def _schoon(monkeypatch):
     from app.auth import brute_force, token_blocklist
     brute_force._attempts.clear()
     token_blocklist._blocklist.clear()
+    # De TestClient heeft geen IP-adres. De directe-bron-eis staat hieronder apart
+    # getest; de strengere eis voor de noodprocedure blijft hier ongepatcht.
+    monkeypatch.setattr(ir, "interne_bron", lambda request: True)
     yield
     issuer._laatst_bekend = None
 
@@ -276,6 +285,23 @@ def test_intern_verzoek(host, headers, verwacht):
     assert ir.intern_verzoek(_verzoek(host, headers)) is verwacht
 
 
+@pytest.mark.parametrize("host,headers,verwacht", [
+    ("172.20.0.1", {"X-Real-IP": "1.2.3.4"}, True),             # via nginx: bron is intern
+    ("127.0.0.1", {}, True),
+    ("8.8.8.8", {}, False),                                     # rechtstreeks op de poort
+    ("8.8.8.8", {"X-Real-IP": "172.20.0.1"}, False),            # kop vervalsen helpt niet
+])
+def test_interne_bron(host, headers, verwacht):
+    assert _ECHTE_INTERNE_BRON(_verzoek(host, headers)) is verwacht
+
+
+def test_interne_endpoints_weigeren_een_externe_bron(client, monkeypatch, token_rhadix_admin):
+    monkeypatch.setattr(ir, "interne_bron", lambda request: False)
+    assert client.post("/api/internal/revocations", json={"token": "x"}).status_code == 403
+    assert client.get("/api/internal/revocation-status",
+                      headers=_h(token_rhadix_admin)).status_code == 403
+
+
 def test_netten_zijn_instelbaar(monkeypatch):
     monkeypatch.setenv("REVOCATION_BREAKGLASS_NETWORKS", "10.0.0.0/8")
     assert ir.intern_verzoek(_verzoek("10.1.2.3"))
@@ -294,7 +320,7 @@ def test_extern_met_juist_geheim_wordt_geweigerd(client):
 
 
 def test_extern_verraadt_niet_of_het_geheim_is_ingericht(client, monkeypatch):
-    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET", "")
+    monkeypatch.setenv("REVOCATION_BREAKGLASS_SECRET_SHA256", "")
     r = client.post("/api/internal/revocation-grace", json=GELDIG,
                     headers={"X-Revocation-Breakglass": GEHEIM})
     assert r.status_code == 403

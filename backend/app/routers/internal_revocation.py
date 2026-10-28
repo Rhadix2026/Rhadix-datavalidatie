@@ -60,14 +60,33 @@ def _interne_netten() -> list:
     return netten
 
 
-def intern_verzoek(request: Request) -> bool:
-    if any(k in request.headers for k in _PROXYKOPPEN):
-        return False
+def _bron_is_intern(request: Request) -> bool:
     try:
         adres = ipaddress.ip_address(_ip(request))
     except ValueError:
         return False
     return any(adres in net for net in _interne_netten())
+
+
+def interne_bron(request: Request) -> bool:
+    """Komt de verbinding zelf van het interne netwerk? Via nginx is dat de
+    docker-gateway; rechtstreeks van internet op de backendpoort niet."""
+    return _bron_is_intern(request)
+
+
+def intern_verzoek(request: Request) -> bool:
+    """Strenger: intern bronadres én niet via een proxy (dus niet van internet)."""
+    if any(k in request.headers for k in _PROXYKOPPEN):
+        return False
+    return _bron_is_intern(request)
+
+
+def _eis_interne_bron(request: Request) -> None:
+    # Tweede laag naast de loopback-binding van de poort (B-24): blijft gelden als
+    # de backendpoort ooit weer publiek wordt gezet.
+    if not interne_bron(request):
+        log.warning("intern endpoint rechtstreeks van buiten benaderd (%s) — geweigerd", _ip(request))
+        raise HTTPException(status_code=403, detail="Uitsluitend via de interne route")
 
 
 def _eis_geheim(request: Request) -> None:
@@ -93,6 +112,7 @@ def _eis_geheim(request: Request) -> None:
 
 @router.post("/revocations")
 async def ontvang_intrekkingen(request: Request, db: Session = Depends(get_db)):
+    _eis_interne_bron(request)
     try:
         body = await request.json()
         claims = sr.lees_lijst(str((body or {}).get("token") or ""))
@@ -130,6 +150,7 @@ def intrekkingsstatus(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
     db: Session = Depends(get_db),
 ):
+    _eis_interne_bron(request)
     if request.headers.get(GEHEIM_HEADER):
         _eis_geheim(request)
     else:

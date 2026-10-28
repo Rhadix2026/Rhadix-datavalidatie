@@ -89,7 +89,7 @@ def ontbreekt() -> dict[str, str]:
     return {
         "GewerktePeriode en gewerkte uren": "geen urenregistratie in de set (raakt 2.1, 6.1, 7.1, 8.1)",
         "VerloondePeriode": "geen verloningsgegevens (raakt 2.2)",
-        "ODBKwalificatieWaarde": "geen kwalificatieniveau (raakt 6.1, 13.3, 13.4)",
+        "ODBKwalificatieWaarde": "geen kwalificatieniveau (raakt 6.1, 13.3)",
         "ZwangerschapsVerlof": "SoortVerzuim kent alleen ziekte en ongeval (raakt 11.2, 11.4, 12.2)",
         "Leveringsvorm": "geen leveringsvorm bij de cliënten (raakt 14.2, 14.3)",
         "WoonEenheid en capaciteit": "geen capaciteitsgegevens (raakt 15.1, 15.2, 15.3)",

@@ -8,7 +8,7 @@ import uuid
 
 from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, deferred, relationship
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -63,6 +63,9 @@ class User(Base):
     is_active      = Column(Boolean, default=True, nullable=False)
     email_verified = Column(Boolean, default=True, nullable=False)   # bestaande users gelden als geverifieerd
     last_login_at  = Column(DateTime(timezone=True), nullable=True)
+    # B-16: laatste uitlogmoment. `deferred`, zodat een gewone User-query deze
+    # kolom niet selecteert: mislukt migratie 0006 stil, dan blijft inloggen werken.
+    logout_at      = deferred(Column(DateTime(timezone=True), nullable=True))
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
 
     tenant           = relationship("Tenant", back_populates="users")

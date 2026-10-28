@@ -15,6 +15,8 @@ from app.routers.rso import router as rso_router
 from app.routers.branding import router as branding_router
 from app.routers.dashboard import router as dashboard_router
 from app.reconciliation.router import router as recon_router
+from app.routers.internal_revocation import router as revocation_router
+from app.services import revocation_issuer
 
 log = logging.getLogger(__name__)
 
@@ -166,6 +168,24 @@ def _ensure_branding_table() -> None:
         log.error("Kon tenant_branding-tabel niet borgen:\n%s", traceback.format_exc())
 
 _ensure_branding_table()
+
+def _ensure_revocation_schema() -> None:
+    """Borg de B-16-objecten: users.logout_at, session_revocations,
+    revoked_sessions en revocation_state (checkfirst/idempotent)."""
+    try:
+        from app.database import engine
+        from app.models.revocation_models import RevocationState, RevokedSession, SessionRevocation
+        if engine.dialect.name == "postgresql":
+            with engine.begin() as conn:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS logout_at TIMESTAMPTZ")
+        for model in (SessionRevocation, RevokedSession, RevocationState):
+            model.__table__.create(bind=engine, checkfirst=True)
+        log.info("intrekkingsschema geborgd (logout_at, session_revocations, revoked_sessions, revocation_state).")
+    except Exception:
+        import traceback
+        log.error("Kon intrekkingsschema niet borgen:\n%s", traceback.format_exc())
+
+_ensure_revocation_schema()
 
 
 # ---------------------------------------------------------------------------
@@ -455,6 +475,20 @@ app.include_router(tasks.router,      prefix="/api/tasks",         tags=["Tasks"
 app.include_router(readiness.router, prefix="/api/readiness",     tags=["Readiness"])
 app.include_router(contact.router,   prefix="/api/contact",       tags=["Contact"])
 app.include_router(dashboard_router)
+
+# ── Centrale sessie-intrekking (B-16) — dienst-tot-dienst, eigen autorisatie ──
+app.include_router(revocation_router, prefix="/api/internal",       tags=["Internal"])
+
+
+@app.on_event("startup")
+def _start_hartslag():
+    # Alleen als REVOCATION_TARGETS gezet is; zonder doelen gebeurt er niets.
+    revocation_issuer.start()
+
+
+@app.on_event("shutdown")
+def _stop_hartslag():
+    revocation_issuer.stop()
 
 
 @app.get("/api/health")

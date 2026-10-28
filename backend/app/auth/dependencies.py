@@ -36,6 +36,7 @@ from app.auth.security import decode_access_token
 from app.auth.token_blocklist import is_blocked as token_is_blocked
 from app.database import get_db
 from app.models.auth_models import Application, User, UserApplication, UserRole
+from app.services.revocation_receiver import beoordeel as beoordeel_sessie
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -87,6 +88,18 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has been revoked",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Centrale intrekking (B-16), controles A/B/C. Met SESSION_REVOCATION=off
+    # (standaard) doet dit niets en leest het niets. Machine-tokens (typ=client)
+    # vallen erbuiten; Datavalidatie kent geen aparte RS256-tak zoals de
+    # resource-apps, dus de scheiding loopt hier via de claims.
+    uitkomst = beoordeel_sessie(payload, db)
+    if not uitkomst:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=uitkomst.reden,
             headers={"WWW-Authenticate": "Bearer"},
         )
 

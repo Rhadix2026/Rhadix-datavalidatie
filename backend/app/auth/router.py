@@ -61,6 +61,28 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _na_laatste_uitlog(db: Session, user: User) -> None:
+    """Zorg dat een nieuw token een `iat` ná het laatste uitlogmoment krijgt.
+
+    `iat` is in hele seconden; controle B weigert `iat <= logout_at`. Een login in
+    dezelfde seconde als een uitlog zou dus onterecht worden geweigerd
+    (acceptatiecriterium 3). In dat zeldzame geval wachten we tot de volgende
+    seconde, hooguit één seconde. Faalt het opzoeken, dan gaat inloggen gewoon door.
+    """
+    import time
+    from app.services.revocation_issuer import laatste_uitlog
+    try:
+        uitlog = laatste_uitlog(db, str(user.id))
+    except Exception:
+        db.rollback()
+        return
+    if uitlog is None:
+        return
+    wacht = int(uitlog.timestamp()) + 1 - time.time()
+    if 0 < wacht <= 1.0:
+        time.sleep(wacht + 0.01)
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     """Authenticate with email + password and receive a JWT access token."""
@@ -103,6 +125,8 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
     # Record last login
     user.last_login_at = datetime.now(timezone.utc)
     db.commit()
+
+    _na_laatste_uitlog(db, user)
 
     app_slugs = _app_slugs_for(user, db)
     # Branding meesturen zodat sub-apps (Uitvraag/Datastation) dezelfde look-and-feel
@@ -228,13 +252,15 @@ def _wis_sso_cookie(response: Response) -> None:
     )
 
 
-def _trek_token_in(request: Request, credentials) -> None:
-    """Zet het aangeboden token op de blocklist van dit proces.
+def _trek_token_in(request: Request, credentials) -> Optional[dict]:
+    """Zet het aangeboden token op de blocklist van dit proces en geef de
+    claims terug (of None als er geen geldig token was).
 
     Aanvullend op het wissen van het cookie, niet in plaats daarvan: de blocklist
     is procesintern en geldt dus niet voor Uitvraag, Datastation en CRM. Die
     valideren het token zelfstandig op handtekening. Het intrekken van het cookie
-    is wat over alle applicaties heen werkt.
+    is wat over alle applicaties heen werkt; de centrale intrekking (B-16) komt
+    daar in `_trek_centraal_in` bovenop.
     """
     from app.auth.security import decode_access_token
     import time
@@ -245,13 +271,27 @@ def _trek_token_in(request: Request, credentials) -> None:
     if not tok:
         tok = request.cookies.get(_sso_cookie_naam())
     if not tok:
-        return
+        return None
     try:
         payload = decode_access_token(tok)
         exp = payload.get("exp", time.time() + 3600)
         block_token(payload.get("jti") or tok, float(exp))
+        return payload
     except Exception:
-        pass  # Token was al ongeldig — uitloggen is dan alsnog geslaagd.
+        return None  # Token was al ongeldig — uitloggen is dan alsnog geslaagd.
+
+
+def _trek_centraal_in(db: Session, current_user: Optional[User], payload: Optional[dict]) -> None:
+    """Leg de uitlogactie vast voor alle applicaties (B-16) en wek de push.
+
+    Alleen voor een herkende gebruiker: zonder geldig token is er niets meer in
+    te trekken. `registreer_logout` faalt nooit naar buiten, zodat uitloggen
+    altijd slaagt.
+    """
+    if current_user is None:
+        return
+    from app.services.revocation_issuer import registreer_logout
+    registreer_logout(db, str(current_user.id), payload)
 
 
 def _platform_url() -> str:
@@ -265,6 +305,7 @@ def logout(
     response: Response,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
     current_user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
 ):
     """Beëindig de sessie: trek het SSO-cookie in en blokkeer het token.
 
@@ -272,7 +313,8 @@ def logout(
     een verlopen of al ingetrokken sessie mag geen 401 opleveren, want dan blijft
     het cookie juist staan bij de gebruiker die er vanaf wil.
     """
-    _trek_token_in(request, credentials)
+    payload = _trek_token_in(request, credentials)
+    _trek_centraal_in(db, current_user, payload)
     _wis_sso_cookie(response)
     response.headers["Cache-Control"] = "no-store"
 
@@ -286,6 +328,7 @@ def logout_en_terug_naar_platform(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
     current_user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
 ):
     """Uitloggen via een gewone paginanavigatie, met terugkeer naar het Platform.
 
@@ -301,7 +344,8 @@ def logout_en_terug_naar_platform(
     from fastapi.responses import RedirectResponse
 
     response = RedirectResponse(url=_platform_url(), status_code=status.HTTP_303_SEE_OTHER)
-    _trek_token_in(request, credentials)
+    payload = _trek_token_in(request, credentials)
+    _trek_centraal_in(db, current_user, payload)
     _wis_sso_cookie(response)
     response.headers["Cache-Control"] = "no-store"
 

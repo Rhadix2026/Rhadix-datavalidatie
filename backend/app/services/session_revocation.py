@@ -167,10 +167,129 @@ def bouw_lijst(rijen) -> dict[str, Any]:
                 verloopt = verloopt.replace(tzinfo=timezone.utc)
             if verloopt <= nu:
                 continue        # verlopen intrekkingen hoeven niet rond
+        # Een ontbrekende not_before blijft leeg: dan is het een intrekking van
+        # één token (A), geen intrekking van alle sessies van `sub` (B).
+        nb = getattr(r, "not_before", None)
+        if nb is not None and nb.tzinfo is None:
+            nb = nb.replace(tzinfo=timezone.utc)
         uit.append({
             "jti":        getattr(r, "jti", None),
             "sub":        str(getattr(r, "sub", "") or ""),
-            "not_before": (getattr(r, "not_before", None) or nu).isoformat(),
+            "not_before": nb.isoformat() if nb else None,
             "expires_at": verloopt.isoformat() if verloopt else None,
         })
     return {"generated_at": nu.isoformat(), "revocations": uit}
+
+
+# ── de lijst als ondertekend bericht ───────────────────────────────────────
+#
+# Push-authenticatie zonder nieuw gedeeld geheim: de uitgever tekent de lijst
+# met dezelfde sleutel als de toegangstokens, en elke ontvanger controleert met
+# de publieke sleutel die hij al heeft. `aud` en `typ` houden de twee soorten
+# berichten strikt uit elkaar: een toegangstoken is nooit een lijst, en een
+# lijst heeft geen `sub` en is dus nooit een toegangstoken.
+
+LIJST_AUD = "rhadix-revocation"
+LIJST_TYP = "revocation-list"
+MAX_KLOKVERSCHIL = timedelta(seconds=5)
+
+
+def teken_lijst(lijst: dict[str, Any]) -> str:
+    from jose import jwt
+    from app.auth import security
+
+    nu = datetime.now(timezone.utc)
+    claims = {
+        "iss": security.ISSUER,
+        "aud": LIJST_AUD,
+        "typ": LIJST_TYP,
+        "iat": int(nu.timestamp()),
+        # Kort geldig: een onderschept bericht is na twee intervallen waardeloos.
+        "exp": int((nu + timedelta(seconds=max(2 * hartslaginterval(), 30))).timestamp()),
+        **lijst,
+    }
+    if security.USE_RS256:
+        return jwt.encode(claims, security.PRIVATE_KEY, algorithm="RS256",
+                          headers={"kid": security.KID})
+    return jwt.encode(claims, security.SECRET_KEY, algorithm=security.ALGORITHM)
+
+
+def lees_lijst(token: str) -> dict[str, Any]:
+    """Verifieer een lijstbericht. Gooit ValueError bij elke afwijking."""
+    from jose import JWTError, jwt
+    from app.auth import security
+
+    # Het algoritme volgt uit de configuratie, nooit uit de header van het bericht.
+    if security.USE_RS256:
+        sleutel, alg = security.PUBLIC_KEY, "RS256"
+    else:
+        sleutel, alg = security.SECRET_KEY, security.ALGORITHM
+    try:
+        claims = jwt.decode(token, sleutel, algorithms=[alg], audience=LIJST_AUD,
+                            issuer=security.ISSUER)
+    except JWTError as exc:
+        raise ValueError(f"ongeldig lijstbericht: {exc}") from exc
+    # python-jose controleert `aud` alleen als hij aanwezig is; daarom expliciet.
+    if claims.get("aud") != LIJST_AUD or claims.get("typ") != LIJST_TYP:
+        raise ValueError("geen intrekkingslijst")
+    if "sub" in claims:
+        raise ValueError("lijstbericht mag geen sub dragen")
+    if not isinstance(claims.get("revocations"), list) or not claims.get("generated_at"):
+        raise ValueError("lijstbericht is onvolledig")
+    return claims
+
+
+def lees_tijd(ruw) -> Optional[datetime]:
+    if not ruw:
+        return None
+    t = datetime.fromisoformat(str(ruw).replace("Z", "+00:00"))
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+# ── noodprocedure: invoer en geheim ────────────────────────────────────────
+
+MIN_REDEN_TEKENS = 20
+MIN_GEHEIM_TEKENS = 32
+
+
+def noodgeheim() -> Optional[str]:
+    """Het voorgedeelde geheim, of None als de noodprocedure niet is ingericht.
+    Een te kort geheim telt als niet ingericht: liever geen nooduitgang dan een
+    die te raden is."""
+    g = (os.getenv("REVOCATION_BREAKGLASS_SECRET") or "").strip()
+    if not g:
+        return None
+    if len(g) < MIN_GEHEIM_TEKENS:
+        log.error("REVOCATION_BREAKGLASS_SECRET is korter dan %d tekens — noodprocedure uit",
+                  MIN_GEHEIM_TEKENS)
+        return None
+    return g
+
+
+def geheim_klopt(aangeboden: Optional[str]) -> bool:
+    import hmac
+    g = noodgeheim()
+    if not g or not aangeboden:
+        return False
+    return hmac.compare_digest(g.encode("utf-8"), aangeboden.strip().encode("utf-8"))
+
+
+def toets_noodverzoek(body: Any) -> tuple[int, str, str]:
+    """Controleer de verplichte velden. Geeft (duur_minuten, reden, uitgevoerd_door)
+    of gooit ValueError met een leesbare melding."""
+    if not isinstance(body, dict):
+        raise ValueError("verwacht een JSON-object")
+    duur = body.get("duur_minuten")
+    if isinstance(duur, bool) or not isinstance(duur, int):
+        raise ValueError("duur_minuten is verplicht en moet een geheel getal zijn")
+    if not 1 <= duur <= MAX_NOODDUUR_MINUTEN:
+        raise ValueError(f"duur_minuten moet tussen 1 en {MAX_NOODDUUR_MINUTEN} liggen")
+    reden = body.get("reden")
+    if not isinstance(reden, str) or len(reden.strip()) < MIN_REDEN_TEKENS:
+        raise ValueError(f"reden is verplicht, minimaal {MIN_REDEN_TEKENS} tekens")
+    door = body.get("uitgevoerd_door")
+    if not isinstance(door, str) or not door.strip():
+        raise ValueError("uitgevoerd_door is verplicht")
+    if len(door.strip()) > 255 or len(reden.strip()) > 2000:
+        raise ValueError("uitgevoerd_door of reden is te lang")
+    return duur, reden.strip(), door.strip()

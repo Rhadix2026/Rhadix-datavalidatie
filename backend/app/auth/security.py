@@ -2,6 +2,7 @@
 security.py — JWT creation/validation and password hashing utilities.
 """
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -109,11 +110,17 @@ USE_RS256   = bool(PRIVATE_KEY and PUBLIC_KEY)
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a signed JWT access token (RS256 als sleutels gezet zijn, anders HS256)."""
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
+    nu = datetime.now(timezone.utc)
+    expire = nu + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode["exp"] = expire
     to_encode.setdefault("iss", ISSUER)
+    # `iat` en `jti` zijn voorwaarde voor centrale tokenintrekking (B-16):
+    # zonder uitgiftetijd kan een resource-app niet bepalen of een token van
+    # vóór een uitlogmoment stamt, en zonder identifier kan één token niet
+    # gericht worden ingetrokken. Met setdefault, zodat een aanroeper die ze
+    # zelf meegeeft (tests, machine-tokens) niet wordt overschreven.
+    to_encode.setdefault("iat", int(nu.timestamp()))
+    to_encode.setdefault("jti", uuid.uuid4().hex)
     if USE_RS256:
         return jwt.encode(to_encode, PRIVATE_KEY, algorithm="RS256", headers={"kid": KID})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

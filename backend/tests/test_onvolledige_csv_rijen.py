@@ -102,14 +102,14 @@ def test_melding_volgt_het_contract_van_file_results_issues():
         assert m["severity"] == "error"
         assert m["type"] == "incomplete_row"
         assert m["count"] == 1
-        assert m["examples"] == ["rij 3"]
+        assert m["examples"] == [{"row": 3, "value": "ontbreekt"}]
     assert {m["field"] for m in meldingen} == {"DateOfBirth", "Gender"}
 
 
 def test_melding_noemt_veld_en_rij_in_de_tekst():
     meldingen = onvolledige_rijen_naar_meldingen([{"rij": 7, "ontbrekend": ["Gender"]}])
     assert "Gender" in meldingen[0]["message"]
-    assert meldingen[0]["examples"] == ["rij 7"]
+    assert meldingen[0]["examples"] == [{"row": 7, "value": "ontbreekt"}]
 
 
 def test_melding_is_leesbaar_in_beide_schermen():
@@ -142,7 +142,7 @@ def test_meerdere_rijen_worden_per_veld_samengevoegd():
     ]
     per_veld = {m["field"]: m for m in onvolledige_rijen_naar_meldingen(onvolledig)}
     assert per_veld["Gender"]["count"] == 2
-    assert per_veld["Gender"]["examples"] == ["rij 3", "rij 5"]
+    assert [e["row"] for e in per_veld["Gender"]["examples"]] == [3, 5]
     assert per_veld["DateOfBirth"]["count"] == 1
 
 
@@ -230,7 +230,7 @@ def test_upload_geeft_200_met_melding_in_plaats_van_500(client):
     ]
     assert meldingen, "verwachtte een incomplete_row-melding"
     assert all(m["severity"] == "error" for m in meldingen)
-    assert any("rij 3" in m["examples"] for m in meldingen)
+    assert any({"row": 3, "value": "ontbreekt"} in m["examples"] for m in meldingen)
 
 
 def test_upload_van_een_volledig_bestand_meldt_niets_nieuws(client):

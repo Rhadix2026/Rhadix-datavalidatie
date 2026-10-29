@@ -126,7 +126,9 @@ def onvolledige_rijen_naar_meldingen(onvolledig: list) -> list[dict]:
             "field":    veld,
             "count":    len(rijen),
             "message":  bericht,
-            "examples": [f"rij {r}" for r in rijen[:20]],
+            # zelfde vorm als de overige controles ({row, value}), zodat het
+            # dashboard het rijnummer toont (B-17)
+            "examples": [{"row": r, "value": "ontbreekt"} for r in rijen[:20]],
             # voor ZibDashboard / ExpandableIssueRow
             "label":    f"{veld} — onvolledige rij",
             "detail":   f"{bericht} ({rij_tekst})",

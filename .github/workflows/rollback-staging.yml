@@ -88,23 +88,16 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Pull de specifieke tag
-            docker compose \
-              -f /opt/rhadix-app/docker-compose.staging.yml \
-              --env-file /opt/rhadix-app/.env.staging \
-              pull
-
-            # Herstart met de gerollbakte versie
-            docker compose \
-              -f /opt/rhadix-app/docker-compose.staging.yml \
-              --env-file /opt/rhadix-app/.env.staging \
-              up -d --remove-orphans
+            # B-33: alleen de applicatie terugzetten; db en fuseki worden nooit opnieuw
+            # aangemaakt (een database-rollback is een aparte, bewuste handeling).
+            # -p rhadix-staging: hetzelfde compose-project als de deploy-workflow.
+            C="docker compose -p rhadix-staging -f /opt/rhadix-app/docker-compose.staging.yml --env-file /opt/rhadix-app/.env.staging"
+            $C up -d --no-recreate db fuseki
+            $C pull backend frontend
+            $C up -d --no-deps --remove-orphans backend frontend
 
             echo "✓ Rollback uitgevoerd naar $TAG"
-            docker compose \
-              -f /opt/rhadix-app/docker-compose.staging.yml \
-              --env-file /opt/rhadix-app/.env.staging \
-              ps
+            $C ps
 
       - name: Health check na rollback
         uses: appleboy/ssh-action@v1.0.3

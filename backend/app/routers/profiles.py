@@ -177,6 +177,12 @@ async def compute_readiness(filename: str, scan_result: dict):
     - profile_readiness_score
     - top-10 blocking fields and relationships
     - heatmap (indicators × source domains)
+    - retired_indicators: ingetrokken indicatoren, met grondslag, reden en bron.
+      Deze tellen níet mee in total_indicators of in de score en staan niet in
+      indicator_results (B-19a).
+    - missing_query_indicators: indicatoren zonder SPARQL-bestand waarvoor géén
+      intrekking is aangetoond. Die tellen wél mee; het is een aandachtspunt,
+      geen uitsluiting.
     """
     try:
         profile = load_profile(filename)

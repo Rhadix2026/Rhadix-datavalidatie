@@ -7,7 +7,11 @@
 services:
 
   db:
-    image: postgres:16-alpine
+    # B-33: vastgezet op digest, zodat een pull of verschoven tag dit image niet
+    # ongemerkt wijzigt. De deploy-workflow maakt deze container nooit opnieuw aan
+    # (--no-recreate). Bewust upgraden: digest hier aanpassen, back-up maken, dan
+    # handmatig `up -d --no-deps --force-recreate <service>`; terug = vorige digest.
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     container_name: rhadix-db
     restart: always
     environment:
@@ -98,7 +102,11 @@ services:
       - "${FRONTEND_PORT:-5174}:80"
 
   fuseki:
-    image: stain/jena-fuseki:5.1.0
+    # B-33: vastgezet op digest, zodat een pull of verschoven tag dit image niet
+    # ongemerkt wijzigt. De deploy-workflow maakt deze container nooit opnieuw aan
+    # (--no-recreate). Bewust upgraden: digest hier aanpassen, back-up maken, dan
+    # handmatig `up -d --no-deps --force-recreate <service>`; terug = vorige digest.
+    image: stain/jena-fuseki:5.1.0@sha256:b1d0c96f19adddef417520184471ac816cf36c6e72936a88ea02b29f4305929a
     container_name: rhadix-fuseki
     restart: always
     environment:

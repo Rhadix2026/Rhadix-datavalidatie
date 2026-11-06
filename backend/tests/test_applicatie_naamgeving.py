@@ -27,6 +27,7 @@ VERWACHTE_SLUGS = {
     "datastation",
     "rhadix-crm",
     "reconciliation-engine",
+    "rhadix-makelaarsportaal",
 }
 
 

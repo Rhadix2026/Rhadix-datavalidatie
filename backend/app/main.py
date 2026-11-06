@@ -277,7 +277,7 @@ _ensure_admin()
 # Borg de product-Applications (centrale toegangssturing voor het hele platform).
 # Idempotent; veilig op elke omgeving.
 # ---------------------------------------------------------------------------
-# De vijf product-applicaties van het platform: (slug, weergavenaam, omschrijving, volgorde).
+# De product-applicaties van het platform: (slug, weergavenaam, omschrijving, volgorde).
 # De SLUG is de sleutel — daarop beoordelen de resource-apps de apps-claim. De NAAM is
 # uitsluitend weergave. Let op de asymmetrie in de slugs: alleen CRM heeft een
 # 'rhadix-'-voorvoegsel. Die slugs staan vast en mogen hier niet wijzigen.
@@ -287,6 +287,8 @@ PRODUCT_APPS: list[tuple[str, str, str, int]] = [
     ("datastation",           "Rhadix Datastation",    "Rekenhart: lokale SPARQL/Fuseki bij de bron.", 12),
     ("rhadix-crm",            "Rhadix CRM",            "Relatie- en krachtenveldbeheer rond RSO's en zorgaanbieders.", 13),
     ("reconciliation-engine", "Rhadix Reconciliatie",  "Vergelijk verwachte en actuele indicatorwaarden op recordniveau.", 14),
+    # Eigen applicatie met eigen server en database; gebruikt alleen de centrale login (apps-claim).
+    ("rhadix-makelaarsportaal", "Rhadix Makelaarsportaal", "Woningwebsites voor makelaarskantoren: van brochure tot website.", 15),
 ]
 
 # Eenmalige naamcorrecties: {slug: (oude naam, nieuwe naam)}.

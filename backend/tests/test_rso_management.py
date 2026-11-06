@@ -174,7 +174,8 @@ class TestRsoApps:
     def test_assignable_list_only_products(self, client, db, rso_token):
         # conftest seedt kikv/zib/algemeen-validator + 'reconciliation' (oude slug).
         for slug, name in [("uitvraag", "Rhadix Uitvraag"), ("rhadix-crm", "Rhadix CRM"),
-                           ("reconciliation-engine", "Reconciliation Engine")]:
+                           ("reconciliation-engine", "Reconciliation Engine"),
+                           ("rhadix-makelaarsportaal", "Rhadix Makelaarsportaal")]:
             if not db.query(Application).filter(Application.slug == slug).first():
                 db.add(Application(id=uuid.uuid4(), slug=slug, name=name, is_active=True))
         db.commit()
@@ -183,6 +184,7 @@ class TestRsoApps:
         slugs = [a["slug"] for a in resp.json()]
         assert "uitvraag" in slugs                        # product zichtbaar
         assert "rhadix-crm" in slugs                      # CRM-tegel zichtbaar
+        assert "rhadix-makelaarsportaal" in slugs         # Makelaarsportaal toewijsbaar
         assert "reconciliation-engine" in slugs           # canonieke reconciliatie-tegel
         assert "reconciliation" not in slugs              # oude dubbele slug verborgen
         assert "kikv-validator" not in slugs              # validatie-sub-module verborgen

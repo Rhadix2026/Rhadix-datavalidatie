@@ -8,6 +8,10 @@ const DATASTATION_URL = import.meta.env.VITE_DATASTATION_URL || (IS_PROD ? 'http
 const DATASTATION_ACTIVE = !!DATASTATION_URL
 const CRM_URL = import.meta.env.VITE_CRM_URL || (IS_PROD ? 'https://crm.rhadix.nl' : 'https://crm-staging.rhadix.nl')
 const CRM_ACTIVE = true  // CRM live op staging én productie
+// Makelaarsportaal: eigen server. Alleen de testomgeving bestaat; in productie 'niet uitgerold'
+// totdat VITE_MAKELAARSPORTAAL_URL bij de livegang wordt gezet.
+const MAKELAARSPORTAAL_URL = import.meta.env.VITE_MAKELAARSPORTAAL_URL || (IS_PROD ? '' : 'https://makelaarsportaal-test.rhadix.nl')
+const MAKELAARSPORTAAL_ACTIVE = !!MAKELAARSPORTAAL_URL
 
 // Post-login portal: de drie applicaties als kaart-grid (zoals 'Kies een standaard').
 export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, authUser, onDashboard, onAdmin, onOrgAdmin, onRsoAdmin, onLogout, onTasks, onReconciliation }) {
@@ -35,6 +39,9 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
     { id: 'recon', slug: 'reconciliation-engine', icon: '🔁', label: 'Rhadix Reconciliatie', laag: 'Bij de bron \u00b7 Vergelijking',
       color: '#0E7490', bg: '#ECFEFF', border: '#A5F3FC', actie: 'Openen \u2192',
       desc: 'Vergelijk verwachte indicatorwaarden uit brondata met actuele SPARQL-uitkomsten en analyseer afwijkingen op recordniveau.' },
+    { id: 'mp', slug: 'rhadix-makelaarsportaal', uitgerold: MAKELAARSPORTAAL_ACTIVE, icon: '\u{1F3E0}', label: 'Rhadix Makelaarsportaal', laag: 'Wonen \u00b7 Woningwebsites',
+      color: '#B45309', bg: '#FEF3E2', border: '#F8D7A8', actie: 'Openen \u2192',
+      desc: 'Van verkoopbrochure tot woningwebsite: aanleveren, controleren en een concept laten opbouwen voor het makelaarskantoor.' },
   ]
 
   // Beschikbaarheid per tegel: deploymentstatus én toewijzing, in die volgorde.
@@ -47,6 +54,7 @@ export default function AppPortal({ onLogin, brand = 'rhadix', onBrandChange, au
     else if (id === 'u') window.location.href = withBrand(UITVRAAG_URL)
     else if (id === 'ds') window.location.href = withBrand(DATASTATION_URL)
     else if (id === 'crm') window.location.href = withBrand(CRM_URL)
+    else if (id === 'mp') window.location.href = MAKELAARSPORTAAL_URL
     else if (id === 'recon' && onReconciliation) onReconciliation()
   }
 

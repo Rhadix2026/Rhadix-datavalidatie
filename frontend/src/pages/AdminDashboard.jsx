@@ -27,7 +27,7 @@ import {
 
 // Toewijsbare producten = de portaal-tegels. Validatie-sub-modules (KIK-V/ZIB/Algemeen
 // Validator) zijn interne toegangschakelaars en worden niet in de lijst getoond.
-const PRODUCT_SLUGS = new Set(['datavalidatie', 'uitvraag', 'datastation', 'rhadix-crm', 'reconciliation-engine'])
+const PRODUCT_SLUGS = new Set(['datavalidatie', 'uitvraag', 'datastation', 'rhadix-crm', 'reconciliation-engine', 'rhadix-makelaarsportaal'])
 
 const BRAND_PRESETS = {
   rhadix: { label: 'Rhadix (standaard)', primary_color: '#1A2847', accent_color: '#1A2847' },

@@ -361,7 +361,7 @@ def reset_rso_user_password(
 # Reconciliation Engine). De validatie-sub-modules (KIK-V/ZIB/Algemeen Validator) zijn
 # interne toegangschakelaars en horen niet in de toewijs-lijst.
 PRODUCT_SLUGS = {"datavalidatie", "uitvraag", "datastation", "rhadix-crm",
-                 "reconciliation-engine"}
+                 "reconciliation-engine", "rhadix-makelaarsportaal"}
 
 
 @router.get("/licenses")

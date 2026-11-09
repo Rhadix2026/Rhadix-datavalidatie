@@ -77,6 +77,7 @@ export function organisatieToelichting(tenant, tenantsById = {}) {
   const type = (tenant.tenant_type || 'ORG').toUpperCase()
   if (type === 'RSO') return 'samenwerkingsorganisatie (RSO)'
   if (type === 'PLATFORM') return 'platformorganisatie'
+  if (type === 'MAKELAAR') return 'makelaarskantoor'
 
   const ouderNaam = tenant.parent_tenant_name
     || (tenant.parent_tenant_id ? tenantsById[tenant.parent_tenant_id]?.name : null)

@@ -47,6 +47,10 @@ test('het label telt actieve gebruikers, enkelvoud correct', () => {
   assert.match(organisatieLabel(KIKG, BY_ID), /3 actieve gebruikers$/)
 })
 
+test('een makelaarskantoor heet ook zo, zonder RSO-ouder', () => {
+  assert.equal(organisatieToelichting({ name: 'Makelaardij Noord', tenant_type: 'MAKELAAR' }), 'makelaarskantoor')
+})
+
 test('zonder aantal blijft het label bruikbaar', () => {
   assert.equal(organisatieLabel({ name: 'X', tenant_type: 'ORG' }), 'X — organisatie')
 })

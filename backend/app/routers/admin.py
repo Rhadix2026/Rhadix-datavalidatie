@@ -118,7 +118,7 @@ class CreateTenantRequest(BaseModel):
     admin_email: str
     admin_password: str
     admin_full_name: Optional[str] = None
-    tenant_type: str = "ORG"                 # 'ORG' of 'RSO'
+    tenant_type: str = "ORG"                 # 'ORG', 'RSO' of 'MAKELAAR'
     parent_tenant_id: Optional[str] = None   # optioneel: onder welke RSO valt deze organisatie
 
 
@@ -167,8 +167,11 @@ def create_tenant(
         raise HTTPException(422, "Password must be at least 12 characters")
 
     ttype = (body.tenant_type or "ORG").upper()
-    if ttype not in ("ORG", "RSO"):
+    if ttype not in ("ORG", "RSO", "MAKELAAR"):
         raise HTTPException(422, f"Invalid tenant_type: {body.tenant_type}")
+    # Een makelaarskantoor staat los van de zorgketen: nooit onder een samenwerkingsorganisatie.
+    if ttype == "MAKELAAR" and body.parent_tenant_id:
+        raise HTTPException(422, "Een makelaarskantoor valt niet onder een samenwerkingsorganisatie (RSO)")
 
     parent_id = None
     if body.parent_tenant_id:

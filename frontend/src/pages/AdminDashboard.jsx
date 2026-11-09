@@ -8,6 +8,7 @@ import {
   licentieStatus,
   maxUsersTekst,
   organisatieLabel,
+  organisatieToelichting,
   periodeTekst,
   statusWeergave,
 } from '../lib/licentieweergave'
@@ -104,7 +105,7 @@ function CreateTenantModal({ onClose, onCreated, tenants = [] }) {
     const next = { ...form, [k]: v }
     if (k === 'name' && !form.slug)
       next.slug = v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-    if (k === 'tenant_type' && v === 'RSO') next.parent_tenant_id = ''   // een RSO valt niet onder een RSO
+    if (k === 'tenant_type' && v !== 'ORG') next.parent_tenant_id = ''   // alleen een zorgorganisatie valt onder een RSO
     setForm(next)
   }
 
@@ -119,6 +120,7 @@ function CreateTenantModal({ onClose, onCreated, tenants = [] }) {
   }
 
   const isRso = form.tenant_type === 'RSO'
+  const isMakelaar = form.tenant_type === 'MAKELAAR'
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
       <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '36px 40px', width: 480, maxWidth: '90vw' }}>
@@ -129,9 +131,10 @@ function CreateTenantModal({ onClose, onCreated, tenants = [] }) {
             <select value={form.tenant_type} onChange={e => set('tenant_type', e.target.value)} style={inputStyle}>
               <option value="ORG">Zorgorganisatie</option>
               <option value="RSO">Samenwerkingsorganisatie (RSO)</option>
+              <option value="MAKELAAR">Makelaarskantoor</option>
             </select>
           </label>
-          {!isRso && rsos.length > 0 && (
+          {!isRso && !isMakelaar && rsos.length > 0 && (
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>Valt onder RSO (optioneel)</span>
               <select value={form.parent_tenant_id} onChange={e => set('parent_tenant_id', e.target.value)} style={inputStyle}>
@@ -141,9 +144,9 @@ function CreateTenantModal({ onClose, onCreated, tenants = [] }) {
             </label>
           )}
           {[
-            { k: 'name',            label: 'Organisatienaam',   type: 'text',     ph: isRso ? 'RSO Noord' : 'Zorggroep Noord' },
-            { k: 'slug',            label: 'Slug (URL-naam)',   type: 'text',     ph: isRso ? 'rso-noord' : 'zorggroep-noord' },
-            { k: 'admin_email',     label: isRso ? 'RSO-beheerder e-mail' : 'Admin e-mailadres', type: 'email',    ph: 'admin@zorggroep.nl' },
+            { k: 'name',            label: 'Organisatienaam',   type: 'text',     ph: isRso ? 'RSO Noord' : isMakelaar ? 'Makelaardij Noord' : 'Zorggroep Noord' },
+            { k: 'slug',            label: 'Slug (URL-naam)',   type: 'text',     ph: isRso ? 'rso-noord' : isMakelaar ? 'makelaardij-noord' : 'zorggroep-noord' },
+            { k: 'admin_email',     label: isRso ? 'RSO-beheerder e-mail' : 'Admin e-mailadres', type: 'email',    ph: isMakelaar ? 'admin@makelaardij.nl' : 'admin@zorggroep.nl' },
             { k: 'admin_password',  label: 'Beheerder wachtwoord',  type: 'password', ph: 'min. 12 tekens' },
             { k: 'admin_full_name', label: 'Beheerder naam',        type: 'text',     ph: 'Jan de Vries (optioneel)' },
           ].map(({ k, label, type, ph }) => (
@@ -572,6 +575,7 @@ function BrandingEditor({ tenant }) {
 function parseErrLocal(err) { let m = err.message; try { m = JSON.parse(err.message)?.detail || m } catch {} return m }
 
 function TabOrganisations({ stats, tenants, applications, onReload }) {
+  const tenantsById = Object.fromEntries(tenants.map(t => [t.id, t]))
   const [showCreate,     setShowCreate]     = useState(false)
   const [expandedTid,    setExpandedTid]    = useState(null)
   const [tenantApps,     setTenantApps]     = useState({})
@@ -687,6 +691,13 @@ function TabOrganisations({ stats, tenants, applications, onReload }) {
                   rows.push(
                     <tr key={`${t.id}-detail`}>
                       <td colSpan={7} style={{ padding: '20px 24px', background: '#f8fafc', borderBottom: '1px solid var(--border)' }}>
+
+                        {/* Type en organisatie-ID: met dit ID koppelt een andere applicatie
+                            (bv. Rhadix Makelaarsportaal) de organisatie, nooit op naam. */}
+                        <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12 }}>
+                          {organisatieToelichting(t, tenantsById)} · organisatie-ID{' '}
+                          <span style={{ fontFamily: 'monospace', userSelect: 'all' }}>{t.id}</span>
+                        </div>
 
                         {/* Organisatieniveau: applicaties van deze organisatie. */}
                         <div style={{ marginBottom: 16 }}>
@@ -898,6 +909,7 @@ function EditLicenseModal({ license, onClose, onSaved }) {
         <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 18 }}>
           <strong>{license.tenant_name ?? 'Onbekende organisatie'}</strong>
           {license.tenant_type === 'RSO' && ' — samenwerkingsorganisatie (RSO)'}
+          {license.tenant_type === 'MAKELAAR' && ' — makelaarskantoor'}
           {license.parent_tenant_name && ` — organisatie onder ${license.parent_tenant_name}`}
           {typeof license.actieve_gebruikers === 'number' &&
             ` · ${license.actieve_gebruikers} ${license.actieve_gebruikers === 1 ? 'actieve gebruiker' : 'actieve gebruikers'}`}

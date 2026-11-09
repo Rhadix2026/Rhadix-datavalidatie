@@ -33,7 +33,8 @@ class Tenant(Base):
     slug       = Column(String(63), unique=True, nullable=False, index=True)
     name       = Column(String(255), nullable=False)
     is_active  = Column(Boolean, default=True, nullable=False)
-    # tenant_type: 'ORG' = zorgorganisatie (default), 'RSO' = samenwerkingsorganisatie, 'PLATFORM' = Rhadix
+    # tenant_type: 'ORG' = zorgorganisatie (default), 'RSO' = samenwerkingsorganisatie, 'PLATFORM' = Rhadix,
+    # 'MAKELAAR' = makelaarskantoor (Rhadix Makelaarsportaal; valt nooit onder een RSO)
     tenant_type      = Column(String(16), nullable=False, server_default="ORG", default="ORG")
     # Ouder-tenant: een zorgorganisatie kan onder één RSO hangen (self-referential).
     parent_tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True)

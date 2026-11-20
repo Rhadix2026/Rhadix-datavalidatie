@@ -26,7 +26,7 @@ import ReconciliationDashboard from './pages/reconciliation/ReconciliationDashbo
 import LoginScreen        from './pages/LoginScreen'
 import AuthAction         from './pages/AuthAction'
 import AppPortal, { MAKELAARSPORTAAL_URL } from './pages/AppPortal'
-import { leesDirecteApp, doorstuurAdres, DIRECTE_APPS } from './lib/directeToegang'
+import { leesDirecteApp, doorstuurAdres, DIRECTE_APPS, leesMerk, MERKEN } from './lib/directeToegang'
 import PlatformLanding    from './pages/PlatformLanding'
 import AdminDashboard     from './pages/AdminDashboard'
 import OrgAdminDashboard  from './pages/OrgAdminDashboard'
@@ -49,6 +49,8 @@ export default function App() {
   // Rechtstreekse ingang (?app=<slug>, zie lib/directeToegang.js): direct het inlogscherm en na
   // het inloggen meteen door naar die applicatie, zonder applicatieoverzicht.
   const [directeApp]                   = useState(() => leesDirecteApp(window.location.search))
+  // Merkvariant van het inlogscherm (?merk=, alleen samen met een rechtstreekse ingang).
+  const [merk]                         = useState(() => leesMerk(window.location.search, leesDirecteApp(window.location.search)))
   const [doorsturen, setDoorsturen]     = useState(false)
   const [entry, setEntry]               = useState(() => (directeApp ? 'login' : 'landing'))  // 'landing' | 'login'
   const [brand, setBrand]               = useState(getInitialBrand)   // 'rhadix' | 'suresync' (white-label, staging)
@@ -186,7 +188,7 @@ export default function App() {
   if (!authUser) {
     if (entry === 'login') {
       return <LoginScreen onLogin={handleLogin} onBack={directeApp ? undefined : () => setEntry('landing')} brand={brand} onBrandChange={changeBrand}
-                          appNaam={directeApp ? DIRECTE_APPS[directeApp] : undefined} />
+                          appNaam={directeApp ? DIRECTE_APPS[directeApp] : undefined} merk={merk ? MERKEN[merk] : null} />
     }
     return <PlatformLanding onLogin={() => setEntry('login')} brand={brand} onBrandChange={changeBrand} />
   }

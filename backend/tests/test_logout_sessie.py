@@ -133,6 +133,24 @@ class TestGetLogout:
             assert res.status_code in (302, 303), (waarde, res.text)
             assert res.headers["location"] == "https://app-staging.rhadix.nl/", waarde
 
+    def test_bekend_merk_gaat_mee_naar_de_ingang(self, client, monkeypatch):
+        """Uitloggen vanuit de Morskieft-omgeving: terug op het Morskieft-inlogscherm."""
+        monkeypatch.setenv("PUBLIC_BASE_URL", "https://app-staging.rhadix.nl")
+        res = client.get("/api/auth/logout?app=rhadix-makelaarsportaal&merk=morskieft", follow_redirects=False)
+        assert res.headers["location"] == "https://app-staging.rhadix.nl/?app=rhadix-makelaarsportaal&merk=morskieft"
+
+    def test_onbekend_merk_of_merk_zonder_app_wordt_genegeerd(self, client, monkeypatch):
+        monkeypatch.setenv("PUBLIC_BASE_URL", "https://app-staging.rhadix.nl")
+        for params, verwacht in (
+            ({"app": "rhadix-makelaarsportaal", "merk": "onbekend"}, "https://app-staging.rhadix.nl/?app=rhadix-makelaarsportaal"),
+            ({"app": "rhadix-makelaarsportaal", "merk": "https://kwaadaardig.example"}, "https://app-staging.rhadix.nl/?app=rhadix-makelaarsportaal"),
+            ({"app": "rhadix-makelaarsportaal", "merk": "morskieft&next=//x"}, "https://app-staging.rhadix.nl/?app=rhadix-makelaarsportaal"),
+            ({"merk": "morskieft"}, "https://app-staging.rhadix.nl/"),
+            ({"app": "uitvraag", "merk": "morskieft"}, "https://app-staging.rhadix.nl/"),
+        ):
+            res = client.get("/api/auth/logout", params=params, follow_redirects=False)
+            assert res.headers["location"] == verwacht, params
+
     def test_app_parameter_trekt_de_sessie_net_zo_goed_in(self, client, token_org_user):
         """Met ?app blijft uitloggen gewoon uitloggen: daarna geeft het cookie geen toegang meer."""
         client.get("/api/auth/logout?app=rhadix-makelaarsportaal",

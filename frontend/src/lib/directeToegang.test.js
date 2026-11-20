@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { leesDirecteApp, doorstuurAdres, DIRECTE_APPS } from './directeToegang.js'
+import { leesDirecteApp, doorstuurAdres, DIRECTE_APPS, leesMerk, MERKEN } from './directeToegang.js'
 
 const ADRESSEN = { 'rhadix-makelaarsportaal': 'https://makelaarsportaal-test.rhadix.nl' }
 const makelaar = { role: 'ORG_USER', assigned_app_slugs: ['rhadix-makelaarsportaal'] }
@@ -42,4 +42,18 @@ test('niet ingelogd, onbekende slug of geen geldig adres: niet doorsturen', () =
 
 test('lijst is bevroren', () => {
   assert.ok(Object.isFrozen(DIRECTE_APPS))
+})
+
+test('merk alleen bij een rechtstreekse ingang en alleen uit de vaste lijst', () => {
+  assert.equal(leesMerk('?app=rhadix-makelaarsportaal&merk=morskieft', 'rhadix-makelaarsportaal'), 'morskieft')
+  assert.equal(leesMerk('?merk=morskieft', null), null)                       // zonder ingang: gewoon Rhadix
+  assert.equal(leesMerk('?app=rhadix-makelaarsportaal&merk=onbekend', 'rhadix-makelaarsportaal'), null)
+  assert.equal(leesMerk('?app=rhadix-makelaarsportaal&merk=__proto__', 'rhadix-makelaarsportaal'), null)
+  assert.equal(leesMerk('?app=rhadix-makelaarsportaal&merk=MORSKIEFT', 'rhadix-makelaarsportaal'), null)
+  assert.equal(leesMerk('?app=rhadix-makelaarsportaal', 'rhadix-makelaarsportaal'), null)
+})
+
+test('merken zijn bevroren en verwijzen naar een eigen pad', () => {
+  assert.ok(Object.isFrozen(MERKEN) && Object.isFrozen(MERKEN.morskieft))
+  for (const m of Object.values(MERKEN)) assert.match(m.logo, /^\/merken\/[a-z0-9-]+\/[a-z0-9.-]+\.svg$/)
 })

@@ -4,7 +4,9 @@ import { TreeDecoration, ConstellationBg } from '../components/UI'
 import { currentBrand, brandLogo } from '../brand'
 import { forgotPassword } from '../services/api'
 
-export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrandChange, appNaam = 'Rhadix Datavalidatie' }) {
+// `merk` (optioneel): merkvariant voor een rechtstreekse ingang (lib/directeToegang.js, MERKEN).
+// Alleen opmaak: eigen logo, kleuren en lettertype; formulier en authenticatie blijven gelijk.
+export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrandChange, appNaam = 'Rhadix Datavalidatie', merk = null }) {
   const [email,      setEmail]      = useState('')
   const [password,   setPassword]   = useState('')
   const [loading,    setLoading]    = useState(false)
@@ -46,14 +48,24 @@ export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrand
     transition: 'border-color .15s', background: '#fff',
   }
 
+  // Merkvariant: de bestaande CSS-variabelen alleen binnen dit scherm overschrijven.
+  const merkStijl = merk ? {
+    '--blue': merk.donker, '--text': merk.donker, '--text2': merk.donker, '--text3': '#5B6773',
+    '--border': '#C9C6B6', '--radius': '4px', '--font': "'Inter', -apple-system, 'Segoe UI', sans-serif",
+    fontFamily: "'Inter', -apple-system, 'Segoe UI', sans-serif", background: merk.donker,
+  } : {}
+
   return (
-    <div style={{
+    <div className={merk ? 'merk-login' : undefined} style={{
       minHeight: '100vh', display: 'flex', alignItems: 'stretch',
       background: 'var(--bg)',
       paddingTop: BANNER_HEIGHT,   /* ruimte voor staging/dev banner */
+      ...merkStijl,
     }}>
+      {merk && <MerkStijlen merk={merk} />}
 
-      {/* ── Left — branding ─────────────────────────────────────────────── */}
+      {/* ── Left — branding (merkvariant: logo van het kantoor) ─────────── */}
+      {merk ? <MerkPaneel merk={merk} /> : (
       <div style={{
         flex: 1, background: 'var(--blue-hero)',
         display: 'flex', flexDirection: 'column',
@@ -99,14 +111,16 @@ export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrand
         {/* Decoratie rechtonder (constellatie bij SureSync, anders boom) */}
         <TreeDecoration />
       </div>
+      )}
 
       {/* ── Right — login form ────────────────────────────────────────────── */}
-      <div style={{
+      <div className={merk ? 'merk-formulier' : undefined} style={{
         width: 440, background: '#fff',
         display: 'flex', flexDirection: 'column',
         justifyContent: 'center', padding: '56px 48px',
-        borderLeft: '1px solid var(--border)',
+        borderLeft: merk ? 'none' : '1px solid var(--border)',
       }}>
+        {merk && <MerkKopMobiel merk={merk} />}
         <div style={{ marginBottom: 36 }}>
           {onBack && (
             <button type="button" onClick={onBack} style={{
@@ -114,12 +128,17 @@ export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrand
               color: 'var(--text3)', fontSize: 13, fontFamily: 'var(--font)',
             }}>← Terug naar appkeuze</button>
           )}
-          <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Inloggen bij {appNaam}</h2>
-          <p style={{ fontSize: 14, color: 'var(--text3)' }}>Voer uw e-mailadres en wachtwoord in.</p>
+          {merk ? (<>
+            <h2 style={{ fontSize: 30, fontWeight: 400, color: 'var(--text)', marginBottom: 8, letterSpacing: '-0.01em' }}>Inloggen</h2>
+            <p style={{ fontSize: 15, color: 'var(--text3)', lineHeight: 1.5 }}>Log in met uw account om naar uw woningprojecten te gaan.</p>
+          </>) : (<>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Inloggen bij {appNaam}</h2>
+            <p style={{ fontSize: 14, color: 'var(--text3)' }}>Voer uw e-mailadres en wachtwoord in.</p>
+          </>)}
         </div>
 
         {/* ── Demo-inloggegevens (alleen buiten productie) ── */}
-        {(import.meta.env.VITE_RHADIX_ENV || 'production') !== 'production' && (
+        {!merk && (import.meta.env.VITE_RHADIX_ENV || 'production') !== 'production' && (
         <div style={{
           background: '#f0fdf4', border: '1px solid #bbf7d0',
           borderRadius: 'var(--radius)', padding: '12px 14px',
@@ -233,6 +252,7 @@ export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrand
               padding: '12px 0', borderRadius: 'var(--radius)',
               background: loading ? 'var(--text3)' : 'var(--blue)',
               color: '#fff', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+              boxShadow: merk ? `inset 0 -3px 0 ${merk.accent}` : undefined,
               fontSize: 15, fontWeight: 700, fontFamily: 'var(--font)',
               transition: 'background .15s',
             }}
@@ -245,12 +265,52 @@ export default function LoginScreen({ onLogin, onBack, brand = 'rhadix', onBrand
           Geen account? Neem contact op met uw Rhadix-beheerder.
         </p>
 
+        {merk ? (
+          <p style={{ marginTop: 40, fontSize: 11, color: '#8A939C', textAlign: 'center', letterSpacing: '.14em', textTransform: 'uppercase' }}>
+            Powered by Rhadix
+          </p>
+        ) : (
         <p style={{ marginTop: 12, fontSize: 11, color: 'var(--text3)', textAlign: 'center' }}>
           <a href="https://rhadix.nl" style={{ color: 'var(--text3)', textDecoration: 'underline' }}>
             ← Terug naar rhadix.nl
           </a>
         </p>
+        )}
       </div>
+    </div>
+  )
+}
+
+// ── Merkvariant ────────────────────────────────────────────────────────────
+// Lettertype Inter (OFL) lokaal uit public/merken/fonts; mobiel: logo in een band boven het formulier.
+function MerkStijlen({ merk }) {
+  const css = [400, 500, 600, 700].map(w =>
+    `@font-face{font-family:'Inter';font-style:normal;font-weight:${w};font-display:swap;src:url('/merken/fonts/inter-latin-${w}-normal.woff2') format('woff2')}`).join('')
+    + `.merk-login,.merk-login h1,.merk-login h2,.merk-login p,.merk-login label,.merk-login span,.merk-login input,.merk-login button{font-family:var(--font) !important}`
+    + `.merk-login .merk-mobiel{display:none}`
+    + `@media (max-width: 760px){.merk-login .merk-paneel{display:none !important}.merk-login .merk-formulier{width:100% !important;padding:0 24px 40px !important;justify-content:flex-start !important}`
+    + `.merk-login .merk-mobiel{display:block;background:${merk.donker};margin:0 -24px 32px;padding:36px 24px 28px;text-align:center;border-bottom:3px solid ${merk.accent}}}`
+  return <style>{css}</style>
+}
+
+function MerkPaneel({ merk }) {
+  return (
+    <div className="merk-paneel" style={{
+      flex: 1, background: merk.donker, display: 'flex', flexDirection: 'column',
+      justifyContent: 'center', alignItems: 'center', gap: 36, padding: '56px 64px',
+    }}>
+      <img src={merk.logo} alt={merk.logoAlt} style={{ width: 'min(340px, 70%)', height: 'auto' }} />
+      <div aria-hidden="true" style={{ width: 56, height: 2, background: merk.accent }} />
+      <div style={{ color: '#fff', fontSize: 13, letterSpacing: '.32em', textTransform: 'uppercase', opacity: 0.85 }}>{merk.label}</div>
+    </div>
+  )
+}
+
+function MerkKopMobiel({ merk }) {
+  return (
+    <div className="merk-mobiel">
+      <img src={merk.logo} alt={merk.logoAlt} style={{ width: 180, height: 'auto', display: 'block', margin: '0 auto' }} />
+      <div style={{ color: '#fff', fontSize: 11, letterSpacing: '.3em', textTransform: 'uppercase', marginTop: 14, opacity: 0.85 }}>{merk.label}</div>
     </div>
   )
 }

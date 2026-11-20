@@ -321,16 +321,20 @@ def _platform_url() -> str:
 # Na uitloggen vanuit zo'n applicatie komt de gebruiker op het inlogscherm van die ingang
 # (Platform-URL + ?app=<slug>) in plaats van op de algemene landingspagina.
 DIRECTE_APP_SLUGS = frozenset({"rhadix-makelaarsportaal"})
+# Merkvarianten van het inlogscherm van zo'n ingang (frontend: MERKEN in lib/directeToegang.js).
+DIRECTE_MERKEN = frozenset({"morskieft"})
 
 
-def _platform_url_na_uitloggen(app: Optional[str]) -> str:
-    """Altijd het eigen Platform (PUBLIC_BASE_URL); hooguit met een BEKENDE slug erbij.
+def _platform_url_na_uitloggen(app: Optional[str], merk: Optional[str] = None) -> str:
+    """Altijd het eigen Platform (PUBLIC_BASE_URL); hooguit met een BEKENDE slug (en merk) erbij.
 
-    De parameter wordt alleen vergeleken met een vaste lijst en nooit als adres gebruikt,
-    zodat deze route geen open redirect wordt.
+    De parameters worden alleen vergeleken met vaste lijsten en nooit als adres gebruikt,
+    zodat deze route geen open redirect wordt. Een merk telt alleen samen met een bekende app.
     """
     basis = _platform_url()
-    return f"{basis}?app={app}" if app in DIRECTE_APP_SLUGS else basis
+    if app not in DIRECTE_APP_SLUGS:
+        return basis
+    return f"{basis}?app={app}&merk={merk}" if merk in DIRECTE_MERKEN else f"{basis}?app={app}"
 
 
 @router.post("/logout", status_code=204)
@@ -361,6 +365,7 @@ def logout(
 def logout_en_terug_naar_platform(
     request: Request,
     app: Optional[str] = None,
+    merk: Optional[str] = None,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
     current_user: Optional[User] = Depends(get_logout_user),
     db: Session = Depends(get_db),
@@ -380,7 +385,7 @@ def logout_en_terug_naar_platform(
     """
     from fastapi.responses import RedirectResponse
 
-    response = RedirectResponse(url=_platform_url_na_uitloggen(app), status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(url=_platform_url_na_uitloggen(app, merk), status_code=status.HTTP_303_SEE_OTHER)
     payload = _trek_token_in(request, credentials)
     _trek_centraal_in(db, current_user, payload)
     _wis_sso_cookie(response)

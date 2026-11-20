@@ -24,6 +24,33 @@ export const DIRECTE_APPS = Object.freeze({
   'rhadix-makelaarsportaal': 'Rhadix Makelaarsportaal',
 })
 
+/**
+ * Merkvarianten van het inlogscherm voor een rechtstreekse ingang (`?app=<slug>&merk=<merk>`).
+ * Alleen opmaak: logo, kleuren en lettertype van het makelaarskantoor. Authenticatie en
+ * doorsturen blijven precies gelijk. Alleen merken uit deze vaste lijst worden herkend; het
+ * logo staat ongewijzigd in public/merken/<merk>/.
+ */
+export const MERKEN = Object.freeze({
+  morskieft: Object.freeze({
+    naam: 'Morskieft',
+    logo: '/merken/morskieft/logo.svg',          // aangeleverd SVG-logo (wit), ongewijzigd
+    logoAlt: 'Morskieft – De Twentsche Makelaar',
+    donker: '#0B233A', neutraal: '#EEEDE3', accent: '#EEA868',  // Morskieft-styleguide
+    label: 'Makelaarsportaal',
+  }),
+})
+
+/** Leest `?merk=` — alleen samen met een herkende rechtstreekse ingang en alleen een bekend merk. */
+export function leesMerk(search, directeApp) {
+  if (!directeApp) return null
+  try {
+    const merk = new URLSearchParams(search || '').get('merk')
+    return merk && Object.prototype.hasOwnProperty.call(MERKEN, merk) ? merk : null
+  } catch {
+    return null
+  }
+}
+
 /** Leest `?app=` uit een querystring; geeft de slug alleen terug als die bekend is. */
 export function leesDirecteApp(search) {
   try {

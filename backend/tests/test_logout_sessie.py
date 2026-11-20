@@ -112,6 +112,35 @@ class TestGetLogout:
                          follow_redirects=False)
         assert res.headers["location"] == "https://app-staging.rhadix.nl/"
 
+    # ── Rechtstreekse ingang (?app=<slug>), bv. vanuit het Makelaarsportaal ──
+
+    def test_bekende_app_landt_op_de_ingang_van_die_app(self, client, token_org_user, monkeypatch):
+        """Uitloggen vanuit het Makelaarsportaal: terug naar diens inlogscherm op het Platform."""
+        monkeypatch.setenv("PUBLIC_BASE_URL", "https://app-staging.rhadix.nl")
+        res = client.get("/api/auth/logout?app=rhadix-makelaarsportaal",
+                         cookies={COOKIE: token_org_user}, follow_redirects=False)
+        assert res.status_code in (302, 303), res.text
+        assert res.headers["location"] == "https://app-staging.rhadix.nl/?app=rhadix-makelaarsportaal"
+        assert _wist_cookie(res)
+
+    def test_onbekende_of_kwaadaardige_app_wordt_genegeerd(self, client, monkeypatch):
+        """Geen open redirect via ?app: alleen een bekende slug, en altijd het eigen Platform."""
+        monkeypatch.setenv("PUBLIC_BASE_URL", "https://app-staging.rhadix.nl")
+        for waarde in ("uitvraag", "https://kwaadaardig.example", "//kwaadaardig.example",
+                       "rhadix-makelaarsportaal&next=https://kwaadaardig.example",
+                       "rhadix-makelaarsportaal/../x", "RHADIX-MAKELAARSPORTAAL", ""):
+            res = client.get("/api/auth/logout", params={"app": waarde}, follow_redirects=False)
+            assert res.status_code in (302, 303), (waarde, res.text)
+            assert res.headers["location"] == "https://app-staging.rhadix.nl/", waarde
+
+    def test_app_parameter_trekt_de_sessie_net_zo_goed_in(self, client, token_org_user):
+        """Met ?app blijft uitloggen gewoon uitloggen: daarna geeft het cookie geen toegang meer."""
+        client.get("/api/auth/logout?app=rhadix-makelaarsportaal",
+                   cookies={COOKIE: token_org_user}, follow_redirects=False)
+        client.cookies.clear()
+        res = client.get("/api/auth/me", cookies={COOKIE: token_org_user})
+        assert res.status_code == 401, res.text
+
 
 # ── Het gedrag dat de gebruiker merkt ───────────────────────────────────────
 

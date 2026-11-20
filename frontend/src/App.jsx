@@ -25,7 +25,8 @@ import Stap2Resultaat          from './pages/Stap2Resultaat'
 import ReconciliationDashboard from './pages/reconciliation/ReconciliationDashboard'
 import LoginScreen        from './pages/LoginScreen'
 import AuthAction         from './pages/AuthAction'
-import AppPortal          from './pages/AppPortal'
+import AppPortal, { MAKELAARSPORTAAL_URL } from './pages/AppPortal'
+import { leesDirecteApp, doorstuurAdres, DIRECTE_APPS } from './lib/directeToegang'
 import PlatformLanding    from './pages/PlatformLanding'
 import AdminDashboard     from './pages/AdminDashboard'
 import OrgAdminDashboard  from './pages/OrgAdminDashboard'
@@ -45,7 +46,11 @@ import PlatformDashboard  from './pages/PlatformDashboard'
 
 export default function App() {
   const [step, setStep]                 = useState('login')
-  const [entry, setEntry]               = useState('landing')  // 'landing' | 'login'
+  // Rechtstreekse ingang (?app=<slug>, zie lib/directeToegang.js): direct het inlogscherm en na
+  // het inloggen meteen door naar die applicatie, zonder applicatieoverzicht.
+  const [directeApp]                   = useState(() => leesDirecteApp(window.location.search))
+  const [doorsturen, setDoorsturen]     = useState(false)
+  const [entry, setEntry]               = useState(() => (directeApp ? 'login' : 'landing'))  // 'landing' | 'login'
   const [brand, setBrand]               = useState(getInitialBrand)   // 'rhadix' | 'suresync' (white-label, staging)
   const [authUser, setAuthUser]         = useState(null)   // { id, email, role, tenant_id, tenant_name }
   const [booting, setBooting]           = useState(true)   // cookie-auto-login (SSO) op mount
@@ -91,10 +96,20 @@ export default function App() {
   const [dashboardTenantName, setDashboardTenantName] = useState(null)
 
   // ── Auth ──────────────────────────────────────────────────────────────────
+  // Vaste adressen per rechtstreekse ingang; nooit uit de aanvraag (geen open redirect).
+  const naarDirecteApp = (user) => {
+    const doel = doorstuurAdres(directeApp, user, { 'rhadix-makelaarsportaal': MAKELAARSPORTAAL_URL })
+    if (!doel) return false
+    setDoorsturen(true)
+    window.location.replace(doel)
+    return true
+  }
+
   const handleLogin = async (email, password) => {
     const { access_token } = await apiLogin(email, password)
     setAuthToken(access_token)
     const user = await getMe()
+    if (naarDirecteApp(user)) return
     setAuthUser(user)
     setStep('portal')   // na inloggen: kies een applicatie
   }
@@ -133,7 +148,7 @@ export default function App() {
   useEffect(() => {
     let alive = true
     getMe()
-      .then(user => { if (alive && user) { setAuthUser(user); setStep('portal') } })
+      .then(user => { if (alive && user && !naarDirecteApp(user)) { setAuthUser(user); setStep('portal') } })
       .catch(() => {})
       .finally(() => { if (alive) setBooting(false) })
     return () => { alive = false }
@@ -157,9 +172,9 @@ export default function App() {
     setBrand(b)
   }
 
-  // ── SSO-boot bezig: kort laadscherm i.p.v. flikkering naar login/landing ──
-  if (booting && !authAction && !authUser) {
-    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text3)', fontFamily: 'var(--font)' }}>Bezig met inloggen…</div>
+  // ── SSO-boot bezig of doorsturen naar een rechtstreekse ingang: kort laadscherm ──
+  if (doorsturen || (booting && !authAction && !authUser)) {
+    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text3)', fontFamily: 'var(--font)' }}>{doorsturen ? `Bezig met openen van ${DIRECTE_APPS[directeApp]}…` : 'Bezig met inloggen…'}</div>
   }
 
   // ── Auth-actie via e-maillink (reset/invite/verify): vóór alles, ook indien uitgelogd ──
@@ -170,7 +185,8 @@ export default function App() {
   // ── Guard: not authenticated ──────────────────────────────────────────────
   if (!authUser) {
     if (entry === 'login') {
-      return <LoginScreen onLogin={handleLogin} onBack={() => setEntry('landing')} brand={brand} onBrandChange={changeBrand} />
+      return <LoginScreen onLogin={handleLogin} onBack={directeApp ? undefined : () => setEntry('landing')} brand={brand} onBrandChange={changeBrand}
+                          appNaam={directeApp ? DIRECTE_APPS[directeApp] : undefined} />
     }
     return <PlatformLanding onLogin={() => setEntry('login')} brand={brand} onBrandChange={changeBrand} />
   }

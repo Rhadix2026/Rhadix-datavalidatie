@@ -317,6 +317,22 @@ def _platform_url() -> str:
     return ((os.getenv("PUBLIC_BASE_URL", "") or "").rstrip("/")) + "/"
 
 
+# Applicaties met een rechtstreekse ingang op het Platform (frontend: lib/directeToegang.js).
+# Na uitloggen vanuit zo'n applicatie komt de gebruiker op het inlogscherm van die ingang
+# (Platform-URL + ?app=<slug>) in plaats van op de algemene landingspagina.
+DIRECTE_APP_SLUGS = frozenset({"rhadix-makelaarsportaal"})
+
+
+def _platform_url_na_uitloggen(app: Optional[str]) -> str:
+    """Altijd het eigen Platform (PUBLIC_BASE_URL); hooguit met een BEKENDE slug erbij.
+
+    De parameter wordt alleen vergeleken met een vaste lijst en nooit als adres gebruikt,
+    zodat deze route geen open redirect wordt.
+    """
+    basis = _platform_url()
+    return f"{basis}?app={app}" if app in DIRECTE_APP_SLUGS else basis
+
+
 @router.post("/logout", status_code=204)
 def logout(
     request: Request,
@@ -344,6 +360,7 @@ def logout(
 @router.get("/logout", include_in_schema=True)
 def logout_en_terug_naar_platform(
     request: Request,
+    app: Optional[str] = None,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
     current_user: Optional[User] = Depends(get_logout_user),
     db: Session = Depends(get_db),
@@ -357,11 +374,13 @@ def logout_en_terug_naar_platform(
     op de applicatie-URL.
 
     Het doel komt uit PUBLIC_BASE_URL en niet uit de aanvraag: een meegegeven
-    bestemming zou deze route in een open redirect veranderen.
+    bestemming zou deze route in een open redirect veranderen. Alleen `app` mag mee,
+    en uitsluitend als bekende slug (DIRECTE_APP_SLUGS): dan landt de gebruiker op het
+    inlogscherm van die rechtstreekse ingang op hetzelfde Platform.
     """
     from fastapi.responses import RedirectResponse
 
-    response = RedirectResponse(url=_platform_url(), status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(url=_platform_url_na_uitloggen(app), status_code=status.HTTP_303_SEE_OTHER)
     payload = _trek_token_in(request, credentials)
     _trek_centraal_in(db, current_user, payload)
     _wis_sso_cookie(response)

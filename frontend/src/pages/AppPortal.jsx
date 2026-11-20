@@ -10,7 +10,7 @@ const CRM_URL = import.meta.env.VITE_CRM_URL || (IS_PROD ? 'https://crm.rhadix.n
 const CRM_ACTIVE = true  // CRM live op staging én productie
 // Makelaarsportaal: eigen server. Alleen de testomgeving bestaat; in productie 'niet uitgerold'
 // totdat VITE_MAKELAARSPORTAAL_URL bij de livegang wordt gezet.
-const MAKELAARSPORTAAL_URL = import.meta.env.VITE_MAKELAARSPORTAAL_URL || (IS_PROD ? '' : 'https://makelaarsportaal-test.rhadix.nl')
+export const MAKELAARSPORTAAL_URL = import.meta.env.VITE_MAKELAARSPORTAAL_URL || (IS_PROD ? '' : 'https://makelaarsportaal-test.rhadix.nl')
 const MAKELAARSPORTAAL_ACTIVE = !!MAKELAARSPORTAAL_URL
 
 // Post-login portal: de drie applicaties als kaart-grid (zoals 'Kies een standaard').
